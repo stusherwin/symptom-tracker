@@ -251,8 +251,8 @@ smoothLinePath h p =
             Array.fromList p.points
     in
     S.path
-        ([ fill "none"
-         , class <| "stroke-" ++ Colour.toString p.strokeCol
+        ([ class <| "stroke-" ++ Colour.toString p.strokeCol
+         , fill <| "url(#gradient-" ++ Colour.toString p.strokeCol ++ ")"
          , strokeWidth (String.fromFloat p.strokeWidth)
          , strokeLinecap p.strokeLinecap
          , strokeLinejoin p.strokeLinejoin
@@ -315,11 +315,9 @@ smoothLinePath h p =
                                     String.fromFloat x_ ++ "," ++ String.fromFloat (h - y_)
                             in
                             if i == 0 then
-                                "M " ++ toString ( x, y )
+                                "M " ++ toString ( x, v.mb ) ++ " L " ++ toString ( x, y )
 
                             else
-                                -- M 15,140 L 30,150 L 720,130
-                                -- M 15,140 C 15,140 -111,152 30,150 C 171,148 582,134 720,130
                                 let
                                     start =
                                         controlPoint prev1 prev2 ( x, y ) False
@@ -327,7 +325,19 @@ smoothLinePath h p =
                                     end =
                                         controlPoint ( x, y ) prev1 next True
                                 in
-                                "C " ++ toString start ++ " " ++ toString end ++ " " ++ toString ( x, y )
+                                "C "
+                                    ++ toString start
+                                    ++ " "
+                                    ++ toString end
+                                    ++ " "
+                                    ++ toString ( x, y )
+                                    ++ (if i == Array.length points - 1 then
+                                            " L "
+                                                ++ toString ( x, v.mb )
+
+                                        else
+                                            ""
+                                       )
                     )
                     <|
                         points
@@ -567,7 +577,17 @@ viewLineGraph graphClass { data, today, selectedPoint } =
         --     plotPoints
     in
     svg [ viewBox w h, class graphClass ] <|
-        axes
+        (defs [] <|
+            List.map
+                (\( _, { colour } ) ->
+                    linearGradient [ id <| "gradient-" ++ Colour.toString colour, x1 "0", x2 "0", y1 "0", y2 "1" ]
+                        [ stop [ offset "0%", class <| "stop-" ++ Colour.toString colour, stopOpacity "80%" ] []
+                        , stop [ offset "100%", class <| "stop-" ++ Colour.toString colour, stopOpacity "50%" ] []
+                        ]
+                )
+                data
+        )
+            :: axes
             ++ (List.concatMap dataLine <|
                     List.reverse data
                )

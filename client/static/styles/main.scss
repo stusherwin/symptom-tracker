@@ -86,3 +86,99 @@ body {
   --tw-text-opacity: 1;
   color: rgba(0, 0, 0, var(--tw-text-opacity));
 }
+
+.stop-transparent{
+  stop-color: transparent;
+}
+
+.stop-current{
+  stop-color: currentColor;
+}
+
+.stop-black{
+  stop-color: #000;
+}
+
+.stop-white{
+  stop-color: #fff;
+}
+
+.stop-red{
+  stop-color: #ef4444;
+}
+
+.stop-gray{
+  stop-color: #6b7280;
+}
+
+.stop-lightGray{
+  stop-color: #e5e7eb;
+}
+
+.stop-lighterGray{
+  stop-color: #f3f4f6;
+}
+
+.stop-orange{
+  stop-color: #f97316;
+}
+
+.stop-amber{
+  stop-color: #f59e0b;
+}
+
+.stop-yellow{
+  stop-color: #eab308;
+}
+
+.stop-lime{
+  stop-color: #84cc16;
+}
+
+.stop-green{
+  stop-color: #22c55e;
+}
+
+.stop-emerald{
+  stop-color: #10b981;
+}
+
+.stop-teal{
+  stop-color: #14b8a6;
+}
+
+.stop-cyan{
+  stop-color: #06b6d4;
+}
+
+.stop-lightBlue{
+  stop-color: #0ea5e9;
+}
+
+.stop-blue{
+  stop-color: #3b82f6;
+}
+
+.stop-indigo{
+  stop-color: #6366f1;
+}
+
+.stop-violet{
+  stop-color: #8b5cf6;
+}
+
+.stop-purple{
+  stop-color: #a855f7;
+}
+
+.stop-fuchsia{
+  stop-color: #d946ef;
+}
+
+.stop-pink{
+  stop-color: #ec4899;
+}
+
+.stop-rose{
+  stop-color: #f43f5e;
+}
