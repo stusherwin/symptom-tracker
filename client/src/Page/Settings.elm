@@ -497,7 +497,7 @@ viewQuestion qId q =
         viewScaleOptions =
             case q.answerType of
                 AScale ->
-                    [ div [ class "mt-6 ml-4 flex" ]
+                    [ div [ class "mt-6 flex" ]
                         [ span [ class "mr-2 py-1 border-4 border-transparent text-lg font-bold" ] [ text "From" ]
                         , Dropdown.viewText
                             "mr-2 w-20"
@@ -532,10 +532,10 @@ viewQuestion qId q =
                 _ ->
                     []
 
-        viewMoodOptions =
+        viewIconOptions =
             case q.answerType of
                 AIcon ->
-                    [ div [ class "mt-6 ml-4" ]
+                    [ div [ class "mt-6" ]
                         [ h3 [ class "text-lg font-bold" ] [ text "Icon options" ]
                         , ul [ class "flex flex-wrap" ] <|
                             (List.indexedMap
@@ -589,7 +589,7 @@ viewQuestion qId q =
             ]
         ]
             ++ viewScaleOptions
-            ++ viewMoodOptions
+            ++ viewIconOptions
             ++ [ Button.view "mt-6 w-24" Button.Grey (QuestionDeleteClicked qId) SolidTrash "Delete" q.canDelete
                ]
 

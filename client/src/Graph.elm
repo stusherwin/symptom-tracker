@@ -286,7 +286,7 @@ smoothLinePath h p =
                                 controlPoint ( x_, y_ ) prev_ next_ reverse =
                                     let
                                         smoothing =
-                                            0.2
+                                            0.1
 
                                         opposed =
                                             line_ prev_ next_
