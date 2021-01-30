@@ -1,11 +1,12 @@
 module Graph exposing (DataPoint, DataSet, Model, Msg, update, updateColour, updateMultiplier, viewJustYAxis, viewLineGraph)
 
+import Array
 import Colour exposing (Colour(..))
 import Date exposing (Date, Unit(..))
 import Dict
-import Svg exposing (..)
-import Svg.Attributes exposing (..)
-import Svg.Events exposing (onMouseOut, onMouseOver)
+import Svg as S exposing (..)
+import Svg.Attributes as A exposing (..)
+import Svg.Events as E exposing (onMouseOut, onMouseOver)
 
 
 type Msg
@@ -131,9 +132,9 @@ dottedLine =
     }
 
 
-line_ : Float -> LineDefn -> Svg msg
-line_ h l =
-    line
+line : Float -> LineDefn -> Svg msg
+line h l =
+    S.line
         ([ class <| "stroke-" ++ Colour.toString l.strokeCol, strokeLinecap l.strokeLinecap, x1 (String.fromFloat l.x1), y1 (String.fromFloat (h - l.y1)), x2 (String.fromFloat l.x2), y2 (String.fromFloat (h - l.y2)) ]
             ++ (case l.strokeDasharray of
                     Just sda ->
@@ -155,9 +156,9 @@ type alias RectDefn =
     }
 
 
-rect_ : Float -> RectDefn -> Svg msg
-rect_ h r =
-    rect [ class <| "fill-" ++ Colour.toString r.fillCol, x (String.fromFloat r.x), y (String.fromFloat (h - r.y - r.height)), width (String.fromFloat r.width), height (String.fromFloat r.height) ] []
+rect : Float -> RectDefn -> Svg msg
+rect h r =
+    S.rect [ class <| "fill-" ++ Colour.toString r.fillCol, x (String.fromFloat r.x), y (String.fromFloat (h - r.y - r.height)), width (String.fromFloat r.width), height (String.fromFloat r.height) ] []
 
 
 type alias TextDefn =
@@ -169,12 +170,12 @@ type alias TextDefn =
     }
 
 
-text__ : Float -> TextDefn -> Svg msg
-text__ h t =
-    text_ [ x (String.fromFloat t.x), y (String.fromFloat (h - t.y)), fontSize "10px", dominantBaseline t.dominantBaseline, textAnchor t.textAnchor ] [ text t.text ]
+text_ : Float -> TextDefn -> Svg msg
+text_ h t =
+    S.text_ [ x (String.fromFloat t.x), y (String.fromFloat (h - t.y)), fontSize "10px", dominantBaseline t.dominantBaseline, textAnchor t.textAnchor ] [ text t.text ]
 
 
-type alias PolyLineDefn msg =
+type alias PathDefn msg =
     { strokeCol : Colour
     , strokeWidth : Float
     , strokeLinecap : String
@@ -184,15 +185,152 @@ type alias PolyLineDefn msg =
     }
 
 
-polyLine_ : Float -> PolyLineDefn msg -> Svg msg
-polyLine_ h p =
-    polyline
+polyLine : Float -> PathDefn msg -> Svg msg
+polyLine h p =
+    S.polyline
         ([ fill "none"
          , class <| "stroke-" ++ Colour.toString p.strokeCol
          , strokeWidth (String.fromFloat p.strokeWidth)
          , strokeLinecap p.strokeLinecap
          , strokeLinejoin p.strokeLinejoin
          , points <| String.join " " <| List.map (\( x, y ) -> String.fromFloat x ++ "," ++ String.fromFloat (h - y)) p.points
+         ]
+            ++ (case p.onMouseOver of
+                    Just msg ->
+                        [ onMouseOver msg ]
+
+                    _ ->
+                        []
+               )
+        )
+        []
+
+
+straightLinePath : Float -> PathDefn msg -> Svg msg
+straightLinePath h p =
+    let
+        pointsToPath =
+            List.indexedMap <|
+                \i ( x, y ) ->
+                    let
+                        x_ =
+                            String.fromFloat x
+
+                        y_ =
+                            String.fromFloat (h - y)
+                    in
+                    if i == 0 then
+                        "M " ++ x_ ++ "," ++ y_
+
+                    else
+                        "L " ++ x_ ++ "," ++ y_
+    in
+    S.path
+        ([ fill "none"
+         , class <| "stroke-" ++ Colour.toString p.strokeCol
+         , strokeWidth (String.fromFloat p.strokeWidth)
+         , strokeLinecap p.strokeLinecap
+         , strokeLinejoin p.strokeLinejoin
+         , d <| String.join " " <| pointsToPath p.points
+         ]
+            ++ (case p.onMouseOver of
+                    Just msg ->
+                        [ onMouseOver msg ]
+
+                    _ ->
+                        []
+               )
+        )
+        []
+
+
+smoothLinePath : Float -> PathDefn msg -> Svg msg
+smoothLinePath h p =
+    let
+        points =
+            Array.fromList p.points
+    in
+    S.path
+        ([ fill "none"
+         , class <| "stroke-" ++ Colour.toString p.strokeCol
+         , strokeWidth (String.fromFloat p.strokeWidth)
+         , strokeLinecap p.strokeLinecap
+         , strokeLinejoin p.strokeLinejoin
+         , d <|
+            String.join " " <|
+                Array.toList <|
+                    (Array.indexedMap <|
+                        \i ( x, y ) ->
+                            let
+                                prev2 =
+                                    Maybe.withDefault ( x, y ) <| Array.get (i - 2) points
+
+                                prev1 =
+                                    Maybe.withDefault ( x, y ) <| Array.get (i - 1) points
+
+                                next =
+                                    Maybe.withDefault ( x, y ) <| Array.get (i + 1) points
+
+                                line_ ( x1, y1 ) ( x2, y2 ) =
+                                    let
+                                        lengthX =
+                                            x2 - x1
+
+                                        lengthY =
+                                            y2 - y1
+                                    in
+                                    { length = sqrt <| (lengthX ^ 2) + (lengthY ^ 2)
+                                    , angle = atan2 lengthY lengthX
+                                    }
+
+                                controlPoint ( x_, y_ ) prev_ next_ reverse =
+                                    let
+                                        smoothing =
+                                            0.2
+
+                                        opposed =
+                                            line_ prev_ next_
+
+                                        toHere =
+                                            line_ prev_ ( x_, y_ )
+
+                                        fromHere =
+                                            line_ ( x_, y_ ) next_
+
+                                        angle =
+                                            opposed.angle
+                                                + (if reverse then
+                                                    pi
+
+                                                   else
+                                                    0
+                                                  )
+
+                                        length =
+                                            Basics.min toHere.length fromHere.length * smoothing
+                                    in
+                                    ( x_ + cos angle * length, y_ + sin angle * length )
+
+                                toString ( x_, y_ ) =
+                                    String.fromFloat x_ ++ "," ++ String.fromFloat (h - y_)
+                            in
+                            if i == 0 then
+                                "M " ++ toString ( x, y )
+
+                            else
+                                -- M 15,140 L 30,150 L 720,130
+                                -- M 15,140 C 15,140 -111,152 30,150 C 171,148 582,134 720,130
+                                let
+                                    start =
+                                        controlPoint prev1 prev2 ( x, y ) False
+
+                                    end =
+                                        controlPoint ( x, y ) prev1 next True
+                                in
+                                "C " ++ toString start ++ " " ++ toString end ++ " " ++ toString ( x, y )
+                    )
+                    <|
+                        points
          ]
             ++ (case p.onMouseOver of
                     Just msg ->
@@ -217,9 +355,9 @@ type alias CircleDefn msg =
     }
 
 
-circle_ : Float -> CircleDefn msg -> Svg msg
-circle_ h c =
-    circle
+circle : Float -> CircleDefn msg -> Svg msg
+circle h c =
+    S.circle
         ([ cx (String.fromFloat c.cx)
          , cy (String.fromFloat (h - c.cy))
          , r (String.fromFloat c.r)
@@ -245,9 +383,9 @@ circle_ h c =
         []
 
 
-viewBox_ : Float -> Float -> Attribute msg
-viewBox_ w h =
-    viewBox ("0 0 " ++ String.fromFloat w ++ " " ++ String.fromFloat h)
+viewBox : Float -> Float -> Attribute msg
+viewBox w h =
+    A.viewBox ("0 0 " ++ String.fromFloat w ++ " " ++ String.fromFloat h)
 
 
 viewJustYAxis : String -> Model -> Svg msg
@@ -266,13 +404,13 @@ viewJustYAxis graphClass { data } =
             ( v.mb, h - v.mt )
     in
     svg
-        [ viewBox_ w h, class graphClass ]
+        [ viewBox w h, class graphClass ]
     <|
-        line_ h { axisLine | x1 = w - 1, y1 = minY, x2 = w - 1, y2 = maxY }
+        line h { axisLine | x1 = w - 1, y1 = minY, x2 = w - 1, y2 = maxY }
             :: List.concatMap
                 (\n ->
-                    [ line_ h { axisLine | x1 = v.ml, y1 = minY + toFloat n * v.yStep, x2 = v.ml + v.longDash, y2 = minY + toFloat n * v.yStep }
-                    , text__ h { x = v.ml - 5.0, y = minY + toFloat n * v.yStep, dominantBaseline = "middle", textAnchor = "end", text = String.fromInt (n * valueStep) }
+                    [ line h { axisLine | x1 = v.ml, y1 = minY + toFloat n * v.yStep, x2 = v.ml + v.longDash, y2 = minY + toFloat n * v.yStep }
+                    , text_ h { x = v.ml - 5.0, y = minY + toFloat n * v.yStep, dominantBaseline = "middle", textAnchor = "end", text = String.fromInt (n * valueStep) }
                     ]
                 )
                 (List.range 0 5)
@@ -310,38 +448,38 @@ viewLineGraph graphClass { data, today, selectedPoint } =
             ( v.mb, h - v.mt )
 
         xAxis =
-            List.map (\n -> line_ h { dottedLine | x1 = minX + toFloat n * v.xStep, y1 = minY, x2 = minX + toFloat n * v.xStep, y2 = maxY })
+            List.map (\n -> line h { dottedLine | x1 = minX + toFloat n * v.xStep, y1 = minY, x2 = minX + toFloat n * v.xStep, y2 = maxY })
                 (List.range 0 xSteps)
-                ++ line_ h { axisLine | x1 = 0, y1 = minY, x2 = w, y2 = minY }
+                ++ line h { axisLine | x1 = 0, y1 = minY, x2 = w, y2 = minY }
                 :: List.concatMap
                     (\n ->
                         if n == 0 then
-                            [ line_ h { axisLine | x1 = minX + toFloat n * v.xStep + 1, y1 = minY, x2 = minX + toFloat n * v.xStep + 1, y2 = minY - v.longDash }
-                            , text__ h { x = minX + toFloat n * v.xStep, y = minY - v.longDash - 5.0, dominantBaseline = "hanging", textAnchor = "start", text = Date.format "d MMM" <| Date.add Days n startDate }
+                            [ line h { axisLine | x1 = minX + toFloat n * v.xStep + 1, y1 = minY, x2 = minX + toFloat n * v.xStep + 1, y2 = minY - v.longDash }
+                            , text_ h { x = minX + toFloat n * v.xStep, y = minY - v.longDash - 5.0, dominantBaseline = "hanging", textAnchor = "start", text = Date.format "d MMM" <| Date.add Days n startDate }
                             ]
 
                         else if n == xSteps then
-                            [ line_ h { axisLine | x1 = minX + toFloat n * v.xStep - 1, y1 = minY, x2 = minX + toFloat n * v.xStep - 1, y2 = minY - v.longDash }
-                            , text__ h { x = minX + toFloat n * v.xStep, y = minY - v.longDash - 5.0, dominantBaseline = "hanging", textAnchor = "end", text = Date.format "d MMM" <| Date.add Days n startDate }
+                            [ line h { axisLine | x1 = minX + toFloat n * v.xStep - 1, y1 = minY, x2 = minX + toFloat n * v.xStep - 1, y2 = minY - v.longDash }
+                            , text_ h { x = minX + toFloat n * v.xStep, y = minY - v.longDash - 5.0, dominantBaseline = "hanging", textAnchor = "end", text = Date.format "d MMM" <| Date.add Days n startDate }
                             ]
 
                         else if xSteps <= 7 || n == xSteps || modBy 7 n == 0 then
-                            [ line_ h { axisLine | x1 = minX + toFloat n * v.xStep, y1 = minY, x2 = minX + toFloat n * v.xStep, y2 = minY - v.longDash }
-                            , text__ h { x = minX + toFloat n * v.xStep, y = minY - v.longDash - 5.0, dominantBaseline = "hanging", textAnchor = "middle", text = Date.format "d MMM" <| Date.add Days n startDate }
+                            [ line h { axisLine | x1 = minX + toFloat n * v.xStep, y1 = minY, x2 = minX + toFloat n * v.xStep, y2 = minY - v.longDash }
+                            , text_ h { x = minX + toFloat n * v.xStep, y = minY - v.longDash - 5.0, dominantBaseline = "hanging", textAnchor = "middle", text = Date.format "d MMM" <| Date.add Days n startDate }
                             ]
 
                         else
-                            [ line_ h { axisLine | x1 = minX + toFloat n * v.xStep, y1 = minY, x2 = minX + toFloat n * v.xStep, y2 = minY - v.shortDash } ]
+                            [ line h { axisLine | x1 = minX + toFloat n * v.xStep, y1 = minY, x2 = minX + toFloat n * v.xStep, y2 = minY - v.shortDash } ]
                     )
                     (List.range 0 xSteps)
 
         yAxis =
             List.map
-                (\n -> line_ h { dottedLine | x1 = 0, y1 = minY + toFloat n * v.yStep, x2 = w, y2 = minY + toFloat n * v.yStep })
+                (\n -> line h { dottedLine | x1 = 0, y1 = minY + toFloat n * v.yStep, x2 = w, y2 = minY + toFloat n * v.yStep })
                 (List.range 1 5)
 
         axes =
-            rect_ h
+            rect h
                 { fillCol = LighterGray
                 , x = 0
                 , y = minY
@@ -372,7 +510,7 @@ viewLineGraph graphClass { data, today, selectedPoint } =
                             )
                             dataSet.dataPoints
             in
-            -- polyLine_ h
+            -- polyLine h
             --     { strokeCol = White
             --     , strokeWidth = 3
             --     , strokeLinecap = "round"
@@ -382,7 +520,7 @@ viewLineGraph graphClass { data, today, selectedPoint } =
             --     }
             --     :: List.map
             --         (\{ date, value, x, y } ->
-            --             circle_ h
+            --             circle h
             --                 { cx = x
             --                 , cy = y
             --                 , r =
@@ -399,7 +537,7 @@ viewLineGraph graphClass { data, today, selectedPoint } =
             --         )
             --         plotPoints
             --     ++
-            [ polyLine_ h
+            [ smoothLinePath h
                 { strokeCol = dataSet.colour
                 , strokeWidth = 2
                 , strokeLinecap = "round"
@@ -411,7 +549,7 @@ viewLineGraph graphClass { data, today, selectedPoint } =
 
         -- :: List.map
         --     (\{ date, value, x, y } ->
-        --         circle_ h
+        --         circle h
         --             { cx = x
         --             , cy = y
         --             , r =
@@ -428,7 +566,7 @@ viewLineGraph graphClass { data, today, selectedPoint } =
         --     )
         --     plotPoints
     in
-    svg [ viewBox_ w h, class graphClass ] <|
+    svg [ viewBox w h, class graphClass ] <|
         axes
             ++ (List.concatMap dataLine <|
                     List.reverse data
