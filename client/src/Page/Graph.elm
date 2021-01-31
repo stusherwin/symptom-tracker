@@ -34,48 +34,31 @@ init today trackables =
 initGraph : Date -> Trackables -> Graph.Model
 initGraph today trackables =
     let
-        dataSet : ( Int, Trackable ) -> Maybe ( Int, Graph.DataSet )
-        dataSet ( tId, { question, colour, multiplier, data } ) =
-            case data of
-                TYesNo answers ->
-                    Just
-                        ( tId
-                        , { name = question
-                          , colour = colour
-                          , multiplier = multiplier
-                          , dataPoints =
-                                List.map
-                                    (Tuple.mapBoth Date.fromRataDie
-                                        (\v ->
-                                            if v then
-                                                1
-
-                                            else
-                                                0
-                                        )
-                                    )
-                                <|
-                                    Dict.toList answers
-                          }
-                        )
-
-                TIcon _ answers ->
-                    Just ( tId, { name = question, colour = colour, multiplier = multiplier, dataPoints = List.map (Tuple.mapBoth Date.fromRataDie toFloat) <| Dict.toList answers } )
-
-                TScale _ _ answers ->
-                    Just ( tId, { name = question, colour = colour, multiplier = multiplier, dataPoints = List.map (Tuple.mapBoth Date.fromRataDie toFloat) <| Dict.toList answers } )
-
-                TInt answers ->
-                    Just ( tId, { name = question, colour = colour, multiplier = multiplier, dataPoints = List.map (Tuple.mapBoth Date.fromRataDie toFloat) <| Dict.toList answers } )
-
-                TFloat answers ->
-                    Just ( tId, { name = question, colour = colour, multiplier = multiplier, dataPoints = List.map (Tuple.mapBoth Date.fromRataDie identity) <| Dict.toList answers } )
-
-                TText _ ->
-                    Nothing
+        dataSet i ( id, t ) =
+            ( id
+            , { name = t.question
+              , colour = t.colour
+              , multiplier = t.multiplier
+              , dataPoints = List.map (Tuple.mapFirst Date.fromRataDie) <| Dict.toList <| Trackable.onlyFloatData t
+              , order = i
+              }
+            )
     in
     { today = today
-    , data = concatMaybes <| List.map dataSet <| Trackables.toList trackables
+    , data =
+        List.indexedMap dataSet <|
+            List.filter
+                (\( i, t ) ->
+                    case t.data of
+                        TText _ ->
+                            False
+
+                        _ ->
+                            True
+                )
+            <|
+                Trackables.toList
+                    trackables
     , selectedPoint = Nothing
     }
 
@@ -116,6 +99,15 @@ view model =
             [ viewJustYAxis "flex-grow-0 flex-shrink-0" model.graph
             , viewScrollableContainer [ Html.map GraphMsg <| viewLineGraph "h-full" model.graph ]
             ]
+        , div [ class "m-4 mt-8" ] <|
+            (model.graph.data
+                |> List.map
+                    (\( i, { name, colour } ) ->
+                        div []
+                            [ text name
+                            ]
+                    )
+            )
         ]
 
 

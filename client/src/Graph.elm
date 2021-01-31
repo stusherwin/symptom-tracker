@@ -26,6 +26,7 @@ type alias DataSet =
     , colour : Colour
     , dataPoints : List DataPoint
     , multiplier : Float
+    , order : Int
     }
 
 
@@ -49,15 +50,26 @@ update msg model =
         PointSelected _ ->
             { model | selectedPoint = Nothing }
 
-        DataSetSelected i ->
+        DataSetSelected selectedIndex ->
             let
-                set =
-                    List.filter (\( s, _ ) -> s == i) model.data
+                maxIndex =
+                    List.length model.data
 
-                rest =
-                    List.filter (\( s, _ ) -> s /= i) model.data
+                data =
+                    List.indexedMap
+                        (\i ( id, dataSet ) ->
+                            if selectedIndex == maxIndex || i < selectedIndex then
+                                ( id, dataSet )
+
+                            else if i == selectedIndex then
+                                ( id, { dataSet | order = maxIndex } )
+
+                            else
+                                ( id, { dataSet | order = dataSet.order - 1 } )
+                        )
+                        model.data
             in
-            { model | data = set ++ rest }
+            { model | data = data }
 
 
 updateColour : Int -> Colour -> Model -> Model
@@ -499,8 +511,8 @@ viewLineGraph graphClass { data, today, selectedPoint } =
                 :: xAxis
                 ++ yAxis
 
-        dataLine : ( Int, DataSet ) -> List (Svg Msg)
-        dataLine ( i, dataSet ) =
+        dataLine : Int -> DataSet -> ( List (Svg Msg), Int )
+        dataLine i dataSet =
             let
                 plotPoints : List PlotPoint
                 plotPoints =
@@ -547,15 +559,17 @@ viewLineGraph graphClass { data, today, selectedPoint } =
             --         )
             --         plotPoints
             --     ++
-            [ smoothLinePath h
-                { strokeCol = dataSet.colour
-                , strokeWidth = 2
-                , strokeLinecap = "round"
-                , strokeLinejoin = "round"
-                , points = List.map (\{ x, y } -> ( x, y )) plotPoints
-                , onMouseOver = Just (DataSetSelected i)
-                }
-            ]
+            ( [ smoothLinePath h
+                    { strokeCol = dataSet.colour
+                    , strokeWidth = 2
+                    , strokeLinecap = "round"
+                    , strokeLinejoin = "round"
+                    , points = List.map (\{ x, y } -> ( x, y )) plotPoints
+                    , onMouseOver = Just (DataSetSelected i)
+                    }
+              ]
+            , dataSet.order
+            )
 
         -- :: List.map
         --     (\{ date, value, x, y } ->
@@ -582,15 +596,13 @@ viewLineGraph graphClass { data, today, selectedPoint } =
                 (\( _, { colour } ) ->
                     linearGradient [ id <| "gradient-" ++ Colour.toString colour, x1 "0", x2 "0", y1 "0", y2 "1" ]
                         [ stop [ offset "0%", class <| "stop-" ++ Colour.toString colour, stopOpacity "80%" ] []
-                        , stop [ offset "100%", class <| "stop-" ++ Colour.toString colour, stopOpacity "50%" ] []
+                        , stop [ offset "100%", class <| "stop-" ++ Colour.toString colour, stopOpacity "30%" ] []
                         ]
                 )
                 data
         )
             :: axes
-            ++ (List.concatMap dataLine <|
-                    List.reverse data
-               )
+            ++ (List.concat <| List.map Tuple.first <| List.sortBy Tuple.second <| List.indexedMap dataLine <| List.map Tuple.second data)
 
 
 findStartDate : Date -> List ( Int, DataSet ) -> Date

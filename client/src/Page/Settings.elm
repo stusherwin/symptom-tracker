@@ -74,7 +74,7 @@ trackableToQuestion : Trackable -> Question
 trackableToQuestion t =
     let
         floatData =
-            Dict.values <| Trackable.floatData t
+            Dict.values <| Trackable.maybeFloatData t
     in
     { question = t.question
     , colour = t.colour

@@ -1,4 +1,4 @@
-module Trackables exposing (Trackables, add, answersFromList, decode, delete, encode, fromList, init, map, toList, update)
+module Trackables exposing (Trackables, add, answersFromList, decode, delete, encode, fromList, init, map, toDict, toList, update)
 
 import Array
 import Colour exposing (Colour(..))
@@ -94,6 +94,11 @@ map fn (Trackables trackables) =
 toList : Trackables -> List ( Int, Trackable )
 toList (Trackables trackables) =
     Dict.toList trackables
+
+
+toDict : Trackables -> Dict Int Trackable
+toDict (Trackables trackables) =
+    trackables
 
 
 fromList : List Trackable -> Trackables

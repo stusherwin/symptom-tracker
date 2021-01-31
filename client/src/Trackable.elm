@@ -1,4 +1,4 @@
-module Trackable exposing (Trackable, TrackableData(..), addIcon, convertToFloat, convertToIcon, convertToInt, convertToScale, convertToText, convertToYesNo, decode, deleteIcon, encode, floatData, hasData, toString, updateFloatData, updateIcon, updateIconData, updateIntData, updateScaleData, updateScaleFrom, updateScaleTo, updateTextData, updateYesNoData)
+module Trackable exposing (Trackable, TrackableData(..), addIcon, convertToFloat, convertToIcon, convertToInt, convertToScale, convertToText, convertToYesNo, decode, deleteIcon, encode, hasData, maybeFloatData, onlyFloatData, toString, updateFloatData, updateIcon, updateIconData, updateIntData, updateScaleData, updateScaleFrom, updateScaleTo, updateTextData, updateYesNoData)
 
 import Array exposing (Array)
 import Colour exposing (Colour(..))
@@ -27,8 +27,8 @@ type TrackableData
     | TText (Dict Int String)
 
 
-floatData : Trackable -> Dict Int (Maybe Float)
-floatData { data } =
+maybeFloatData : Trackable -> Dict Int (Maybe Float)
+maybeFloatData { data } =
     case data of
         TYesNo values ->
             Dict.map
@@ -55,6 +55,11 @@ floatData { data } =
 
         TText values ->
             Dict.map (\_ v -> String.toFloat v) values
+
+
+onlyFloatData : Trackable -> Dict Int Float
+onlyFloatData =
+    dictConcatMaybes << maybeFloatData
 
 
 textData : Trackable -> Dict Int String
@@ -274,7 +279,7 @@ convertToYesNo : Trackable -> Result String Trackable
 convertToYesNo t =
     let
         data =
-            floatData t
+            maybeFloatData t
 
         converted =
             convert data
@@ -304,7 +309,7 @@ convertToIcon : Array IconType -> Trackable -> Result String Trackable
 convertToIcon icons t =
     let
         data =
-            floatData t
+            maybeFloatData t
 
         converted =
             convert data
@@ -331,7 +336,7 @@ convertToScale : Int -> Int -> Trackable -> Result String Trackable
 convertToScale min max t =
     let
         data =
-            floatData t
+            maybeFloatData t
 
         converted =
             convert data
@@ -358,7 +363,7 @@ convertToInt : Trackable -> Result String Trackable
 convertToInt t =
     let
         data =
-            floatData t
+            maybeFloatData t
 
         converted =
             convert data
@@ -385,7 +390,7 @@ convertToFloat : Trackable -> Result String Trackable
 convertToFloat t =
     let
         data =
-            floatData t
+            maybeFloatData t
 
         converted =
             convert data
