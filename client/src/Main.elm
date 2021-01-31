@@ -64,23 +64,27 @@ routeParser =
         ]
 
 
-routeToPage : Date -> Trackables -> Maybe Route -> Page
+routeToPage : Date -> Trackables -> Maybe Route -> ( Page, Cmd Msg )
 routeToPage today trackables route =
     case route of
         Just Today ->
-            DayPage <| DayPage.init today today trackables
+            (DayPage <| DayPage.init today today trackables, Cmd.none)
 
         Just (Day date) ->
-            DayPage <| DayPage.init today date trackables
+            (DayPage <| DayPage.init today date trackables, Cmd.none)
 
         Just Settings ->
-            SettingsPage <| SettingsPage.init trackables
+            (SettingsPage <| SettingsPage.init trackables, Cmd.none)
 
         Just Graph ->
-            GraphPage <| GraphPage.init today trackables
+            let
+                ( model, cmd ) =
+                    GraphPage.init today trackables
+            in
+            ( GraphPage model, Cmd.map GraphPageMsg cmd )
 
         _ ->
-            NotFoundPage
+            (NotFoundPage, Cmd.none)
 
 
 
@@ -188,20 +192,19 @@ update msg model =
                 route =
                     Parser.parse routeParser url
             in
-            ( { model
-                | pageState =
-                    case model.pageState of
-                        Loading _ d t ->
-                            Loading route d t
+            case model.pageState of
+                Loading _ d t ->
+                    ( { model | pageState = Loading route d t }, Cmd.none )
 
-                        Error err ->
-                            Error err
+                Error err ->
+                    ( { model | pageState = Error err }, Cmd.none )
 
-                        Loaded today trackables _ ->
-                            Loaded today trackables (routeToPage today trackables route)
-              }
-            , Cmd.none
-            )
+                Loaded today trackables _ ->
+                    let
+                        ( page, cmd ) =
+                            routeToPage today trackables route
+                    in
+                    ( { model | pageState = Loaded today trackables page }, cmd )
 
         GotCurrentDate today ->
             case model.pageState of
@@ -209,7 +212,11 @@ update msg model =
                     ( { model | pageState = Loading route (Just today) Nothing }, Cmd.none )
 
                 Loading route _ (Just trackables) ->
-                    ( { model | pageState = Loaded today trackables (routeToPage today trackables route) }, Cmd.none )
+                    let
+                        ( page, cmd ) =
+                            routeToPage today trackables route
+                    in
+                    ( { model | pageState = Loaded today trackables page }, cmd )
 
                 _ ->
                     ( model, Cmd.none )
