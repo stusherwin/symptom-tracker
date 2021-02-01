@@ -5,7 +5,7 @@ import Browser.Navigation as Nav
 import Date exposing (Date, Unit(..))
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Events exposing (preventDefaultOn)
+import Html.Events exposing (preventDefaultOn, stopPropagationOn)
 import Icon exposing (IconType(..), icon, iconSymbols, logo)
 import Json.Decode as Decode
 import Json.Encode as Encode
@@ -68,13 +68,13 @@ routeToPage : Date -> Trackables -> Maybe Route -> ( Page, Cmd Msg )
 routeToPage today trackables route =
     case route of
         Just Today ->
-            (DayPage <| DayPage.init today today trackables, Cmd.none)
+            ( DayPage <| DayPage.init today today trackables, Cmd.none )
 
         Just (Day date) ->
-            (DayPage <| DayPage.init today date trackables, Cmd.none)
+            ( DayPage <| DayPage.init today date trackables, Cmd.none )
 
         Just Settings ->
-            (SettingsPage <| SettingsPage.init trackables, Cmd.none)
+            ( SettingsPage <| SettingsPage.init trackables, Cmd.none )
 
         Just Graph ->
             let
@@ -84,7 +84,7 @@ routeToPage today trackables route =
             ( GraphPage model, Cmd.map GraphPageMsg cmd )
 
         _ ->
-            (NotFoundPage, Cmd.none)
+            ( NotFoundPage, Cmd.none )
 
 
 
@@ -419,3 +419,12 @@ onClickPreventDefault msg =
             ( m, True )
     in
     preventDefaultOn "click" (Decode.map alwaysPreventDefault (Decode.succeed msg))
+
+
+onClickStopPropagation : msg -> Attribute msg
+onClickStopPropagation msg =
+    let
+        alwaysStopPropagation m =
+            ( m, True )
+    in
+    stopPropagationOn "click" (Decode.map alwaysStopPropagation (Decode.succeed msg))

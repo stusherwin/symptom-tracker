@@ -6,31 +6,23 @@ class ScrollableContainer extends HTMLElement {
   }
 
   static get observedAttributes() {
-    return ['scroll'];
+    return [];
   }
 
   connectedCallback() {
-    var scrollPercent = this.getAttribute("scroll");
-    if (scrollPercent) {
-      this.applyScroll(scrollPercent);
-    }
+    var scrollBarWidth = this.offsetHeight - this.clientHeight;
+    this.style.bottom = (-scrollBarWidth) + 'px';
 
-    this.onscroll = () => {
-      requestAnimationFrame(() => {
-        this.dispatchEvent(new CustomEvent('scrollable-scroll'));
-      });
+    var parent = this.parentElement;
+    while (parent && !parent.classList.contains("scrollable-parent")) {
+      parent = parent.parentElement;
+    }
+    if (parent) {
+      parent.style.paddingBottom = scrollBarWidth + 'px';
     }
   }
 
   attributeChangedCallback(name, oldValue, newValue) {
-    if (name === "scroll") {
-      this.applyScroll(newValue);
-    }
-  }
-
-  applyScroll(percent) {
-    var newScroll = (this.scrollWidth - this.clientWidth) * parseFloat(percent) / 100.0;
-    this.scroll(newScroll, 0);
   }
 }
 
