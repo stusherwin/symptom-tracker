@@ -557,12 +557,12 @@ viewQuestion qId q =
                                             , onClick (IconDeleteClicked qId i)
                                             , disabled (not canDelete)
                                             ]
-                                            [ icon "w-6 h-6" <|
-                                                if canDelete then
-                                                    SolidTrash
+                                            [ icon "w-6 h-6" <| SolidTrash
 
-                                                else
-                                                    SolidTrashBan
+                                            -- if canDelete then
+                                            --     SolidTrash
+                                            -- else
+                                            --     SolidTrashBan
                                             ]
                                         ]
                                 )

@@ -7,8 +7,8 @@ import Dict
 import Graph exposing (Msg, viewJustYAxis, viewLineGraph)
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Events exposing (on, onCheck, onClick, onInput, onMouseOver, preventDefaultOn, stopPropagationOn)
-import Icon exposing (IconType(..))
+import Html.Events exposing (on, onCheck, onClick, onInput, onMouseEnter, onMouseLeave, preventDefaultOn, stopPropagationOn)
+import Icon exposing (IconType(..), icon)
 import Json.Decode as Decode
 import Maybe exposing (Maybe)
 import Task
@@ -36,24 +36,10 @@ init today trackables =
 
 initGraph : Date -> Trackables -> Graph.Model
 initGraph today trackables =
-    { today = today
-    , data =
-        List.indexedMap
-            (\i ( id, t ) ->
-                ( id
-                , { name = t.question
-                  , colour = t.colour
-                  , multiplier = t.multiplier
-                  , dataPoints = List.map (Tuple.mapFirst Date.fromRataDie) <| Dict.toList <| Trackable.onlyFloatData t
-                  , order = i
-                  , visible = True
-                  , selected = False
-                  }
-                )
-            )
-        <|
-            List.filter
-                (\( i, t ) ->
+    Graph.init today
+        (Trackables.toDict trackables
+            |> Dict.filter
+                (\_ t ->
                     case t.data of
                         TText _ ->
                             False
@@ -61,13 +47,15 @@ initGraph today trackables =
                         _ ->
                             True
                 )
-            <|
-                Trackables.toList
-                    trackables
-    , selectedPoint = Nothing
-    , fillLines = True
-    , showPoints = False
-    }
+            |> Dict.map
+                (\_ t ->
+                    { name = t.question
+                    , colour = t.colour
+                    , multiplier = t.multiplier
+                    , dataPoints = List.map (Tuple.mapFirst Date.fromRataDie) <| Dict.toList <| Trackable.onlyFloatData t
+                    }
+                )
+        )
 
 
 
@@ -78,8 +66,11 @@ type Msg
     = NoOp
     | FillLinesChecked Bool
     | ShowPointsChecked Bool
-    | DataSetSelectClicked Int
+    | DataSetHovered (Maybe Int)
+    | DataSetClicked Int
     | DataSetVisibleClicked Int
+    | DataSetBringForwardClicked Int
+    | DataSetPushBackClicked Int
     | GraphMsg Graph.Msg
     | TrackablesChanged Trackables
 
@@ -96,11 +87,20 @@ update msg model =
         ShowPointsChecked sp ->
             ( { model | graph = Graph.setShowPoints sp model.graph }, Cmd.none )
 
-        DataSetSelectClicked i ->
-            ( { model | graph = Graph.toggleDataSetSelected i model.graph }, Cmd.none )
+        DataSetHovered id ->
+            ( { model | graph = Graph.hoverDataSet id model.graph }, Cmd.none )
 
-        DataSetVisibleClicked i ->
-            ( { model | graph = Graph.toggleDataSet i model.graph }, Cmd.none )
+        DataSetClicked id ->
+            ( { model | graph = Graph.toggleDataSetSelected id model.graph }, Cmd.none )
+
+        DataSetVisibleClicked id ->
+            ( { model | graph = Graph.toggleDataSet id model.graph }, Cmd.none )
+
+        DataSetBringForwardClicked id ->
+            ( { model | graph = Graph.bringDataSetForward id model.graph }, Cmd.none )
+
+        DataSetPushBackClicked id ->
+            ( { model | graph = Graph.pushDataSetBack id model.graph }, Cmd.none )
 
         GraphMsg graphMsg ->
             ( { model | graph = Graph.update graphMsg model.graph }, Cmd.none )
@@ -115,6 +115,97 @@ update msg model =
 
 view : Model -> Html Msg
 view model =
+    let
+        dataSets =
+            Dict.map
+                (\id ds ->
+                    let
+                        canBringForward =
+                            ds.visible && List.head model.graph.dataOrder /= Just id
+
+                        canPushBack =
+                            ds.visible && (List.head << List.reverse) model.graph.dataOrder /= Just id
+
+                        canSelect =
+                            ds.visible
+                    in
+                    [ div
+                        [ class "p-2 flex first:mt-0 items-center"
+                        , classList
+                            [ ( "bg-gray-300", model.graph.selectedDataSet == Just id || model.graph.hoveredDataSet == Just id )
+                            ]
+                        , onMouseEnter <|
+                            case model.graph.selectedDataSet of
+                                Just _ ->
+                                    NoOp
+
+                                _ ->
+                                    DataSetHovered (Just id)
+                        , onMouseLeave <|
+                            case model.graph.selectedDataSet of
+                                Just _ ->
+                                    NoOp
+
+                                _ ->
+                                    DataSetHovered Nothing
+                        , onClick (DataSetClicked id)
+                        ]
+                        [ div
+                            [ class "w-16 h-8 mr-4 flex-grow-0 flex-shrink-0"
+                            ]
+                            [ Graph.viewKey "w-full h-full" ds
+                            ]
+                        , span [ class "mr-4" ] [ text ds.name ]
+
+                        -- , button
+                        --     [ class "ml-auto p-2 text-black"
+                        --     , classList
+                        --         [ ( "text-opacity-30 cursor-default", not canSelect )
+                        --         , ( "text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none", canSelect )
+                        --         ]
+                        --     , onClick (DataSetSelectClicked id)
+                        --     , disabled (not canSelect)
+                        --     ]
+                        --     [ icon "w-6 h-6" <| SolidCrosshairs ]
+                        , button
+                            [ class "ml-auto text-black"
+                            , classList
+                                [ ( "text-opacity-30 cursor-default", not canBringForward )
+                                , ( "text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none", canBringForward )
+                                ]
+                            , onClickStopPropagation (DataSetBringForwardClicked id)
+                            , disabled (not canBringForward)
+                            ]
+                            [ icon "w-6 h-6" <| SolidArrowUp
+                            ]
+                        , button
+                            [ class "ml-2 text-black"
+                            , classList
+                                [ ( "text-opacity-30 cursor-default", not canPushBack )
+                                , ( "text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none", canPushBack )
+                                ]
+                            , onClickStopPropagation (DataSetPushBackClicked id)
+                            , disabled (not canPushBack)
+                            ]
+                            [ icon "w-6 h-6" <| SolidArrowDown
+                            ]
+                        , button
+                            [ class "ml-2 text-black"
+                            , class "text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
+                            , onClickStopPropagation (DataSetVisibleClicked id)
+                            ]
+                            [ icon "w-6 h-6" <|
+                                if ds.visible then
+                                    SolidEye
+
+                                else
+                                    SolidEyeSlash
+                            ]
+                        ]
+                    ]
+                )
+                model.graph.data
+    in
     div [ class "shadow-inner-t-md" ]
         [ h2 [ class "py-4 pb-0 font-bold text-2xl text-center" ]
             [ text "Charts" ]
@@ -143,60 +234,7 @@ view model =
                 []
             ]
         , div [ class "m-4 mt-4" ] <|
-            (model.graph.data
-                |> List.indexedMap
-                    (\i ( _, ds ) ->
-                        div
-                            [ class "p-2 flex first:mt-0 items-center"
-                            , classList
-                                [ ( "bg-gray-300", ds.selected )
-                                ]
-                            ]
-                            [ input
-                                [ type_ "checkbox"
-                                , class "mr-4"
-                                , onCheckStopPropagation (DataSetVisibleClicked i)
-                                , checked ds.visible
-                                ]
-                                []
-                            , div
-                                [ class "w-16 h-8 mr-4 flex-grow-0 flex-shrink-0"
-                                ]
-                                [ Graph.viewKey "w-full h-full" ds
-                                ]
-                            , span [ class "mr-4" ] [ text ds.name ]
-                            , a
-                                ([ href "#"
-                                 , target "_self"
-                                 , class "ml-auto underline hover:no-underline"
-                                 , classList
-                                    [ ( "text-gray-300 no-underline cursor-default focus:outline-none", not ds.visible )
-                                    ]
-                                 , onClickPreventDefault
-                                    (if ds.visible then
-                                        DataSetSelectClicked i
-
-                                     else
-                                        NoOp
-                                    )
-                                 ]
-                                    ++ (if not ds.visible then
-                                            [ tabindex -1 ]
-
-                                        else
-                                            []
-                                       )
-                                )
-                                [ text <|
-                                    if ds.selected then
-                                        "deselect"
-
-                                    else
-                                        "select"
-                                ]
-                            ]
-                    )
-            )
+            (List.concatMap (\id -> Maybe.withDefault [] <| Dict.get id dataSets) <| model.graph.dataOrder)
         ]
 
 

@@ -1,25 +1,30 @@
-module Graph exposing (DataPoint, DataSet, Model, Msg, setFillLines, setShowPoints, toggleDataSet, toggleDataSetSelected, update, updateColour, updateMultiplier, viewJustYAxis, viewKey, viewLineGraph)
+module Graph exposing (DataPoint, DataSet, Model, Msg, bringDataSetForward, bringDataSetToFront, hoverDataSet, init, pushDataSetBack, selectDataSet, setFillLines, setShowPoints, toggleDataSet, toggleDataSetSelected, update, updateColour, updateMultiplier, viewJustYAxis, viewKey, viewLineGraph)
 
 import Array
 import Colour exposing (Colour(..))
 import Date exposing (Date, Unit(..))
-import Dict
+import Dict exposing (Dict)
 import Svg as S exposing (..)
 import Svg.Attributes as A exposing (..)
 import Svg.Events as E exposing (onClick, onMouseOut, onMouseOver)
 
 
 type Msg
-    = PointSelected (Maybe ( Int, DataPoint ))
-    | DataSetSelected Int
+    = DataPointHovered (Maybe ( Int, Date ))
+    | DataPointClicked ( Int, Date )
+    | DataLineHovered (Maybe Int)
+    | DataLineClicked Int
 
 
 type alias Model =
     { today : Date
-    , data : List ( Int, DataSet )
-    , selectedPoint : Maybe ( Int, DataPoint )
+    , data : Dict Int DataSet
+    , selectedDataPoint : Maybe ( Int, Date )
     , fillLines : Bool
     , showPoints : Bool
+    , selectedDataSet : Maybe Int
+    , hoveredDataSet : Maybe Int
+    , dataOrder : List Int
     }
 
 
@@ -28,9 +33,7 @@ type alias DataSet =
     , colour : Colour
     , dataPoints : List DataPoint
     , multiplier : Float
-    , order : Int
     , visible : Bool
-    , selected : Bool
     }
 
 
@@ -38,27 +41,64 @@ type alias DataPoint =
     ( Date, Float )
 
 
+
+-- INIT
+
+
+init : Date -> Dict Int { name : String, colour : Colour, dataPoints : List DataPoint, multiplier : Float } -> Model
+init today dataSets =
+    { today = today
+    , data =
+        dataSets
+            |> Dict.map
+                (\_ ds ->
+                    { name = ds.name
+                    , colour = ds.colour
+                    , dataPoints = ds.dataPoints
+                    , multiplier = ds.multiplier
+                    , visible = True
+                    }
+                )
+    , selectedDataPoint = Nothing
+    , selectedDataSet = Nothing
+    , hoveredDataSet = Nothing
+    , fillLines = True
+    , showPoints = False
+    , dataOrder = Dict.keys dataSets
+    }
+
+
+
+-- UPDATE
+
+
 update : Msg -> Model -> Model
 update msg model =
     case msg of
-        PointSelected (Just ( i, d )) ->
-            { model | selectedPoint = Just ( i, d ) }
+        DataPointHovered (Just ( id, d )) ->
+            (selectDataPoint (Just ( id, d )) << hoverDataSet (Just id)) model
 
-        PointSelected _ ->
-            { model | selectedPoint = Nothing }
+        DataPointHovered _ ->
+            (selectDataPoint Nothing << hoverDataSet Nothing) model
 
-        DataSetSelected selectedIndex ->
-            toggleDataSetSelected selectedIndex model
+        DataPointClicked ( id, _ ) ->
+            toggleDataSetSelected id model
+
+        DataLineHovered id ->
+            hoverDataSet id model
+
+        DataLineClicked id ->
+            toggleDataSetSelected id model
 
 
 updateColour : Int -> Colour -> Model -> Model
 updateColour dataSetId colour model =
-    { model | data = Dict.toList <| Dict.update dataSetId (Maybe.map (\ds -> { ds | colour = colour })) <| Dict.fromList model.data }
+    { model | data = Dict.update dataSetId (Maybe.map (\ds -> { ds | colour = colour })) <| model.data }
 
 
 updateMultiplier : Int -> Float -> Model -> Model
 updateMultiplier dataSetId multiplier model =
-    { model | data = Dict.toList <| Dict.update dataSetId (Maybe.map (\ds -> { ds | multiplier = multiplier })) <| Dict.fromList model.data }
+    { model | data = Dict.update dataSetId (Maybe.map (\ds -> { ds | multiplier = multiplier })) <| model.data }
 
 
 setFillLines : Bool -> Model -> Model
@@ -72,59 +112,115 @@ setShowPoints sp model =
 
 
 toggleDataSetSelected : Int -> Model -> Model
-toggleDataSetSelected selectedIndex model =
+toggleDataSetSelected targetId model =
     let
-        data =
-            Array.fromList model.data
+        newSelectedDataSet =
+            case model.selectedDataSet of
+                Just id ->
+                    if id == targetId then
+                        Nothing
 
-        maxIndex =
-            Array.length data - 1
+                    else
+                        Just targetId
+
+                _ ->
+                    Just targetId
     in
-    case Array.get selectedIndex data of
-        Just ( sid, ds ) ->
-            if not ds.visible then
-                model
+    { model
+        | selectedDataSet = newSelectedDataSet
+        , hoveredDataSet = Nothing
+    }
 
-            else if ds.selected then
-                { model | data = Array.toList <| Array.set selectedIndex ( sid, { ds | selected = False } ) data }
 
-            else if ds.order == maxIndex then
-                { model | data = Array.toList <| Array.set selectedIndex ( sid, { ds | selected = True } ) data }
+selectDataPoint : Maybe ( Int, Date ) -> Model -> Model
+selectDataPoint p model =
+    { model | selectedDataPoint = p }
 
-            else
-                { model
-                    | data =
-                        Array.toList <|
-                            Array.indexedMap
-                                (\i ( id, dataSet ) ->
-                                    if i == selectedIndex then
-                                        ( id, { dataSet | order = maxIndex, selected = True } )
 
-                                    else if dataSet.order >= ds.order then
-                                        ( id, { dataSet | order = dataSet.order - 1, selected = False } )
+selectDataSet : Maybe Int -> Model -> Model
+selectDataSet id model =
+    { model | selectedDataSet = id }
 
-                                    else
-                                        ( id, { dataSet | selected = False } )
-                                )
-                                data
-                }
 
-        _ ->
-            model
+hoverDataSet : Maybe Int -> Model -> Model
+hoverDataSet id model =
+    { model | hoveredDataSet = id }
+
+
+bringDataSetToFront : Int -> Model -> Model
+bringDataSetToFront id model =
+    { model | dataOrder = id :: List.filter (\i -> i /= id) model.dataOrder }
+
+
+bringDataSetForward : Int -> Model -> Model
+bringDataSetForward id model =
+    let
+        fn ids =
+            case ids of
+                [] ->
+                    []
+
+                [ x ] ->
+                    [ x ]
+
+                x :: y :: rest ->
+                    if x == id then
+                        x :: y :: rest
+
+                    else if y == id then
+                        y :: x :: rest
+
+                    else
+                        x :: fn (y :: rest)
+    in
+    { model | dataOrder = fn model.dataOrder }
+
+
+pushDataSetBack : Int -> Model -> Model
+pushDataSetBack id model =
+    let
+        fn ids =
+            case ids of
+                [] ->
+                    []
+
+                [ x ] ->
+                    [ x ]
+
+                x :: y :: rest ->
+                    if x == id then
+                        y :: x :: rest
+
+                    else
+                        x :: fn (y :: rest)
+    in
+    { model | dataOrder = fn model.dataOrder }
 
 
 toggleDataSet : Int -> Model -> Model
-toggleDataSet i model =
-    let
-        data =
-            Array.fromList model.data
-    in
-    case Array.get i data of
-        Just ( id, ds ) ->
-            { model | data = Array.toList <| Array.set i ( id, { ds | visible = not ds.visible, selected = not ds.visible && ds.selected } ) data }
+toggleDataSet id model =
+    case Dict.get id model.data of
+        Just ds ->
+            { model
+                | data = Dict.insert id { ds | visible = not ds.visible } model.data
+                , selectedDataSet =
+                    model.selectedDataSet
+                        |> Maybe.andThen
+                            (\selectedId ->
+                                if selectedId == id && not ds.visible then
+                                    Nothing
+
+                                else
+                                    Just selectedId
+                            )
+            }
 
         _ ->
             model
+
+
+
+-- VIEW
 
 
 type alias PlotPoint =
@@ -190,7 +286,7 @@ viewJustYAxis class { data } =
 
 
 viewLineGraph : String -> Model -> Svg Msg
-viewLineGraph class { data, today, selectedPoint, fillLines, showPoints } =
+viewLineGraph class { data, today, selectedDataPoint, selectedDataSet, hoveredDataSet, fillLines, showPoints, dataOrder } =
     let
         startDate =
             findStartDate today data
@@ -211,12 +307,11 @@ viewLineGraph class { data, today, selectedPoint, fillLines, showPoints } =
             floor (toFloat (Date.toRataDie today - startDateRD) / toFloat dayLength)
 
         ( w, h ) =
-            ( {- v.ml + v.mr + -} v.xStep * toFloat xSteps, v.mb + v.mt + v.yStep * 5 )
+            ( v.xStep * toFloat xSteps, v.mb + v.mt + v.yStep * 5 )
 
         minX =
             0
 
-        --v.ml
         ( minY, maxY ) =
             ( v.mb, h - v.mt )
 
@@ -262,11 +357,8 @@ viewLineGraph class { data, today, selectedPoint, fillLines, showPoints } =
                 :: xAxis
                 ++ yAxis
 
-        anySelected =
-            List.any (.selected << Tuple.second) data
-
-        dataLine : Int -> DataSet -> ( List (Svg Msg), Int )
-        dataLine i dataSet =
+        dataLine : Int -> DataSet -> List (Svg Msg)
+        dataLine id dataSet =
             let
                 plotPoints : List PlotPoint
                 plotPoints =
@@ -286,13 +378,13 @@ viewLineGraph class { data, today, selectedPoint, fillLines, showPoints } =
                             )
                             dataSet.dataPoints
             in
-            ( smoothLinePath h
+            smoothLinePath h
                 { strokeCol = dataSet.colour
                 , strokeWidth = 2
                 , strokeLinecap = "round"
                 , strokeLinejoin = "round"
                 , strokeOpacity =
-                    if not anySelected || dataSet.selected then
+                    if (selectedDataSet == Nothing && hoveredDataSet == Nothing) || selectedDataSet == Just id || hoveredDataSet == Just id then
                         100
 
                     else
@@ -304,22 +396,36 @@ viewLineGraph class { data, today, selectedPoint, fillLines, showPoints } =
                     else
                         Nothing
                 , fillOpacity =
-                    if not anySelected || dataSet.selected then
+                    if (selectedDataSet == Nothing && hoveredDataSet == Nothing) || selectedDataSet == Just id || hoveredDataSet == Just id then
                         100
 
                     else
                         30
                 , points = List.map (\{ x, y } -> ( x, y )) plotPoints
-                , onClick = Just (DataSetSelected i)
+                , onClick = Just (DataLineClicked id)
+                , onMouseOver =
+                    case selectedDataSet of
+                        Just _ ->
+                            Nothing
+
+                        _ ->
+                            Just <| DataLineHovered <| Just id
+                , onMouseOut =
+                    case selectedDataSet of
+                        Just _ ->
+                            Nothing
+
+                        _ ->
+                            Just <| DataLineHovered Nothing
                 }
                 :: (if showPoints then
                         List.map
-                            (\{ date, value, x, y } ->
+                            (\{ date, x, y } ->
                                 circle h
                                     { cx = x
                                     , cy = y
                                     , r =
-                                        if selectedPoint == Just ( i, ( date, value ) ) then
+                                        if selectedDataPoint == Just ( id, date ) then
                                             4
 
                                         else
@@ -327,20 +433,27 @@ viewLineGraph class { data, today, selectedPoint, fillLines, showPoints } =
                                     , strokeCol = dataSet.colour
                                     , strokeWidth = 1
                                     , strokeOpacity =
-                                        if not anySelected || dataSet.selected then
+                                        if (selectedDataSet == Nothing && hoveredDataSet == Nothing) || selectedDataSet == Just id || hoveredDataSet == Just id then
                                             100
 
-                                        else
+                                        else if fillLines then
                                             30
+
+                                        else
+                                            5
                                     , fillCol = dataSet.colour
                                     , fillOpacity =
-                                        if not anySelected || dataSet.selected then
+                                        if (selectedDataSet == Nothing && hoveredDataSet == Nothing) || selectedDataSet == Just id || hoveredDataSet == Just id then
                                             80
+
+                                        else if fillLines then
+                                            50
 
                                         else
                                             30
-                                    , onMouseOver = Just <| PointSelected <| Just ( i, ( date, value ) )
-                                    , onMouseOut = Just <| PointSelected Nothing
+                                    , onMouseOver = Just <| DataPointHovered <| Just ( id, date )
+                                    , onMouseOut = Just <| DataPointHovered Nothing
+                                    , onClick = Just (DataPointClicked ( id, date ))
                                     }
                             )
                             plotPoints
@@ -348,8 +461,9 @@ viewLineGraph class { data, today, selectedPoint, fillLines, showPoints } =
                     else
                         []
                    )
-            , dataSet.order
-            )
+
+        dataLines =
+            Dict.map dataLine <| Dict.filter (\_ ds -> ds.visible) <| data
     in
     svg [ viewBox w h, A.class class ] <|
         (defs [] <|
@@ -360,10 +474,10 @@ viewLineGraph class { data, today, selectedPoint, fillLines, showPoints } =
                         , stop [ offset "100%", A.class <| "stop-" ++ Colour.toString colour, stopOpacity "60%" ] []
                         ]
                 )
-                data
+                (Dict.toList data)
         )
             :: axes
-            ++ (List.concat <| List.map Tuple.first <| List.sortBy Tuple.second <| List.indexedMap dataLine <| List.filter .visible <| List.map Tuple.second data)
+            ++ (List.concatMap (\id -> Maybe.withDefault [] <| Dict.get id dataLines) <| List.reverse dataOrder)
 
 
 viewKey : String -> DataSet -> Svg msg
@@ -396,7 +510,7 @@ viewKey class ds =
         ]
 
 
-findStartDate : Date -> List ( Int, DataSet ) -> Date
+findStartDate : Date -> Dict Int DataSet -> Date
 findStartDate today data =
     let
         minDate =
@@ -405,7 +519,8 @@ findStartDate today data =
                 << List.minimum
                 << List.map Date.toRataDie
                 << concatMaybes
-                << List.map (List.head << List.map Tuple.first << .dataPoints << Tuple.second)
+                << List.map (List.head << List.map Tuple.first << .dataPoints)
+                << Dict.values
             <|
                 data
 
@@ -415,13 +530,13 @@ findStartDate today data =
     Date.add Weeks -fullWeeks today
 
 
-findMaxValue : List ( Int, DataSet ) -> Float
+findMaxValue : Dict Int DataSet -> Float
 findMaxValue =
     Maybe.withDefault 0
         << List.maximum
         << concatMaybes
         << List.map (\{ multiplier, dataPoints } -> List.maximum <| List.map ((\val -> val * multiplier) << Tuple.second) dataPoints)
-        << List.map Tuple.second
+        << Dict.values
 
 
 concatMaybes : List (Maybe a) -> List a
@@ -496,6 +611,58 @@ rect h r =
     S.rect [ class <| "fill-" ++ Colour.toString r.fillCol, x (String.fromFloat r.x), y (String.fromFloat (h - r.y - r.height)), width (String.fromFloat r.width), height (String.fromFloat r.height) ] []
 
 
+type alias CircleDefn msg =
+    { cx : Float
+    , cy : Float
+    , r : Float
+    , fillCol : Colour
+    , fillOpacity : Int
+    , strokeCol : Colour
+    , strokeWidth : Float
+    , strokeOpacity : Int
+    , onMouseOver : Maybe msg
+    , onMouseOut : Maybe msg
+    , onClick : Maybe msg
+    }
+
+
+circle : Float -> CircleDefn msg -> Svg msg
+circle h c =
+    S.circle
+        ([ cx (String.fromFloat c.cx)
+         , cy (String.fromFloat (h - c.cy))
+         , r (String.fromFloat c.r)
+         , class <| "fill-" ++ Colour.toString c.fillCol
+         , fillOpacity <| String.fromInt c.fillOpacity ++ "%"
+         , class <| "stroke-" ++ Colour.toString c.strokeCol
+         , strokeWidth (String.fromFloat c.strokeWidth)
+         , strokeOpacity <| String.fromInt c.strokeOpacity ++ "%"
+         ]
+            ++ (case c.onMouseOver of
+                    Just msg ->
+                        [ onMouseOver msg ]
+
+                    _ ->
+                        []
+               )
+            ++ (case c.onMouseOut of
+                    Just msg ->
+                        [ onMouseOut msg ]
+
+                    _ ->
+                        []
+               )
+            ++ (case c.onClick of
+                    Just msg ->
+                        [ onClick msg ]
+
+                    _ ->
+                        []
+               )
+        )
+        []
+
+
 type alias TextDefn =
     { x : Float
     , y : Float
@@ -520,6 +687,8 @@ type alias PathDefn msg =
     , fillOpacity : Int
     , points : List ( Float, Float )
     , onClick : Maybe msg
+    , onMouseOver : Maybe msg
+    , onMouseOut : Maybe msg
     }
 
 
@@ -538,6 +707,20 @@ polyLine h p =
             ++ (case p.onClick of
                     Just msg ->
                         [ onClick msg ]
+
+                    _ ->
+                        []
+               )
+            ++ (case p.onMouseOver of
+                    Just msg ->
+                        [ onMouseOver msg ]
+
+                    _ ->
+                        []
+               )
+            ++ (case p.onMouseOut of
+                    Just msg ->
+                        [ onMouseOut msg ]
 
                     _ ->
                         []
@@ -578,6 +761,20 @@ straightLinePath h p =
             ++ (case p.onClick of
                     Just msg ->
                         [ onClick msg ]
+
+                    _ ->
+                        []
+               )
+            ++ (case p.onMouseOver of
+                    Just msg ->
+                        [ onMouseOver msg ]
+
+                    _ ->
+                        []
+               )
+            ++ (case p.onMouseOut of
+                    Just msg ->
+                        [ onMouseOut msg ]
 
                     _ ->
                         []
@@ -699,6 +896,20 @@ smoothLinePath h p =
                     _ ->
                         []
                )
+            ++ (case p.onMouseOver of
+                    Just msg ->
+                        [ onMouseOver msg ]
+
+                    _ ->
+                        []
+               )
+            ++ (case p.onMouseOut of
+                    Just msg ->
+                        [ onMouseOut msg ]
+
+                    _ ->
+                        []
+               )
         )
         []
 
@@ -711,50 +922,6 @@ gradient maybeCol =
 
         _ ->
             "none"
-
-
-type alias CircleDefn msg =
-    { cx : Float
-    , cy : Float
-    , r : Float
-    , fillCol : Colour
-    , fillOpacity : Int
-    , strokeCol : Colour
-    , strokeWidth : Float
-    , strokeOpacity : Int
-    , onMouseOver : Maybe msg
-    , onMouseOut : Maybe msg
-    }
-
-
-circle : Float -> CircleDefn msg -> Svg msg
-circle h c =
-    S.circle
-        ([ cx (String.fromFloat c.cx)
-         , cy (String.fromFloat (h - c.cy))
-         , r (String.fromFloat c.r)
-         , class <| "fill-" ++ Colour.toString c.fillCol
-         , fillOpacity <| String.fromInt c.fillOpacity ++ "%"
-         , class <| "stroke-" ++ Colour.toString c.strokeCol
-         , strokeWidth (String.fromFloat c.strokeWidth)
-         , strokeOpacity <| String.fromInt c.strokeOpacity ++ "%"
-         ]
-            ++ (case c.onMouseOver of
-                    Just msg ->
-                        [ onMouseOver msg ]
-
-                    _ ->
-                        []
-               )
-            ++ (case c.onMouseOut of
-                    Just msg ->
-                        [ onMouseOut msg ]
-
-                    _ ->
-                        []
-               )
-        )
-        []
 
 
 viewBox : Float -> Float -> Attribute msg
