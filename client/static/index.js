@@ -402,6 +402,7 @@ var app = Elm.Main.init({
 
 app.ports.setUserData.subscribe(function (state) {
   localStorage.setItem('myapp-model1', JSON.stringify(state));
+  // console.log(state);
   setTimeout(function () { app.ports.onUserDataChange.send(state); }, 0);
 });
 

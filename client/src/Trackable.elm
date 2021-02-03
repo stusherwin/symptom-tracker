@@ -1,4 +1,4 @@
-module Trackable exposing (Trackable, TrackableData(..), addIcon, convertToFloat, convertToIcon, convertToInt, convertToScale, convertToText, convertToYesNo, decode, deleteIcon, encode, hasData, maybeFloatData, onlyFloatData, toString, updateFloatData, updateIcon, updateIconData, updateIntData, updateScaleData, updateScaleFrom, updateScaleTo, updateTextData, updateYesNoData)
+module Trackable exposing (Trackable, TrackableData(..), addIcon, convertToFloat, convertToIcon, convertToInt, convertToScale, convertToText, convertToYesNo, decode, deleteIcon, encode, hasData, maybeFloatData, onlyFloatData, textData, toString, updateFloatData, updateIcon, updateIconData, updateIntData, updateScaleData, updateScaleFrom, updateScaleTo, updateTextData, updateYesNoData)
 
 import Array exposing (Array)
 import Colour exposing (Colour(..))

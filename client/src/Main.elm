@@ -221,10 +221,10 @@ update msg model =
                 _ ->
                     ( model, Cmd.none )
 
-        DayPageMsg (DayPage.UpdateTrackable fn id) ->
+        DayPageMsg (DayPage.UpdateUserData userData) ->
             case model.pageState of
-                Loaded _ userData _ ->
-                    updateUserData <| UserData.updateTrackable id fn userData
+                Loaded _ _ _ ->
+                    updateUserData userData
 
                 _ ->
                     ( model, Cmd.none )

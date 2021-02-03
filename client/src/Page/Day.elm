@@ -1,6 +1,6 @@
 module Page.Day exposing (Model, Msg(..), init, update, view)
 
-import Array
+import Array exposing (Array)
 import Button
 import Colour exposing (Colour)
 import Date exposing (Date, Unit(..))
@@ -11,6 +11,7 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (onClick, onInput)
 import Icon exposing (IconType(..), icon)
 import Maybe exposing (Maybe)
+import Result
 import Task
 import Textarea
 import Textbox
@@ -22,73 +23,26 @@ import UserData exposing (UserData)
 type alias Model =
     { currentDay : Date
     , today : Date
-    , questions : Dict Int Question
+    , userData : UserData
+    , textInputs : Dict Int ( String, Bool )
     }
-
-
-type alias Question =
-    { question : String
-    , colour : Colour
-    , answer : Answer
-    }
-
-
-type Answer
-    = AYesNo (Maybe Bool)
-    | AIcon (List IconType) (Maybe Int)
-    | AScale Int Int (Maybe Int)
-    | AInt ( String, Maybe Int )
-    | AFloat ( String, Maybe Float )
-    | AText String
 
 
 init : Date -> Date -> UserData -> Model
 init today currentDay userData =
     { today = today
     , currentDay = currentDay
-    , questions = Dict.map (toQuestion currentDay) <| UserData.trackables userData
-    }
-
-
-toQuestion : Date -> Int -> Trackable -> Question
-toQuestion currentDay _ { question, colour, data } =
-    { question = question
-    , colour = colour
-    , answer =
-        case data of
-            TYesNo answers ->
-                AYesNo <| Dict.get (Date.toRataDie currentDay) answers
-
-            TIcon options answers ->
-                AIcon (Array.toList options) <| Dict.get (Date.toRataDie currentDay) answers
-
-            TScale min max answers ->
-                AScale min max <| Dict.get (Date.toRataDie currentDay) answers
-
-            TInt answers ->
-                let
-                    answer =
-                        Dict.get (Date.toRataDie currentDay) answers
-                in
-                AInt ( Maybe.withDefault "" <| Maybe.map String.fromInt answer, answer )
-
-            TFloat answers ->
-                let
-                    answer =
-                        Dict.get (Date.toRataDie currentDay) answers
-                in
-                AFloat ( Maybe.withDefault "" <| Maybe.map String.fromFloat answer, answer )
-
-            TText answers ->
-                AText <| Maybe.withDefault "" <| Dict.get (Date.toRataDie currentDay) answers
-    }
-
-
-updateQuestionFromTrackable : Date -> Trackable -> Question -> Question
-updateQuestionFromTrackable _ { question, colour } q =
-    { question = question
-    , colour = colour
-    , answer = q.answer
+    , userData = userData
+    , textInputs =
+        Dict.map (\_ v -> ( v, True )) <|
+            Dict.map
+                (\_ t ->
+                    Maybe.withDefault "" <|
+                        Dict.get (Date.toRataDie currentDay) <|
+                            Trackable.textData t
+                )
+            <|
+                UserData.trackables userData
     }
 
 
@@ -98,134 +52,116 @@ updateQuestionFromTrackable _ { question, colour } q =
 
 type Msg
     = NoOp
-    | QYesNoAnswerClicked Int (Maybe Bool)
-    | QIconAnswerClicked Int (Maybe Int)
-    | QScaleAnswerClicked Int (Maybe Int)
-    | QIntAnswerUpdated Int String
-    | QFloatAnswerUpdated Int String
-    | QTextAnswerUpdated Int String
-    | UpdateTrackable (Trackable -> Result String Trackable) Int
+    | YesNoAnswerClicked Int (Maybe Bool)
+    | IconAnswerClicked Int (Maybe Int)
+    | ScaleAnswerClicked Int (Maybe Int)
+    | IntAnswerUpdated Int String
+    | FloatAnswerUpdated Int String
+    | TextAnswerUpdated Int String
+    | UpdateUserData (Result String UserData)
     | UserDataChanged UserData
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
-    let
-        updateQuestion qId fn =
-            { model | questions = Dict.update qId (Maybe.map fn) model.questions }
-    in
     case msg of
-        QYesNoAnswerClicked qId answer ->
-            ( updateQuestion qId <|
-                \q ->
-                    case q.answer of
-                        AYesNo _ ->
-                            { q | answer = AYesNo answer }
-
-                        _ ->
-                            q
-            , Task.perform (UpdateTrackable <| Trackable.updateYesNoData model.currentDay answer) <| Task.succeed qId
+        YesNoAnswerClicked id answer ->
+            let
+                userData =
+                    UserData.updateTrackable id (Trackable.updateYesNoData model.currentDay answer) model.userData
+            in
+            ( { model | userData = Result.withDefault model.userData userData }
+            , Task.perform UpdateUserData <| Task.succeed userData
             )
 
-        QIconAnswerClicked qId answer ->
-            ( updateQuestion qId <|
-                \q ->
-                    case q.answer of
-                        AIcon opts _ ->
-                            { q | answer = AIcon opts answer }
-
-                        _ ->
-                            q
-            , Task.perform (UpdateTrackable <| Trackable.updateIconData model.currentDay answer) <| Task.succeed qId
+        IconAnswerClicked id answer ->
+            let
+                userData =
+                    UserData.updateTrackable id (Trackable.updateIconData model.currentDay answer) model.userData
+            in
+            ( { model | userData = Result.withDefault model.userData userData }
+            , Task.perform UpdateUserData <| Task.succeed userData
             )
 
-        QScaleAnswerClicked qId answer ->
-            ( updateQuestion qId <|
-                \q ->
-                    case q.answer of
-                        AScale min max _ ->
-                            { q | answer = AScale min max answer }
-
-                        _ ->
-                            q
-            , Task.perform (UpdateTrackable <| Trackable.updateScaleData model.currentDay answer) <| Task.succeed qId
+        ScaleAnswerClicked id answer ->
+            let
+                userData =
+                    UserData.updateTrackable id (Trackable.updateScaleData model.currentDay answer) model.userData
+            in
+            ( { model | userData = Result.withDefault model.userData userData }
+            , Task.perform UpdateUserData <| Task.succeed userData
             )
 
-        QIntAnswerUpdated qId ansStr ->
+        IntAnswerUpdated id stringValue ->
             let
                 answer =
-                    String.toInt ansStr
-            in
-            ( updateQuestion qId <|
-                \q ->
-                    case q.answer of
-                        AInt _ ->
-                            { q | answer = AInt ( ansStr, answer ) }
+                    String.toInt stringValue
+
+                isValid =
+                    case answer of
+                        Just _ ->
+                            True
 
                         _ ->
-                            q
-            , case ( ansStr, answer ) of
-                ( "", _ ) ->
-                    Task.perform (UpdateTrackable <| Trackable.updateIntData model.currentDay Nothing) <| Task.succeed qId
+                            stringValue == ""
 
-                ( _, Just ans ) ->
-                    Task.perform (UpdateTrackable <| Trackable.updateIntData model.currentDay (Just ans)) <| Task.succeed qId
+                textInputs =
+                    Dict.insert id ( stringValue, isValid ) model.textInputs
+            in
+            if isValid then
+                let
+                    userData =
+                        UserData.updateTrackable id (Trackable.updateIntData model.currentDay answer) model.userData
+                in
+                ( { model | textInputs = textInputs, userData = Result.withDefault model.userData userData }
+                , Task.perform UpdateUserData <| Task.succeed userData
+                )
 
-                _ ->
-                    Cmd.none
-            )
+            else
+                ( { model | textInputs = textInputs }, Cmd.none )
 
-        QFloatAnswerUpdated qId ansStr ->
+        FloatAnswerUpdated id stringValue ->
             let
                 answer =
-                    String.toFloat ansStr
+                    String.toFloat stringValue
+
+                isValid =
+                    case answer of
+                        Just _ ->
+                            True
+
+                        _ ->
+                            stringValue == ""
+
+                textInputs =
+                    Dict.insert id ( stringValue, isValid ) model.textInputs
             in
-            ( updateQuestion qId <|
-                \q ->
-                    case q.answer of
-                        AFloat _ ->
-                            { q | answer = AFloat ( ansStr, answer ) }
+            if isValid then
+                let
+                    userData =
+                        UserData.updateTrackable id (Trackable.updateFloatData model.currentDay answer) model.userData
+                in
+                ( { model | textInputs = textInputs, userData = Result.withDefault model.userData userData }
+                , Task.perform UpdateUserData <| Task.succeed userData
+                )
 
-                        _ ->
-                            q
-            , case ( ansStr, answer ) of
-                ( "", _ ) ->
-                    Task.perform (UpdateTrackable <| Trackable.updateFloatData model.currentDay Nothing) <| Task.succeed qId
+            else
+                ( { model | textInputs = textInputs }, Cmd.none )
 
-                ( _, Just ans ) ->
-                    Task.perform (UpdateTrackable <| Trackable.updateFloatData model.currentDay (Just ans)) <| Task.succeed qId
-
-                _ ->
-                    Cmd.none
-            )
-
-        QTextAnswerUpdated qId answer ->
-            ( updateQuestion qId <|
-                \q ->
-                    case q.answer of
-                        AText _ ->
-                            { q | answer = AText answer }
-
-                        _ ->
-                            q
-            , Task.perform (UpdateTrackable <| Trackable.updateTextData model.currentDay answer) <| Task.succeed qId
+        TextAnswerUpdated id answer ->
+            let
+                userData =
+                    UserData.updateTrackable id (Trackable.updateTextData model.currentDay answer) model.userData
+            in
+            ( { model
+                | textInputs = Dict.insert id ( answer, True ) model.textInputs
+                , userData = Result.withDefault model.userData userData
+              }
+            , Task.perform UpdateUserData <| Task.succeed userData
             )
 
         UserDataChanged userData ->
-            let
-                onlyInTrackables k t qs =
-                    Dict.insert k (toQuestion model.currentDay k t) qs
-
-                inBoth k t q qs =
-                    Dict.insert k (updateQuestionFromTrackable model.currentDay t q) qs
-
-                onlyInQuestions k v qs =
-                    Dict.insert k v qs
-
-                questions =
-                    Dict.merge onlyInTrackables inBoth onlyInQuestions (UserData.trackables userData) model.questions Dict.empty
-            in
-            ( { model | questions = questions }, Cmd.none )
+            ( { model | userData = userData }, Cmd.none )
 
         _ ->
             ( model, Cmd.none )
@@ -236,7 +172,7 @@ update msg model =
 
 
 view : Model -> Html Msg
-view { currentDay, today, questions } =
+view { currentDay, today, userData, textInputs } =
     let
         dayText =
             if currentDay == today then
@@ -259,7 +195,7 @@ view { currentDay, today, questions } =
         , h2 [ class "py-4 font-bold text-2xl text-center shadow-inner-t-md" ]
             [ text <| "How was " ++ dayText ++ "?" ]
         ]
-            ++ Dict.values (Dict.map viewQuestion questions)
+            ++ Dict.values (Dict.map (viewQuestion currentDay textInputs) <| UserData.trackables userData)
 
 
 viewDayPicker : Date -> Date -> Html Msg
@@ -364,56 +300,38 @@ viewDayPicker currentDay today =
         ]
 
 
-viewQuestion : Int -> Question -> Html Msg
-viewQuestion qId { question, colour, answer } =
+viewQuestion : Date -> Dict Int ( String, Bool ) -> Int -> Trackable -> Html Msg
+viewQuestion currentDay textInputs qId { question, colour, data } =
     let
+        key =
+            Date.toRataDie currentDay
+
+        ( stringValue, isValid ) =
+            Maybe.withDefault ( "", True ) <| Dict.get qId textInputs
+
         viewAnswer =
-            case answer of
-                AIcon options value ->
-                    viewIconAnswer qId options value
+            case data of
+                TIcon options values ->
+                    viewIconAnswer qId options <| Dict.get key values
 
-                AYesNo value ->
-                    viewYesNoAnswer qId value
+                TYesNo values ->
+                    viewYesNoAnswer qId <| Dict.get key values
 
-                AScale min max value ->
+                TScale min max values ->
                     if max - min + 1 <= 10 then
-                        viewScaleAnswerButtons min max qId value
+                        viewScaleAnswerButtons min max qId <| Dict.get key values
 
                     else
-                        viewScaleAnswerSelect min max qId value
+                        viewScaleAnswerSelect min max qId <| Dict.get key values
 
-                AInt ( stringValue, value ) ->
-                    let
-                        isValid =
-                            case ( stringValue, value ) of
-                                ( "", _ ) ->
-                                    True
-
-                                ( _, Just _ ) ->
-                                    True
-
-                                _ ->
-                                    False
-                    in
+                TInt _ ->
                     viewIntAnswer qId stringValue isValid
 
-                AFloat ( stringValue, value ) ->
-                    let
-                        isValid =
-                            case ( stringValue, value ) of
-                                ( "", _ ) ->
-                                    True
-
-                                ( _, Just _ ) ->
-                                    True
-
-                                _ ->
-                                    False
-                    in
+                TFloat _ ->
                     viewFloatAnswer qId stringValue isValid
 
-                AText value ->
-                    viewTextAnswer qId <| value
+                TText _ ->
+                    viewTextAnswer qId stringValue
     in
     div [ class "pt-6 pb-6 border-t-4", Colour.class "bg" colour, Colour.classUp "border" colour ]
         [ h2 [ class "font-bold text-xl text-center" ] [ text question ]
@@ -421,7 +339,7 @@ viewQuestion qId { question, colour, answer } =
         ]
 
 
-viewIconAnswer : Int -> List IconType -> Maybe Int -> List (Html Msg)
+viewIconAnswer : Int -> Array IconType -> Maybe Int -> List (Html Msg)
 viewIconAnswer qId options answer =
     let
         iconButton : Int -> IconType -> Html Msg
@@ -435,7 +353,7 @@ viewIconAnswer qId options answer =
                             "btn-gray"
                        )
                 )
-                (QIconAnswerClicked qId <|
+                (IconAnswerClicked qId <|
                     if answer == Just value then
                         Nothing
 
@@ -444,7 +362,7 @@ viewIconAnswer qId options answer =
                 )
                 iconType
     in
-    List.indexedMap iconButton options
+    List.indexedMap iconButton <| Array.toList options
 
 
 viewYesNoAnswer : Int -> Maybe Bool -> List (Html Msg)
@@ -474,7 +392,7 @@ viewYesNoAnswer qId answer =
                  else
                     Button.Grey
                 )
-                (QYesNoAnswerClicked qId <|
+                (YesNoAnswerClicked qId <|
                     if answer == Just value then
                         Nothing
 
@@ -504,7 +422,7 @@ viewScaleAnswerButtons min max qId answer =
                             "btn-gray"
                        )
                 )
-                (QScaleAnswerClicked qId <|
+                (ScaleAnswerClicked qId <|
                     if answer == Just level then
                         Nothing
 
@@ -521,7 +439,7 @@ viewScaleAnswerSelect : Int -> Int -> Int -> Maybe Int -> List (Html Msg)
 viewScaleAnswerSelect min max qId answer =
     [ Dropdown.viewText
         "mt-4 w-20"
-        (QScaleAnswerClicked qId)
+        (ScaleAnswerClicked qId)
         String.fromInt
         String.toInt
         (List.map (\i -> ( ( i, True ), String.fromInt i )) <| List.range min max)
@@ -532,17 +450,17 @@ viewScaleAnswerSelect min max qId answer =
 
 viewIntAnswer : Int -> String -> Bool -> List (Html Msg)
 viewIntAnswer qId answer isValid =
-    [ Textbox.view "" "mt-4 w-20" answer (QIntAnswerUpdated qId) isValid { showFilled = True }
+    [ Textbox.view "" "mt-4 w-20" answer (IntAnswerUpdated qId) isValid { showFilled = True }
     ]
 
 
 viewFloatAnswer : Int -> String -> Bool -> List (Html Msg)
 viewFloatAnswer qId answer isValid =
-    [ Textbox.view "" "mt-4 w-20" answer (QFloatAnswerUpdated qId) isValid { showFilled = True }
+    [ Textbox.view "" "mt-4 w-20" answer (FloatAnswerUpdated qId) isValid { showFilled = True }
     ]
 
 
 viewTextAnswer : Int -> String -> List (Html Msg)
 viewTextAnswer qId answer =
-    [ Textarea.view "" "mt-4 w-96 h-36" answer (QTextAnswerUpdated qId) True { showFilled = True }
+    [ Textarea.view "" "mt-4 w-96 h-36" answer (TextAnswerUpdated qId) True { showFilled = True }
     ]
