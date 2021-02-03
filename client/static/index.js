@@ -400,13 +400,13 @@ var app = Elm.Main.init({
   flags: flags
 });
 
-app.ports.setTrackables.subscribe(function (state) {
+app.ports.setUserData.subscribe(function (state) {
   localStorage.setItem('myapp-model1', JSON.stringify(state));
-  setTimeout(function () { app.ports.onTrackablesChange.send(state); }, 0);
+  setTimeout(function () { app.ports.onUserDataChange.send(state); }, 0);
 });
 
 window.addEventListener("storage", function (event) {
   if (event.storageArea === localStorage && event.key === 'myapp-model1') {
-    app.ports.onTrackablesChange.send(JSON.parse(event.newValue));
+    app.ports.onUserDataChange.send(JSON.parse(event.newValue));
   }
 }, false);

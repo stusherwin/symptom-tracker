@@ -14,7 +14,7 @@ import Platform.Cmd as Cmd
 import Task
 import Textbox
 import Trackable exposing (Trackable, TrackableData(..))
-import Trackables exposing (Trackables)
+import UserData exposing (UserData)
 
 
 type alias Model =
@@ -63,162 +63,161 @@ type AnswerType
     | AText
 
 
-init : Trackables -> Model
-init trackables =
-    { questions = Trackables.map trackableToQuestion trackables
-    , selectedValue = 4
-    }
-
-
-trackableToQuestion : Trackable -> Question
-trackableToQuestion t =
+init : UserData -> Model
+init userData =
     let
-        floatData =
-            Dict.values <| Trackable.maybeFloatData t
-    in
-    { question = t.question
-    , colour = t.colour
-    , answerType =
-        case t.data of
-            TYesNo _ ->
-                AYesNo
-
-            TIcon _ _ ->
-                AIcon
-
-            TScale _ _ _ ->
-                AScale
-
-            TInt _ ->
-                AInt
-
-            TFloat _ ->
-                AFloat
-
-            TText _ ->
-                AText
-    , scaleOptions =
-        let
-            ( maybeMin, maybeMax ) =
-                ( Maybe.map truncate << List.minimum << concatMaybes <| floatData
-                , Maybe.map truncate << List.maximum << concatMaybes <| floatData
-                )
-
-            ( from, to ) =
+        toQuestion _ t =
+            let
+                floatData =
+                    Dict.values <| Trackable.maybeFloatData t
+            in
+            { question = t.question
+            , colour = t.colour
+            , answerType =
                 case t.data of
-                    TScale origFrom origTo _ ->
-                        ( origFrom, origTo )
+                    TYesNo _ ->
+                        AYesNo
 
-                    _ ->
-                        case ( maybeMin, maybeMax ) of
-                            ( Just min, Just max ) ->
-                                ( min, max )
+                    TIcon _ _ ->
+                        AIcon
+
+                    TScale _ _ _ ->
+                        AScale
+
+                    TInt _ ->
+                        AInt
+
+                    TFloat _ ->
+                        AFloat
+
+                    TText _ ->
+                        AText
+            , scaleOptions =
+                let
+                    ( maybeMin, maybeMax ) =
+                        ( Maybe.map truncate << List.minimum << concatMaybes <| floatData
+                        , Maybe.map truncate << List.maximum << concatMaybes <| floatData
+                        )
+
+                    ( from, to ) =
+                        case t.data of
+                            TScale origFrom origTo _ ->
+                                ( origFrom, origTo )
 
                             _ ->
-                                ( 0, 20 )
-        in
-        { from = from
-        , to = to
-        , fromMin = 0
-        , fromMax =
-            case maybeMin of
-                Just min ->
-                    min
+                                case ( maybeMin, maybeMax ) of
+                                    ( Just min, Just max ) ->
+                                        ( min, max )
 
-                _ ->
-                    19
-        , toMin =
-            case maybeMax of
-                Just max ->
-                    max
-
-                _ ->
-                    1
-        , toMax = 20
-        }
-    , iconOptions =
-        case t.data of
-            TIcon options values ->
-                Array.indexedMap (\i o -> { iconType = o, canDelete = not <| List.any (\v -> v >= i) (Dict.values values) }) options
-
-            _ ->
-                let
-                    max =
-                        Maybe.map truncate << List.maximum << concatMaybes <| floatData
+                                    _ ->
+                                        ( 0, 20 )
                 in
-                case max of
-                    Just m ->
-                        Array.repeat (m + 1) { iconType = SolidQuestionCircle, canDelete = False }
+                { from = from
+                , to = to
+                , fromMin = 0
+                , fromMax =
+                    case maybeMin of
+                        Just min ->
+                            min
+
+                        _ ->
+                            19
+                , toMin =
+                    case maybeMax of
+                        Just max ->
+                            max
+
+                        _ ->
+                            1
+                , toMax = 20
+                }
+            , iconOptions =
+                case t.data of
+                    TIcon options values ->
+                        Array.indexedMap (\i o -> { iconType = o, canDelete = not <| List.any (\v -> v >= i) (Dict.values values) }) options
 
                     _ ->
-                        Array.fromList
-                            [ { iconType = SolidQuestionCircle, canDelete = False }
-                            , { iconType = SolidQuestionCircle, canDelete = False }
-                            ]
-    , canDelete = not <| Trackable.hasData t
-    , answerTypes =
-        [ ( AYesNo
-          , List.all
-                (\val ->
-                    case val of
-                        Just v ->
-                            floor v == ceiling v && v >= 0 && v <= 1
+                        let
+                            max =
+                                Maybe.map truncate << List.maximum << concatMaybes <| floatData
+                        in
+                        case max of
+                            Just m ->
+                                Array.repeat (m + 1) { iconType = SolidQuestionCircle, canDelete = False }
 
-                        _ ->
-                            False
-                )
-                floatData
-          )
-        , ( AIcon
-          , List.all
-                (\val ->
-                    case val of
-                        Just v ->
-                            floor v == ceiling v && v >= 0 && v <= 10
+                            _ ->
+                                Array.fromList
+                                    [ { iconType = SolidQuestionCircle, canDelete = False }
+                                    , { iconType = SolidQuestionCircle, canDelete = False }
+                                    ]
+            , canDelete = not <| Trackable.hasData t
+            , answerTypes =
+                [ ( AYesNo
+                  , List.all
+                        (\val ->
+                            case val of
+                                Just v ->
+                                    floor v == ceiling v && v >= 0 && v <= 1
 
-                        _ ->
-                            False
-                )
-                floatData
-          )
-        , ( AScale
-          , List.all
-                (\val ->
-                    case val of
-                        Just v ->
-                            floor v == ceiling v && v >= 0 && v <= 20
+                                _ ->
+                                    False
+                        )
+                        floatData
+                  )
+                , ( AIcon
+                  , List.all
+                        (\val ->
+                            case val of
+                                Just v ->
+                                    floor v == ceiling v && v >= 0 && v <= 10
 
-                        _ ->
-                            False
-                )
-                floatData
-          )
-        , ( AInt
-          , List.all
-                (\val ->
-                    case val of
-                        Just v ->
-                            floor v == ceiling v
+                                _ ->
+                                    False
+                        )
+                        floatData
+                  )
+                , ( AScale
+                  , List.all
+                        (\val ->
+                            case val of
+                                Just v ->
+                                    floor v == ceiling v && v >= 0 && v <= 20
 
-                        _ ->
-                            False
-                )
-                floatData
-          )
-        , ( AFloat
-          , List.all
-                (\val ->
-                    case val of
-                        Just _ ->
-                            True
+                                _ ->
+                                    False
+                        )
+                        floatData
+                  )
+                , ( AInt
+                  , List.all
+                        (\val ->
+                            case val of
+                                Just v ->
+                                    floor v == ceiling v
 
-                        _ ->
-                            False
-                )
-                floatData
-          )
-        , ( AText, True )
-        ]
+                                _ ->
+                                    False
+                        )
+                        floatData
+                  )
+                , ( AFloat
+                  , List.all
+                        (\val ->
+                            case val of
+                                Just _ ->
+                                    True
+
+                                _ ->
+                                    False
+                        )
+                        floatData
+                  )
+                , ( AText, True )
+                ]
+            }
+    in
+    { questions = Dict.map toQuestion <| UserData.trackables userData
+    , selectedValue = 4
     }
 
 

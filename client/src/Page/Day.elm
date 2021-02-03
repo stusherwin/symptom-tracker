@@ -16,7 +16,7 @@ import Textarea
 import Textbox
 import Time exposing (Month(..))
 import Trackable exposing (Trackable, TrackableData(..))
-import Trackables exposing (Trackables)
+import UserData exposing (UserData)
 
 
 type alias Model =
@@ -42,16 +42,16 @@ type Answer
     | AText String
 
 
-init : Date -> Date -> Trackables -> Model
-init today currentDay trackables =
+init : Date -> Date -> UserData -> Model
+init today currentDay userData =
     { today = today
     , currentDay = currentDay
-    , questions = Trackables.map (trackableToQuestion currentDay) trackables
+    , questions = Dict.map (toQuestion currentDay) <| UserData.trackables userData
     }
 
 
-trackableToQuestion : Date -> Trackable -> Question
-trackableToQuestion currentDay { question, colour, data } =
+toQuestion : Date -> Int -> Trackable -> Question
+toQuestion currentDay _ { question, colour, data } =
     { question = question
     , colour = colour
     , answer =
@@ -105,7 +105,7 @@ type Msg
     | QFloatAnswerUpdated Int String
     | QTextAnswerUpdated Int String
     | UpdateTrackable (Trackable -> Result String Trackable) Int
-    | TrackablesChanged Trackables
+    | UserDataChanged UserData
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -211,10 +211,10 @@ update msg model =
             , Task.perform (UpdateTrackable <| Trackable.updateTextData model.currentDay answer) <| Task.succeed qId
             )
 
-        TrackablesChanged trackables ->
+        UserDataChanged userData ->
             let
                 onlyInTrackables k t qs =
-                    Dict.insert k (trackableToQuestion model.currentDay t) qs
+                    Dict.insert k (toQuestion model.currentDay k t) qs
 
                 inBoth k t q qs =
                     Dict.insert k (updateQuestionFromTrackable model.currentDay t q) qs
@@ -223,7 +223,7 @@ update msg model =
                     Dict.insert k v qs
 
                 questions =
-                    Dict.merge onlyInTrackables inBoth onlyInQuestions (Trackables.map identity trackables) model.questions Dict.empty
+                    Dict.merge onlyInTrackables inBoth onlyInQuestions (UserData.trackables userData) model.questions Dict.empty
             in
             ( { model | questions = questions }, Cmd.none )
 

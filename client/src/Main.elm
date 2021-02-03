@@ -17,9 +17,9 @@ import Task
 import Throttle exposing (Throttle)
 import Time exposing (Month(..))
 import Trackable exposing (TrackableData(..))
-import Trackables exposing (Trackables)
 import Url exposing (Url)
 import Url.Parser as Parser exposing ((</>), Parser, oneOf, s, top)
+import UserData exposing (UserData)
 
 
 
@@ -64,22 +64,22 @@ routeParser =
         ]
 
 
-routeToPage : Date -> Trackables -> Maybe Route -> ( Page, Cmd Msg )
-routeToPage today trackables route =
+routeToPage : Date -> UserData -> Maybe Route -> ( Page, Cmd Msg )
+routeToPage today userData route =
     case route of
         Just Today ->
-            ( DayPage <| DayPage.init today today trackables, Cmd.none )
+            ( DayPage <| DayPage.init today today userData, Cmd.none )
 
         Just (Day date) ->
-            ( DayPage <| DayPage.init today date trackables, Cmd.none )
+            ( DayPage <| DayPage.init today date userData, Cmd.none )
 
         Just Settings ->
-            ( SettingsPage <| SettingsPage.init trackables, Cmd.none )
+            ( SettingsPage <| SettingsPage.init userData, Cmd.none )
 
         Just Graph ->
             let
                 ( model, cmd ) =
-                    GraphPage.init today trackables
+                    GraphPage.init today userData
             in
             ( GraphPage model, Cmd.map GraphPageMsg cmd )
 
@@ -99,9 +99,9 @@ type alias Model =
 
 
 type PageState
-    = Loading (Maybe Route) (Maybe Date) (Maybe Trackables)
+    = Loading (Maybe Route) (Maybe Date) (Maybe UserData)
     | Error String
-    | Loaded Date Trackables Page
+    | Loaded Date UserData Page
 
 
 type Page
@@ -114,9 +114,9 @@ type Page
 init : Encode.Value -> Url -> Nav.Key -> ( Model, Cmd Msg )
 init flags url key =
     ( { pageState =
-            case Decode.decodeValue Trackables.decode flags of
-                Ok trackables ->
-                    Loading (Parser.parse routeParser url) Nothing (Just trackables)
+            case Decode.decodeValue UserData.decode flags of
+                Ok userData ->
+                    Loading (Parser.parse routeParser url) Nothing (Just userData)
 
                 Err err ->
                     -- Loading (Parser.parse routeParser url) Nothing (Just Trackable.init)
@@ -132,16 +132,16 @@ init flags url key =
 -- PORTS
 
 
-port setTrackables : Encode.Value -> Cmd msg
+port setUserData : Encode.Value -> Cmd msg
 
 
-port onTrackablesChange : (Encode.Value -> msg) -> Sub msg
+port onUserDataChange : (Encode.Value -> msg) -> Sub msg
 
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
-        [ onTrackablesChange TrackablesChanged
+        [ onUserDataChange UserDataChanged
         , Throttle.ifNeeded
             (Time.every 1000 (\_ -> UpdateThrottle))
             model.throttle
@@ -159,19 +159,19 @@ type Msg
     | DayPageMsg DayPage.Msg
     | GraphPageMsg GraphPage.Msg
     | SettingsPageMsg SettingsPage.Msg
-    | TrackablesChanged Encode.Value
+    | UserDataChanged Encode.Value
     | UpdateThrottle
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     let
-        updateTrackables result =
+        updateUserData result =
             case result of
-                Ok newTrackables ->
+                Ok newUserData ->
                     let
                         ( newThrottle, cmd ) =
-                            Throttle.try (setTrackables <| Trackables.encode <| newTrackables) model.throttle
+                            Throttle.try (setUserData <| UserData.encode <| newUserData) model.throttle
                     in
                     ( { model | throttle = newThrottle }, cmd )
 
@@ -199,123 +199,123 @@ update msg model =
                 Error err ->
                     ( { model | pageState = Error err }, Cmd.none )
 
-                Loaded today trackables _ ->
+                Loaded today userData _ ->
                     let
                         ( page, cmd ) =
-                            routeToPage today trackables route
+                            routeToPage today userData route
                     in
-                    ( { model | pageState = Loaded today trackables page }, cmd )
+                    ( { model | pageState = Loaded today userData page }, cmd )
 
         GotCurrentDate today ->
             case model.pageState of
                 Loading route _ Nothing ->
                     ( { model | pageState = Loading route (Just today) Nothing }, Cmd.none )
 
-                Loading route _ (Just trackables) ->
+                Loading route _ (Just userData) ->
                     let
                         ( page, cmd ) =
-                            routeToPage today trackables route
+                            routeToPage today userData route
                     in
-                    ( { model | pageState = Loaded today trackables page }, cmd )
+                    ( { model | pageState = Loaded today userData page }, cmd )
 
                 _ ->
                     ( model, Cmd.none )
 
         DayPageMsg (DayPage.UpdateTrackable fn id) ->
             case model.pageState of
-                Loaded _ trackables _ ->
-                    updateTrackables <| Trackables.update id fn trackables
+                Loaded _ userData _ ->
+                    updateUserData <| UserData.updateTrackable id fn userData
 
                 _ ->
                     ( model, Cmd.none )
 
         DayPageMsg dayPageMsg ->
             case model.pageState of
-                Loaded today trackables (DayPage dayPageModel) ->
+                Loaded today userData (DayPage dayPageModel) ->
                     let
                         ( newModel, cmd ) =
                             DayPage.update dayPageMsg dayPageModel
                     in
-                    ( { model | pageState = Loaded today trackables (DayPage newModel) }, Cmd.map DayPageMsg cmd )
+                    ( { model | pageState = Loaded today userData (DayPage newModel) }, Cmd.map DayPageMsg cmd )
 
                 _ ->
                     ( model, Cmd.none )
 
         GraphPageMsg graphPageMsg ->
             case model.pageState of
-                Loaded today trackables (GraphPage graphPageModel) ->
+                Loaded today userData (GraphPage graphPageModel) ->
                     let
                         ( newModel, cmd ) =
                             GraphPage.update graphPageMsg graphPageModel
                     in
-                    ( { model | pageState = Loaded today trackables (GraphPage newModel) }, Cmd.map GraphPageMsg cmd )
+                    ( { model | pageState = Loaded today userData (GraphPage newModel) }, Cmd.map GraphPageMsg cmd )
 
                 _ ->
                     ( model, Cmd.none )
 
         SettingsPageMsg (SettingsPage.UpdateTrackable fn id) ->
             case model.pageState of
-                Loaded _ trackables _ ->
-                    updateTrackables <| Trackables.update id fn trackables
+                Loaded _ userData _ ->
+                    updateUserData <| UserData.updateTrackable id fn userData
 
                 _ ->
                     ( model, Cmd.none )
 
         SettingsPageMsg (SettingsPage.AddTrackable t id) ->
             case model.pageState of
-                Loaded _ trackables _ ->
-                    updateTrackables <| Trackables.add id t trackables
+                Loaded _ userData _ ->
+                    updateUserData <| UserData.addTrackable id t userData
 
                 _ ->
                     ( model, Cmd.none )
 
         SettingsPageMsg (SettingsPage.DeleteTrackable id) ->
             case model.pageState of
-                Loaded _ trackables _ ->
-                    updateTrackables <| Trackables.delete id trackables
+                Loaded _ userData _ ->
+                    updateUserData <| UserData.deleteTrackable id userData
 
                 _ ->
                     ( model, Cmd.none )
 
         SettingsPageMsg settingsPageMsg ->
             case model.pageState of
-                Loaded today trackables (SettingsPage settingsPageModel) ->
+                Loaded today userData (SettingsPage settingsPageModel) ->
                     let
                         ( newModel, cmd ) =
                             SettingsPage.update settingsPageMsg settingsPageModel
                     in
-                    ( { model | pageState = Loaded today trackables (SettingsPage newModel) }, Cmd.map SettingsPageMsg cmd )
+                    ( { model | pageState = Loaded today userData (SettingsPage newModel) }, Cmd.map SettingsPageMsg cmd )
 
                 _ ->
                     ( model, Cmd.none )
 
-        TrackablesChanged data ->
-            case Decode.decodeValue Trackables.decode data of
-                Ok trackables ->
+        UserDataChanged data ->
+            case Decode.decodeValue UserData.decode data of
+                Ok userData ->
                     case model.pageState of
                         Loading route d _ ->
-                            ( { model | pageState = Loading route d (Just trackables) }, Cmd.none )
+                            ( { model | pageState = Loading route d (Just userData) }, Cmd.none )
 
                         Loaded today _ (GraphPage graphPageModel) ->
                             let
                                 ( newModel, cmd ) =
-                                    GraphPage.update (GraphPage.TrackablesChanged trackables) graphPageModel
+                                    GraphPage.update (GraphPage.UserDataChanged userData) graphPageModel
                             in
-                            ( { model | pageState = Loaded today trackables (GraphPage newModel) }
+                            ( { model | pageState = Loaded today userData (GraphPage newModel) }
                             , Cmd.map GraphPageMsg cmd
                             )
 
                         Loaded today _ (DayPage dayPageModel) ->
                             let
                                 ( newModel, cmd ) =
-                                    DayPage.update (DayPage.TrackablesChanged trackables) dayPageModel
+                                    DayPage.update (DayPage.UserDataChanged userData) dayPageModel
                             in
-                            ( { model | pageState = Loaded today trackables (DayPage newModel) }
+                            ( { model | pageState = Loaded today userData (DayPage newModel) }
                             , Cmd.map DayPageMsg cmd
                             )
 
                         Loaded today _ page ->
-                            ( { model | pageState = Loaded today trackables page }
+                            ( { model | pageState = Loaded today userData page }
                             , Cmd.none
                             )
 

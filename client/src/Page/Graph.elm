@@ -14,7 +14,7 @@ import Maybe exposing (Maybe)
 import Task
 import Time exposing (Month(..))
 import Trackable exposing (Trackable, TrackableData(..))
-import Trackables exposing (Trackables)
+import UserData exposing (UserData)
 
 
 type alias Model =
@@ -23,10 +23,10 @@ type alias Model =
     }
 
 
-init : Date -> Trackables -> ( Model, Cmd Msg )
-init today trackables =
+init : Date -> UserData -> ( Model, Cmd Msg )
+init today userData =
     ( { today = today
-      , graph = initGraph today trackables
+      , graph = initGraph today userData
       }
     , Dom.getViewportOf "chart"
         |> Task.andThen (\info -> Dom.setViewportOf "chart" info.scene.width 0)
@@ -34,10 +34,10 @@ init today trackables =
     )
 
 
-initGraph : Date -> Trackables -> Graph.Model
-initGraph today trackables =
+initGraph : Date -> UserData -> Graph.Model
+initGraph today userData =
     Graph.init today
-        (Trackables.toDict trackables
+        (UserData.trackables userData
             |> Dict.filter
                 (\_ t ->
                     case t.data of
@@ -72,7 +72,7 @@ type Msg
     | DataSetBringForwardClicked Int
     | DataSetPushBackClicked Int
     | GraphMsg Graph.Msg
-    | TrackablesChanged Trackables
+    | UserDataChanged UserData
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -105,8 +105,8 @@ update msg model =
         GraphMsg graphMsg ->
             ( { model | graph = Graph.update graphMsg model.graph }, Cmd.none )
 
-        TrackablesChanged trackables ->
-            ( { model | graph = initGraph model.today trackables }, Cmd.none )
+        UserDataChanged userData ->
+            ( { model | graph = initGraph model.today userData }, Cmd.none )
 
 
 
