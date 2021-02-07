@@ -1,4 +1,4 @@
-module Chart exposing (Chart, ChartId, decode, encode)
+module Chart exposing (Chart(..), ChartId, decode, encode)
 
 import Dict exposing (Dict)
 import Json.Decode as D
@@ -8,6 +8,8 @@ import Json.Encode as E
 type Chart
     = LineChart
         { name : String
+        , fillLines : Bool
+        , showPoints : Bool
         , chartables : List Int
         }
 
@@ -26,9 +28,17 @@ decode =
     D.oneOf
         [ D.map LineChart <|
             D.field "lineChart" <|
-                D.map2
-                    (\name chartables -> { name = name, chartables = chartables })
+                D.map4
+                    (\name fillLines showPoints chartables ->
+                        { name = name
+                        , chartables = chartables
+                        , fillLines = fillLines
+                        , showPoints = showPoints
+                        }
+                    )
                     (D.field "name" D.string)
+                    (D.field "fillLines" D.bool)
+                    (D.field "showPoints" D.bool)
                     (D.field "chartables" <|
                         D.list D.int
                     )
@@ -38,13 +48,15 @@ decode =
 encode : Chart -> E.Value
 encode chart =
     case chart of
-        LineChart { name, chartables } ->
+        LineChart c ->
             E.object
                 [ ( "lineChart"
                   , E.object
-                        [ ( "name", E.string name )
+                        [ ( "name", E.string c.name )
+                        , ( "fillLines", E.bool c.fillLines )
+                        , ( "showPoints", E.bool c.showPoints )
                         , ( "chartables"
-                          , E.list E.int chartables
+                          , E.list E.int c.chartables
                           )
                         ]
                   )

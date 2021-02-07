@@ -1,4 +1,4 @@
-module Graph exposing (DataPoint, DataSet, Model, Msg, bringDataSetForward, bringDataSetToFront, hoverDataSet, init, pushDataSetBack, selectDataSet, setFillLines, setShowPoints, toggleDataSet, toggleDataSetSelected, update, updateColour, updateMultiplier, viewJustYAxis, viewKey, viewLineGraph)
+module Graph exposing (DataSet, Model, Msg, bringDataSetForward, bringDataSetToFront, hoverDataSet, init, pushDataSetBack, selectDataSet, setFillLines, setShowPoints, toggleDataSet, toggleDataSetSelected, update, viewJustYAxis, viewKey, viewLineGraph)
 
 import Array
 import Colour exposing (Colour(..))
@@ -10,8 +10,8 @@ import Svg.Events as E exposing (onClick, onMouseOut, onMouseOver)
 
 
 type Msg
-    = DataPointHovered (Maybe ( Int, Date ))
-    | DataPointClicked ( Int, Date )
+    = DataPointHovered (Maybe ( Int, Int ))
+    | DataPointClicked ( Int, Int )
     | DataLineHovered (Maybe Int)
     | DataLineClicked Int
 
@@ -19,7 +19,7 @@ type Msg
 type alias Model =
     { today : Date
     , data : Dict Int DataSet
-    , selectedDataPoint : Maybe ( Int, Date )
+    , selectedDataPoint : Maybe ( Int, Int )
     , fillLines : Bool
     , showPoints : Bool
     , selectedDataSet : Maybe Int
@@ -31,22 +31,17 @@ type alias Model =
 type alias DataSet =
     { name : String
     , colour : Colour
-    , dataPoints : List DataPoint
-    , multiplier : Float
+    , dataPoints : Dict Int Float
     , visible : Bool
     }
-
-
-type alias DataPoint =
-    ( Date, Float )
 
 
 
 -- INIT
 
 
-init : Date -> Dict Int { name : String, colour : Colour, dataPoints : List DataPoint, multiplier : Float } -> Model
-init today dataSets =
+init : Date -> Bool -> Bool -> Dict Int { name : String, colour : Colour, dataPoints : Dict Int Float } -> Model
+init today fillLines showPoints dataSets =
     { today = today
     , data =
         dataSets
@@ -55,15 +50,14 @@ init today dataSets =
                     { name = ds.name
                     , colour = ds.colour
                     , dataPoints = ds.dataPoints
-                    , multiplier = ds.multiplier
                     , visible = True
                     }
                 )
     , selectedDataPoint = Nothing
     , selectedDataSet = Nothing
     , hoveredDataSet = Nothing
-    , fillLines = True
-    , showPoints = False
+    , fillLines = fillLines
+    , showPoints = showPoints
     , dataOrder = Dict.keys dataSets
     }
 
@@ -89,16 +83,6 @@ update msg model =
 
         DataLineClicked id ->
             toggleDataSetSelected id model
-
-
-updateColour : Int -> Colour -> Model -> Model
-updateColour dataSetId colour model =
-    { model | data = Dict.update dataSetId (Maybe.map (\ds -> { ds | colour = colour })) <| model.data }
-
-
-updateMultiplier : Int -> Float -> Model -> Model
-updateMultiplier dataSetId multiplier model =
-    { model | data = Dict.update dataSetId (Maybe.map (\ds -> { ds | multiplier = multiplier })) <| model.data }
 
 
 setFillLines : Bool -> Model -> Model
@@ -132,7 +116,7 @@ toggleDataSetSelected targetId model =
     }
 
 
-selectDataPoint : Maybe ( Int, Date ) -> Model -> Model
+selectDataPoint : Maybe ( Int, Int ) -> Model -> Model
 selectDataPoint p model =
     { model | selectedDataPoint = p }
 
@@ -224,8 +208,7 @@ toggleDataSet id model =
 
 
 type alias PlotPoint =
-    { date : Date
-    , dateRD : Int
+    { date : Int
     , value : Float
     , x : Float
     , y : Float
@@ -362,18 +345,13 @@ viewLineGraph class { data, today, selectedDataPoint, selectedDataSet, hoveredDa
             let
                 plotPoints : List PlotPoint
                 plotPoints =
-                    List.sortBy .dateRD <|
-                        List.map
-                            (\( date, value ) ->
-                                let
-                                    dateRD =
-                                        Date.toRataDie date
-                                in
+                    Dict.values <|
+                        Dict.map
+                            (\date value ->
                                 { date = date
                                 , value = value
-                                , dateRD = dateRD
-                                , x = minX + toFloat (dateRD - startDateRD) * v.xStep
-                                , y = minY + ((value * dataSet.multiplier / toFloat valueStep) * v.yStep)
+                                , x = minX + toFloat (date - startDateRD) * v.xStep
+                                , y = minY + ((value / toFloat valueStep) * v.yStep)
                                 }
                             )
                             dataSet.dataPoints
@@ -517,9 +495,7 @@ findStartDate today data =
             Date.fromRataDie
                 << Maybe.withDefault (Date.toRataDie today)
                 << List.minimum
-                << List.map Date.toRataDie
-                << concatMaybes
-                << List.map (List.head << List.map Tuple.first << .dataPoints)
+                << List.filterMap (List.head << Dict.keys << .dataPoints)
                 << Dict.values
             <|
                 data
@@ -534,8 +510,7 @@ findMaxValue : Dict Int DataSet -> Float
 findMaxValue =
     Maybe.withDefault 0
         << List.maximum
-        << concatMaybes
-        << List.map (\{ multiplier, dataPoints } -> List.maximum <| List.map ((\val -> val * multiplier) << Tuple.second) dataPoints)
+        << List.filterMap (List.maximum << Dict.values << .dataPoints)
         << Dict.values
 
 
