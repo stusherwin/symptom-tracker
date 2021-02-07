@@ -361,40 +361,42 @@ viewLineGraph class { data, today, selectedDataPoint, selectedDataSet, hoveredDa
                 , strokeWidth = 2
                 , strokeLinecap = "round"
                 , strokeLinejoin = "round"
-                , strokeOpacity =
-                    if (selectedDataSet == Nothing && hoveredDataSet == Nothing) || selectedDataSet == Just id || hoveredDataSet == Just id then
-                        100
+                , strokeOpacity = 100
 
-                    else
-                        30
+                -- if (selectedDataSet == Nothing && hoveredDataSet == Nothing) || selectedDataSet == Just id || hoveredDataSet == Just id then
+                --     100
+                -- else
+                --     30
                 , fillCol =
                     if fillLines then
-                        Just dataSet.colour
+                        if selectedDataSet == Just id || hoveredDataSet == Just id then
+                            Opaque dataSet.colour
+
+                        else
+                            Transparent dataSet.colour
 
                     else
-                        Nothing
-                , fillOpacity =
-                    if (selectedDataSet == Nothing && hoveredDataSet == Nothing) || selectedDataSet == Just id || hoveredDataSet == Just id then
-                        100
+                        None
+                , fillOpacity = 100
 
-                    else
-                        30
+                -- if (selectedDataSet == Nothing && hoveredDataSet == Nothing) || selectedDataSet == Just id || hoveredDataSet == Just id then
+                --     100
+                -- else
+                --     30
                 , points = List.map (\{ x, y } -> ( x, y )) plotPoints
                 , onClick = Just (DataLineClicked id)
                 , onMouseOver =
-                    case selectedDataSet of
-                        Just _ ->
-                            Nothing
-
-                        _ ->
-                            Just <| DataLineHovered <| Just id
+                    -- case selectedDataSet of
+                    -- Just _ ->
+                    --     Nothing
+                    -- _ ->
+                    Just <| DataLineHovered <| Just id
                 , onMouseOut =
-                    case selectedDataSet of
-                        Just _ ->
-                            Nothing
-
-                        _ ->
-                            Just <| DataLineHovered Nothing
+                    -- case selectedDataSet of
+                    --     Just _ ->
+                    --         Nothing
+                    --     _ ->
+                    Just <| DataLineHovered Nothing
                 }
                 :: (if showPoints then
                         List.map
@@ -410,25 +412,23 @@ viewLineGraph class { data, today, selectedDataPoint, selectedDataSet, hoveredDa
                                             3
                                     , strokeCol = dataSet.colour
                                     , strokeWidth = 1
-                                    , strokeOpacity =
-                                        if (selectedDataSet == Nothing && hoveredDataSet == Nothing) || selectedDataSet == Just id || hoveredDataSet == Just id then
-                                            100
+                                    , strokeOpacity = 100
 
-                                        else if fillLines then
-                                            30
-
-                                        else
-                                            5
+                                    -- if (selectedDataSet == Nothing && hoveredDataSet == Nothing) || selectedDataSet == Just id || hoveredDataSet == Just id then
+                                    --     100
+                                    -- else if fillLines then
+                                    --     30
+                                    -- else
+                                    --     5
                                     , fillCol = dataSet.colour
-                                    , fillOpacity =
-                                        if (selectedDataSet == Nothing && hoveredDataSet == Nothing) || selectedDataSet == Just id || hoveredDataSet == Just id then
-                                            80
+                                    , fillOpacity = 100
 
-                                        else if fillLines then
-                                            50
-
-                                        else
-                                            30
+                                    -- if (selectedDataSet == Nothing && hoveredDataSet == Nothing) || selectedDataSet == Just id || hoveredDataSet == Just id then
+                                    --     80
+                                    -- else if fillLines then
+                                    --     50
+                                    -- else
+                                    --     30
                                     , onMouseOver = Just <| DataPointHovered <| Just ( id, date )
                                     , onMouseOut = Just <| DataPointHovered Nothing
                                     , onClick = Just (DataPointClicked ( id, date ))
@@ -445,12 +445,17 @@ viewLineGraph class { data, today, selectedDataPoint, selectedDataSet, hoveredDa
     in
     svg [ viewBox w h, A.class class ] <|
         (defs [] <|
-            List.map
+            List.concatMap
                 (\( _, { colour } ) ->
-                    linearGradient [ id <| "gradient-" ++ Colour.toString colour, x1 "0", x2 "0", y1 "0", y2 "1" ]
+                    [ linearGradient [ id <| "gradient-opaque-" ++ Colour.toString colour, x1 "0", x2 "0", y1 "0", y2 "1" ]
+                        [ stop [ offset "0%", A.class <| "stop-" ++ Colour.toString colour, stopOpacity "100%" ] []
+                        , stop [ offset "100%", A.class <| "stop-" ++ Colour.toString colour, stopOpacity "90%" ] []
+                        ]
+                    , linearGradient [ id <| "gradient-transparent-" ++ Colour.toString colour, x1 "0", x2 "0", y1 "0", y2 "1" ]
                         [ stop [ offset "0%", A.class <| "stop-" ++ Colour.toString colour, stopOpacity "80%" ] []
                         , stop [ offset "100%", A.class <| "stop-" ++ Colour.toString colour, stopOpacity "60%" ] []
                         ]
+                    ]
                 )
                 (Dict.toList data)
         )
@@ -658,7 +663,7 @@ type alias PathDefn msg =
     , strokeLinecap : String
     , strokeLinejoin : String
     , strokeOpacity : Int
-    , fillCol : Maybe Colour
+    , fillCol : FillColour
     , fillOpacity : Int
     , points : List ( Float, Float )
     , onClick : Maybe msg
@@ -832,11 +837,11 @@ smoothLinePath h p =
                             in
                             if i == 0 then
                                 case p.fillCol of
-                                    Just _ ->
-                                        "M " ++ toString ( x, v.mb ) ++ " L " ++ toString ( x, y )
+                                    None ->
+                                        "M " ++ toString ( x, y )
 
                                     _ ->
-                                        "M " ++ toString ( x, y )
+                                        "M " ++ toString ( x, v.mb ) ++ " L " ++ toString ( x, y )
 
                             else
                                 let
@@ -853,7 +858,10 @@ smoothLinePath h p =
                                     ++ " "
                                     ++ toString ( x, y )
                                     ++ (case ( p.fillCol, i == Array.length points - 1 ) of
-                                            ( Just _, True ) ->
+                                            ( None, _ ) ->
+                                                ""
+
+                                            ( _, True ) ->
                                                 " L "
                                                     ++ toString ( x, v.mb )
 
@@ -889,11 +897,20 @@ smoothLinePath h p =
         []
 
 
-gradient : Maybe Colour -> String
+type FillColour
+    = None
+    | Opaque Colour
+    | Transparent Colour
+
+
+gradient : FillColour -> String
 gradient maybeCol =
     case maybeCol of
-        Just c ->
-            "url(#gradient-" ++ Colour.toString c ++ ")"
+        Opaque c ->
+            "url(#gradient-opaque-" ++ Colour.toString c ++ ")"
+
+        Transparent c ->
+            "url(#gradient-transparent-" ++ Colour.toString c ++ ")"
 
         _ ->
             "none"
