@@ -95,6 +95,7 @@ initGraph today userData =
                                 }
                             )
                     )
+                    chart.chartables
 
         _ ->
             Nothing
@@ -173,94 +174,83 @@ viewChart : Graph.Model -> Html Msg
 viewChart graph =
     let
         dataSets =
-            Dict.map
-                (\id ds ->
-                    let
-                        canBringForward =
-                            ds.visible && List.head graph.dataOrder /= Just id
+            graph.data
+                |> Dict.map
+                    (\id ds ->
+                        let
+                            canPushBack =
+                                ds.visible && List.head graph.dataOrder /= Just id
 
-                        canPushBack =
-                            ds.visible && (List.head << List.reverse) graph.dataOrder /= Just id
+                            canBringForward =
+                                ds.visible && (List.head << List.reverse) graph.dataOrder /= Just id
 
-                        canSelect =
-                            ds.visible
-                    in
-                    [ div
-                        [ class "p-2 flex first:mt-0 items-center"
-                        , classList
-                            [ ( "bg-gray-300", graph.selectedDataSet == Just id || graph.hoveredDataSet == Just id )
-                            ]
-                        , onMouseEnter <|
-                            case graph.selectedDataSet of
-                                Just _ ->
-                                    NoOp
-
-                                _ ->
-                                    DataSetHovered (Just id)
-                        , onMouseLeave <|
-                            case graph.selectedDataSet of
-                                Just _ ->
-                                    NoOp
-
-                                _ ->
-                                    DataSetHovered Nothing
-                        , onClick (DataSetClicked id)
-                        ]
+                            canSelect =
+                                ds.visible
+                        in
                         [ div
-                            [ class "w-16 h-8 mr-4 flex-grow-0 flex-shrink-0"
-                            ]
-                            [ Graph.viewKey "w-full h-full" ds
-                            ]
-                        , span [ class "mr-4" ] [ text ds.name ]
-
-                        -- , button
-                        --     [ class "ml-auto p-2 text-black"
-                        --     , classList
-                        --         [ ( "text-opacity-30 cursor-default", not canSelect )
-                        --         , ( "text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none", canSelect )
-                        --         ]
-                        --     , onClick (DataSetSelectClicked id)
-                        --     , disabled (not canSelect)
-                        --     ]
-                        --     [ icon "w-6 h-6" <| SolidCrosshairs ]
-                        , button
-                            [ class "ml-auto text-black"
+                            [ class "p-2 flex first:mt-0 items-center"
                             , classList
-                                [ ( "text-opacity-30 cursor-default", not canBringForward )
-                                , ( "text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none", canBringForward )
+                                [ ( "bg-gray-300", graph.selectedDataSet == Just id || graph.hoveredDataSet == Just id )
                                 ]
-                            , onClickStopPropagation (DataSetBringForwardClicked id)
-                            , disabled (not canBringForward)
-                            ]
-                            [ icon "w-6 h-6" <| SolidArrowUp
-                            ]
-                        , button
-                            [ class "ml-2 text-black"
-                            , classList
-                                [ ( "text-opacity-30 cursor-default", not canPushBack )
-                                , ( "text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none", canPushBack )
-                                ]
-                            , onClickStopPropagation (DataSetPushBackClicked id)
-                            , disabled (not canPushBack)
-                            ]
-                            [ icon "w-6 h-6" <| SolidArrowDown
-                            ]
-                        , button
-                            [ class "ml-2 text-black"
-                            , class "text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
-                            , onClickStopPropagation (DataSetVisibleClicked id)
-                            ]
-                            [ icon "w-6 h-6" <|
-                                if ds.visible then
-                                    SolidEye
+                            , onMouseEnter <|
+                                case graph.selectedDataSet of
+                                    Just _ ->
+                                        NoOp
 
-                                else
-                                    SolidEyeSlash
+                                    _ ->
+                                        DataSetHovered (Just id)
+                            , onMouseLeave <|
+                                case graph.selectedDataSet of
+                                    Just _ ->
+                                        NoOp
+
+                                    _ ->
+                                        DataSetHovered Nothing
+                            , onClick (DataSetClicked id)
+                            ]
+                            [ div
+                                [ class "w-16 h-8 mr-4 flex-grow-0 flex-shrink-0"
+                                ]
+                                [ Graph.viewKey "w-full h-full" ds
+                                ]
+                            , span [ class "mr-4" ] [ text ds.name ]
+                            , button
+                                [ class "ml-auto text-black"
+                                , classList
+                                    [ ( "text-opacity-30 cursor-default", not canPushBack )
+                                    , ( "text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none", canPushBack )
+                                    ]
+                                , onClickStopPropagation (DataSetPushBackClicked id)
+                                , disabled (not canPushBack)
+                                ]
+                                [ icon "w-6 h-6" <| SolidArrowUp
+                                ]
+                            , button
+                                [ class "ml-2 text-black"
+                                , classList
+                                    [ ( "text-opacity-30 cursor-default", not canBringForward )
+                                    , ( "text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none", canBringForward )
+                                    ]
+                                , onClickStopPropagation (DataSetBringForwardClicked id)
+                                , disabled (not canBringForward)
+                                ]
+                                [ icon "w-6 h-6" <| SolidArrowDown
+                                ]
+                            , button
+                                [ class "ml-2 text-black"
+                                , class "text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
+                                , onClickStopPropagation (DataSetVisibleClicked id)
+                                ]
+                                [ icon "w-6 h-6" <|
+                                    if ds.visible then
+                                        SolidEye
+
+                                    else
+                                        SolidEyeSlash
+                                ]
                             ]
                         ]
-                    ]
-                )
-                graph.data
+                    )
     in
     div []
         [ div [ class "mx-4 my-0 flex scrollable-parent", style "height" "300px" ]

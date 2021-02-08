@@ -40,8 +40,8 @@ type alias DataSet =
 -- INIT
 
 
-init : Date -> Bool -> Bool -> Dict Int { name : String, colour : Colour, dataPoints : Dict Int Float } -> Model
-init today fillLines showPoints dataSets =
+init : Date -> Bool -> Bool -> Dict Int { name : String, colour : Colour, dataPoints : Dict Int Float } -> List Int -> Model
+init today fillLines showPoints dataSets dataOrder =
     { today = today
     , data =
         dataSets
@@ -58,7 +58,7 @@ init today fillLines showPoints dataSets =
     , hoveredDataSet = Nothing
     , fillLines = fillLines
     , showPoints = showPoints
-    , dataOrder = Dict.keys dataSets
+    , dataOrder = dataOrder
     }
 
 
@@ -133,11 +133,11 @@ hoverDataSet id model =
 
 bringDataSetToFront : Int -> Model -> Model
 bringDataSetToFront id model =
-    { model | dataOrder = id :: List.filter (\i -> i /= id) model.dataOrder }
+    { model | dataOrder = List.reverse <| id :: List.filter (\i -> i /= id) model.dataOrder }
 
 
-bringDataSetForward : Int -> Model -> Model
-bringDataSetForward id model =
+pushDataSetBack : Int -> Model -> Model
+pushDataSetBack id model =
     let
         fn ids =
             case ids of
@@ -160,8 +160,8 @@ bringDataSetForward id model =
     { model | dataOrder = fn model.dataOrder }
 
 
-pushDataSetBack : Int -> Model -> Model
-pushDataSetBack id model =
+bringDataSetForward : Int -> Model -> Model
+bringDataSetForward id model =
     let
         fn ids =
             case ids of
@@ -362,11 +362,6 @@ viewLineGraph class { data, today, selectedDataPoint, selectedDataSet, hoveredDa
                 , strokeLinecap = "round"
                 , strokeLinejoin = "round"
                 , strokeOpacity = 100
-
-                -- if (selectedDataSet == Nothing && hoveredDataSet == Nothing) || selectedDataSet == Just id || hoveredDataSet == Just id then
-                --     100
-                -- else
-                --     30
                 , fillCol =
                     if fillLines then
                         if selectedDataSet == Just id || hoveredDataSet == Just id then
@@ -378,25 +373,10 @@ viewLineGraph class { data, today, selectedDataPoint, selectedDataSet, hoveredDa
                     else
                         None
                 , fillOpacity = 100
-
-                -- if (selectedDataSet == Nothing && hoveredDataSet == Nothing) || selectedDataSet == Just id || hoveredDataSet == Just id then
-                --     100
-                -- else
-                --     30
                 , points = List.map (\{ x, y } -> ( x, y )) plotPoints
                 , onClick = Just (DataLineClicked id)
-                , onMouseOver =
-                    -- case selectedDataSet of
-                    -- Just _ ->
-                    --     Nothing
-                    -- _ ->
-                    Just <| DataLineHovered <| Just id
-                , onMouseOut =
-                    -- case selectedDataSet of
-                    --     Just _ ->
-                    --         Nothing
-                    --     _ ->
-                    Just <| DataLineHovered Nothing
+                , onMouseOver = Just <| DataLineHovered <| Just id
+                , onMouseOut = Just <| DataLineHovered Nothing
                 }
                 :: (if showPoints then
                         List.map
@@ -413,22 +393,8 @@ viewLineGraph class { data, today, selectedDataPoint, selectedDataSet, hoveredDa
                                     , strokeCol = dataSet.colour
                                     , strokeWidth = 1
                                     , strokeOpacity = 100
-
-                                    -- if (selectedDataSet == Nothing && hoveredDataSet == Nothing) || selectedDataSet == Just id || hoveredDataSet == Just id then
-                                    --     100
-                                    -- else if fillLines then
-                                    --     30
-                                    -- else
-                                    --     5
                                     , fillCol = dataSet.colour
                                     , fillOpacity = 100
-
-                                    -- if (selectedDataSet == Nothing && hoveredDataSet == Nothing) || selectedDataSet == Just id || hoveredDataSet == Just id then
-                                    --     80
-                                    -- else if fillLines then
-                                    --     50
-                                    -- else
-                                    --     30
                                     , onMouseOver = Just <| DataPointHovered <| Just ( id, date )
                                     , onMouseOut = Just <| DataPointHovered Nothing
                                     , onClick = Just (DataPointClicked ( id, date ))
@@ -460,7 +426,7 @@ viewLineGraph class { data, today, selectedDataPoint, selectedDataSet, hoveredDa
                 (Dict.toList data)
         )
             :: axes
-            ++ (List.concatMap (\id -> Maybe.withDefault [] <| Dict.get id dataLines) <| List.reverse dataOrder)
+            ++ (List.concatMap (\id -> Maybe.withDefault [] <| Dict.get id dataLines) <| dataOrder)
 
 
 viewKey : String -> DataSet -> Svg msg
