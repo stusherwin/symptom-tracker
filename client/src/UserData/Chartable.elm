@@ -43,7 +43,19 @@ addTrackable ( trackableId, multiplier ) c =
 
 deleteTrackable : TrackableId -> Chartable -> Chartable
 deleteTrackable trackableId c =
-    { c | sum = c.sum |> (List.filter <| \( id, _ ) -> id /= trackableId) }
+    let
+        sum =
+            c.sum |> (List.filter <| \( id, _ ) -> id /= trackableId)
+    in
+    { c
+        | sum = sum
+        , colour =
+            if List.length sum == 1 then
+                Nothing
+
+            else
+                c.colour
+    }
 
 
 replaceTrackable : TrackableId -> TrackableId -> Chartable -> Chartable

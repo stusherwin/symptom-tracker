@@ -73,6 +73,11 @@ type IconType
     | SolidTrashAlt
     | SolidExpand
     | SolidCompress
+    | SolidCalendarMinus
+    | SolidCalendarPlus
+    | SolidMinus
+    | SolidArrowRight
+    | SolidCaretRight
 
 
 toString : IconType -> String
@@ -180,6 +185,21 @@ toString iconType =
         SolidCompress ->
             "solid-compress"
 
+        SolidCalendarMinus ->
+            "solid-calendar-minus"
+
+        SolidCalendarPlus ->
+            "solid-calendar-plus"
+
+        SolidMinus ->
+            "solid-minus"
+
+        SolidArrowRight ->
+            "solid-arrow-right"
+
+        SolidCaretRight ->
+            "solid-caret-right"
+
 
 fromString : String -> Maybe IconType
 fromString str =
@@ -285,6 +305,21 @@ fromString str =
 
         "solid-compress" ->
             Just SolidCompress
+
+        "solid-calendar-minus" ->
+            Just SolidCalendarMinus
+
+        "solid-calendar-plus" ->
+            Just SolidCalendarPlus
+
+        "solid-minus" ->
+            Just SolidMinus
+
+        "solid-arrow-right" ->
+            Just SolidArrowRight
+
+        "solid-caret-right" ->
+            Just SolidCaretRight
 
         _ ->
             Nothing
@@ -463,6 +498,31 @@ iconSymbol attrs iconType =
                 [ path ([ d "M436 192H312c-13.3 0-24-10.7-24-24V44c0-6.6 5.4-12 12-12h40c6.6 0 12 5.4 12 12v84h84c6.6 0 12 5.4 12 12v40c0 6.6-5.4 12-12 12zm-276-24V44c0-6.6-5.4-12-12-12h-40c-6.6 0-12 5.4-12 12v84H12c-6.6 0-12 5.4-12 12v40c0 6.6 5.4 12 12 12h124c13.3 0 24-10.7 24-24zm0 300V344c0-13.3-10.7-24-24-24H12c-6.6 0-12 5.4-12 12v40c0 6.6 5.4 12 12 12h84v84c0 6.6 5.4 12 12 12h40c6.6 0 12-5.4 12-12zm192 0v-84h84c6.6 0 12-5.4 12-12v-40c0-6.6-5.4-12-12-12H312c-13.3 0-24 10.7-24 24v124c0 6.6 5.4 12 12 12h40c6.6 0 12-5.4 12-12z" ] ++ attrs) []
                 ]
 
+        SolidCalendarMinus ->
+            symbol [ id <| toString iconType, viewBox "0 0 448 512" ]
+                [ path ([ d "M436 160H12c-6.6 0-12-5.4-12-12v-36c0-26.5 21.5-48 48-48h48V12c0-6.6 5.4-12 12-12h40c6.6 0 12 5.4 12 12v52h128V12c0-6.6 5.4-12 12-12h40c6.6 0 12 5.4 12 12v52h48c26.5 0 48 21.5 48 48v36c0 6.6-5.4 12-12 12zM12 192h424c6.6 0 12 5.4 12 12v260c0 26.5-21.5 48-48 48H48c-26.5 0-48-21.5-48-48V204c0-6.6 5.4-12 12-12zm304 192c6.6 0 12-5.4 12-12v-40c0-6.6-5.4-12-12-12H132c-6.6 0-12 5.4-12 12v40c0 6.6 5.4 12 12 12h184z" ] ++ attrs) []
+                ]
+
+        SolidCalendarPlus ->
+            symbol [ id <| toString iconType, viewBox "0 0 448 512" ]
+                [ path ([ d "M436 160H12c-6.6 0-12-5.4-12-12v-36c0-26.5 21.5-48 48-48h48V12c0-6.6 5.4-12 12-12h40c6.6 0 12 5.4 12 12v52h128V12c0-6.6 5.4-12 12-12h40c6.6 0 12 5.4 12 12v52h48c26.5 0 48 21.5 48 48v36c0 6.6-5.4 12-12 12zM12 192h424c6.6 0 12 5.4 12 12v260c0 26.5-21.5 48-48 48H48c-26.5 0-48-21.5-48-48V204c0-6.6 5.4-12 12-12zm316 140c0-6.6-5.4-12-12-12h-60v-60c0-6.6-5.4-12-12-12h-40c-6.6 0-12 5.4-12 12v60h-60c-6.6 0-12 5.4-12 12v40c0 6.6 5.4 12 12 12h60v60c0 6.6 5.4 12 12 12h40c6.6 0 12-5.4 12-12v-60h60c6.6 0 12-5.4 12-12v-40z" ] ++ attrs) []
+                ]
+
+        SolidMinus ->
+            symbol [ id <| toString iconType, viewBox "0 0 448 512" ]
+                [ path ([ d "M416 208H32c-17.67 0-32 14.33-32 32v32c0 17.67 14.33 32 32 32h384c17.67 0 32-14.33 32-32v-32c0-17.67-14.33-32-32-32z" ] ++ attrs) []
+                ]
+
+        SolidArrowRight ->
+            symbol [ id <| toString iconType, viewBox "0 0 448 512" ]
+                [ path ([ d "M190.5 66.9l22.2-22.2c9.4-9.4 24.6-9.4 33.9 0L441 239c9.4 9.4 9.4 24.6 0 33.9L246.6 467.3c-9.4 9.4-24.6 9.4-33.9 0l-22.2-22.2c-9.5-9.5-9.3-25 .4-34.3L311.4 296H24c-13.3 0-24-10.7-24-24v-32c0-13.3 10.7-24 24-24h287.4L190.9 101.2c-9.8-9.3-10-24.8-.4-34.3z" ] ++ attrs) []
+                ]
+
+        SolidCaretRight ->
+            symbol [ id <| toString iconType, viewBox "0 0 192 512" ]
+                [ path ([ d "M0 384.662V127.338c0-17.818 21.543-26.741 34.142-14.142l128.662 128.662c7.81 7.81 7.81 20.474 0 28.284L34.142 398.804C21.543 411.404 0 402.48 0 384.662z" ] ++ attrs) []
+                ]
+
 
 all : List IconType
 all =
@@ -500,6 +560,11 @@ all =
     , SolidTrashAlt
     , SolidExpand
     , SolidCompress
+    , SolidCalendarMinus
+    , SolidCalendarPlus
+    , SolidMinus
+    , SolidArrowRight
+    , SolidCaretRight
     ]
 
 

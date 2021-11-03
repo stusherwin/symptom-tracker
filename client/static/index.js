@@ -400,7 +400,7 @@ customElements.define('dropdown-list', DropdownList);
 
 var storedData = localStorage.getItem('symptrack-data');
 var flags = storedData ? JSON.parse(storedData) : null;
-console.log(flags);
+// console.log(flags);
 
 var { Elm } = require('../src/Main');
 var app = Elm.Main.init({
@@ -410,4 +410,25 @@ var app = Elm.Main.init({
 
 app.ports.setUserData.subscribe(function (state) {
   localStorage.setItem('symptrack-data', JSON.stringify(state));
+});
+
+app.ports.toggleElementFullScreen.subscribe(function (id) {
+  if (!document.fullscreenElement) {
+    document.getElementById(id).requestFullscreen()
+      .catch(err => console.log(err));
+  } else {
+    document.exitFullscreen();
+    app.ports.fullScreenChanged.send(false);
+  }
+});
+
+document.addEventListener('fullscreenchange', (event) => {
+  if (document.fullscreenElement) {
+    screen.orientation.lock('landscape')
+      .catch(err => console.log(err));
+    app.ports.fullScreenChanged.send(true);
+  } else {
+    app.ports.fullScreenChanged.send(false);
+    screen.orientation.unlock();
+  }
 });

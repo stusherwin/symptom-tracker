@@ -1,4 +1,4 @@
-module Page.Charts exposing (Model, Msg(..), init, update, view)
+port module Page.Charts exposing (Model, Msg(..), init, subscriptions, update, view)
 
 import Array
 import Browser.Dom as Dom
@@ -32,20 +32,24 @@ type alias Model =
     { today : Date
     , charts : List ( LineChartId, Graph.Model LineChartModel ChartableId ChartableModel )
     , userData : UserData
-    , trackableOptions : List ( TrackableId, String )
+    , trackableOptions : List ( TrackableId, ( String, Bool ) )
     , chartableOptions : List ( ChartableId, String )
+    , fullScreen : Bool
     }
 
 
 type alias LineChartModel =
-    { editState : EditState
+    { addState : EditState
     }
 
 
 type EditState
-    = NotEditing
+    = NotAdding
     | AddingChartable (Maybe ChartableId)
-    | EditingChartable ChartableId Bool
+
+
+
+-- | EditingChartable ChartableId Bool
 
 
 type alias ChartableModel =
@@ -71,15 +75,15 @@ init today userData =
                 |> IdDict.toList
       , trackableOptions =
             UserData.activeTrackables userData
-                |> List.filter (\( _, ( _, visible ) ) -> visible)
-                |> List.map (\( id, ( t, _ ) ) -> ( id, t.question ))
-                |> List.sortBy (String.toUpper << Tuple.second)
+                |> List.map (Tuple.mapSecond (Tuple.mapFirst .question))
+                |> List.sortBy (String.toUpper << Tuple.first << Tuple.second)
       , chartableOptions =
             UserData.chartables userData
                 |> IdDict.toList
                 |> (List.map <| Tuple.mapSecond (Stringx.withDefault "[no name]" << .name))
                 |> List.sortBy (String.toUpper << Tuple.second)
       , userData = userData
+      , fullScreen = False
       }
     , Cmd.batch <|
         (UserData.lineCharts userData
@@ -88,7 +92,7 @@ init today userData =
                 (\id ->
                     let
                         chartId =
-                            "chart" ++ LineChartId.toString id
+                            "chart" ++ LineChartId.toString id ++ "-scrollable"
                     in
                     Dom.getViewportOf chartId
                         |> Task.andThen (\info -> Dom.setViewportOf chartId info.scene.width 0)
@@ -113,9 +117,11 @@ toChartModel today userData chart =
         chart.chartables
             |> List.filterMap toChartableModel_
     , selectedDataSet = Nothing
+    , leavingDataSet = Nothing
     , hoveredDataSet = Nothing
     , selectedDataPoint = Nothing
-    , editState = NotEditing
+    , hoveredDataPoint = Nothing
+    , addState = NotAdding
     }
 
 
@@ -148,14 +154,23 @@ toTrackableModel userData ( trackableId, multiplier ) =
 
 toColour : UserData -> Chartable -> Colour
 toColour userData chartable =
-    Maybe.withDefault Colour.Gray <|
-        if List.length chartable.sum == 1 then
+    let
+        firstColour =
             List.head chartable.sum
                 |> Maybe.andThen ((\tId -> UserData.getTrackable tId userData) << Tuple.first)
                 |> Maybe.map .colour
+    in
+    Maybe.withDefault Colour.Gray <|
+        if List.length chartable.sum == 1 then
+            firstColour
 
         else
-            chartable.colour
+            case chartable.colour of
+                Just c ->
+                    Just c
+
+                Nothing ->
+                    firstColour
 
 
 toDataPoints : UserData -> Chartable -> Dict Int Float
@@ -187,14 +202,34 @@ toDataPoints userData chartable =
 
 
 
+-- PORTS
+
+
+port toggleElementFullScreen : String -> Cmd msg
+
+
+port fullScreenChanged : (Bool -> msg) -> Sub msg
+
+
+subscriptions : Model -> Sub Msg
+subscriptions _ =
+    fullScreenChanged FullScreenChanged
+
+
+
 -- UPDATE
 
 
 type Msg
     = NoOp
-    | FillLinesChecked LineChartId Bool
-    | ShowPointsChecked LineChartId Bool
+    | ChartFillLinesChecked LineChartId Bool
+    | ChartShowPointsChecked LineChartId Bool
+    | ChartFullScreenClicked LineChartId
+    | ChartZoomOutClicked LineChartId
+    | ChartZoomInClicked LineChartId
+    | ChartClicked LineChartId
     | ChartableHovered LineChartId (Maybe ChartableId)
+    | ChartableClicked LineChartId ChartableId
     | ChartableEditClicked LineChartId ChartableId
     | ChartableCloseClicked LineChartId
     | ChartableVisibleClicked LineChartId ChartableId
@@ -215,6 +250,7 @@ type Msg
     | TrackableDeleteClicked LineChartId ChartableId TrackableId
     | UserDataUpdated UserData
     | GraphMsg LineChartId (Graph.Msg ChartableId)
+    | FullScreenChanged Bool
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -229,22 +265,26 @@ update msg model =
         updateChartableOptions fn m =
             { m | chartableOptions = m.chartableOptions |> fn |> List.sortBy (String.toUpper << Tuple.second) }
 
-        updateSelectedDataSet c =
-            { c
-                | selectedDataSet =
-                    case c.editState of
-                        EditingChartable chartableId _ ->
-                            Just chartableId
-
-                        _ ->
-                            Nothing
-            }
-
+        -- updateSelectedDataSet c =
+        --     { c
+        --         | selectedDataSet =
+        --             case c.editState of
+        --                 EditingChartable chartableId _ ->
+        --                     Just chartableId
+        --                 _ ->
+        --                     Nothing
+        --         , hoveredDataSet = Nothing
+        --         -- , leavingDataSet =                     case c.editState of
+        --         --         EditingChartable chartableId _ ->
+        --         --             Just chartableId
+        --         --         _ ->
+        --         --             Nothing
+        --     }
         setUserData userData_ m =
             { m | userData = userData_ }
     in
     case msg of
-        FillLinesChecked chartId fl ->
+        ChartFillLinesChecked chartId fl ->
             let
                 userData_ =
                     model.userData |> UserData.updateLineChart chartId (LineChart.setFillLines fl)
@@ -255,7 +295,7 @@ update msg model =
             , Task.perform UserDataUpdated <| Task.succeed userData_
             )
 
-        ShowPointsChecked chartId sp ->
+        ChartShowPointsChecked chartId sp ->
             let
                 userData_ =
                     model.userData |> UserData.updateLineChart chartId (LineChart.setShowPoints sp)
@@ -266,16 +306,25 @@ update msg model =
             , Task.perform UserDataUpdated <| Task.succeed userData_
             )
 
+        ChartFullScreenClicked chartId ->
+            ( model, toggleElementFullScreen ("chart" ++ LineChartId.toString chartId) )
+
+        ChartClicked chartId ->
+            ( model |> updateChartModel chartId (\c -> { c | selectedDataSet = Nothing, selectedDataPoint = Nothing }), Cmd.none )
+
         ChartableHovered chartId chartableId ->
             ( model |> (updateChartModel chartId <| Graph.hoverDataSet chartableId), Cmd.none )
 
+        ChartableClicked chartId chartableId ->
+            ( model |> (updateChartModel chartId <| Graph.toggleDataSetSelected chartableId), Cmd.none )
+
         ChartableEditClicked chartId chartableId ->
-            ( model |> (updateChartModel chartId <| updateSelectedDataSet << (\c -> { c | editState = EditingChartable chartableId False }))
+            ( model |> (updateChartModel chartId <| Graph.selectDataSet (Just chartableId) {- << (\c -> { c | editState = EditingChartable chartableId False }) -})
             , Task.attempt (always NoOp) <| Dom.focus <| "chart" ++ LineChartId.toString chartId ++ "-chartable" ++ ChartableId.toString chartableId ++ "-name"
             )
 
         ChartableCloseClicked chartId ->
-            ( model |> (updateChartModel chartId <| updateSelectedDataSet << (\c -> { c | editState = NotEditing })), Cmd.none )
+            ( model |> (updateChartModel chartId <| Graph.selectDataSet Nothing {- << (\c -> { c | editState = NotEditing }) -}), Cmd.none )
 
         ChartableVisibleClicked chartId chartableId ->
             let
@@ -284,7 +333,7 @@ update msg model =
             in
             ( model
                 |> setUserData userData_
-                |> (updateChartModel chartId <| Graph.toggleDataSet chartableId)
+                |> (updateChartModel chartId <| Graph.toggleDataSetVisible chartableId)
             , Task.perform UserDataUpdated <| Task.succeed userData_
             )
 
@@ -379,10 +428,10 @@ update msg model =
         ChartableAddClicked chartId ->
             ( model
                 |> (updateChartModel chartId <|
-                        updateSelectedDataSet
+                        Graph.selectDataSet Nothing
                             << (\c ->
                                     { c
-                                        | editState =
+                                        | addState =
                                             AddingChartable
                                                 (model.chartableOptions
                                                     |> List.map Tuple.first
@@ -398,10 +447,10 @@ update msg model =
         ChartableToAddChanged chartId chartableId ->
             ( model
                 |> (updateChartModel chartId <|
-                        updateSelectedDataSet
+                        Graph.selectDataSet Nothing
                             << (\c ->
                                     { c
-                                        | editState = AddingChartable chartableId
+                                        | addState = AddingChartable chartableId
                                     }
                                )
                    )
@@ -411,7 +460,7 @@ update msg model =
         ChartableAddConfirmClicked chartId ->
             let
                 ( chartableIdM, userData_, isNew ) =
-                    case model.charts |> Listx.lookup chartId |> Maybe.map .editState of
+                    case model.charts |> Listx.lookup chartId |> Maybe.map .addState of
                         Just (AddingChartable (Just chartableId)) ->
                             ( Just chartableId, model.userData, False )
 
@@ -449,16 +498,17 @@ update msg model =
                     ( model
                         |> setUserData userData__
                         |> (updateChartModel chartId <|
-                                updateSelectedDataSet
+                                Graph.selectDataSet
+                                    (if isNew then
+                                        Just chartableId
+
+                                     else
+                                        Nothing
+                                    )
                                     << (\c ->
                                             { c
                                                 | data = c.data |> Listx.insertLookup chartableId newChartableModel
-                                                , editState =
-                                                    if isNew then
-                                                        EditingChartable chartableId True
-
-                                                    else
-                                                        NotEditing
+                                                , addState = NotAdding
                                             }
                                        )
                            )
@@ -479,10 +529,10 @@ update msg model =
         ChartableAddCancelClicked chartId ->
             ( model
                 |> (updateChartModel chartId <|
-                        updateSelectedDataSet
+                        Graph.selectDataSet Nothing
                             << (\c ->
                                     { c
-                                        | editState = NotEditing
+                                        | addState = NotAdding
                                     }
                                )
                    )
@@ -497,18 +547,20 @@ update msg model =
             ( model
                 |> setUserData userData_
                 |> (updateChartModel chartId <|
-                        \c ->
-                            { c
-                                | data = c.data |> List.filter (\( cId, _ ) -> cId /= chartableId)
-                                , editState = NotEditing
-                            }
+                        Graph.selectDataSet Nothing
+                            << (\c ->
+                                    { c
+                                        | data = c.data |> List.filter (\( cId, _ ) -> cId /= chartableId)
+                                        , addState = NotAdding
+                                    }
+                               )
                    )
             , Task.perform UserDataUpdated <| Task.succeed userData_
             )
 
         TrackableChanged chartId chartableId trackableId (Just newTrackableId) ->
             let
-                questionM =
+                trackableOptionM =
                     model.trackableOptions |> Listx.lookup newTrackableId
 
                 userData_ =
@@ -517,8 +569,8 @@ update msg model =
                 chartableM_ =
                     userData_ |> UserData.getChartable chartableId
             in
-            case ( questionM, chartableM_ ) of
-                ( Just question, Just chartable_ ) ->
+            case ( trackableOptionM, chartableM_ ) of
+                ( Just ( question, _ ), Just chartable_ ) ->
                     ( model
                         |> setUserData userData_
                         |> (updateChartModel chartId <|
@@ -592,8 +644,8 @@ update msg model =
                         |> Maybe.map
                             (\tIds ->
                                 model.trackableOptions
+                                    |> List.filter (\( tId, ( _, visible ) ) -> visible && not (List.member tId tIds))
                                     |> List.map Tuple.first
-                                    |> List.filter (\tId -> not (List.member tId tIds))
                             )
                         |> Maybe.andThen List.head
                         |> Maybe.map (\tId -> ( tId, 1.0 ))
@@ -656,6 +708,9 @@ update msg model =
         GraphMsg chartId graphMsg ->
             ( model |> (updateChartModel chartId <| Graph.update graphMsg), Cmd.none )
 
+        FullScreenChanged fullScreen ->
+            ( { model | fullScreen = fullScreen }, Cmd.none )
+
         _ ->
             ( model, Cmd.none )
 
@@ -666,16 +721,19 @@ update msg model =
 
 view : Model -> Html Msg
 view model =
-    div [ class "bg-white" ] <|
+    div
+        [ class "bg-white"
+        ]
+    <|
         h2 [ class "py-4 pb-0 font-bold text-2xl text-center" ]
             [ text "Charts" ]
             :: (model.charts
-                    |> List.map (viewLineChart model.chartableOptions model.trackableOptions)
+                    |> List.map (viewLineChart model.fullScreen model.chartableOptions model.trackableOptions)
                )
 
 
-viewLineChart : List ( ChartableId, String ) -> List ( TrackableId, String ) -> ( LineChartId, Graph.Model LineChartModel ChartableId ChartableModel ) -> Html Msg
-viewLineChart chartableOptions trackableOptions ( chartId, model ) =
+viewLineChart : Bool -> List ( ChartableId, String ) -> List ( TrackableId, ( String, Bool ) ) -> ( LineChartId, Graph.Model LineChartModel ChartableId ChartableModel ) -> Html Msg
+viewLineChart fullScreen chartableOptions trackableOptions ( chartId, model ) =
     let
         viewChartable ( chartableId, dataSet ) =
             let
@@ -687,19 +745,38 @@ viewLineChart chartableOptions trackableOptions ( chartId, model ) =
 
                 canEditColour =
                     List.length dataSet.trackables > 1
+
+                options =
+                    trackableOptions
+                        |> List.map
+                            (\( tId, ( question, visible ) ) ->
+                                ( ( tId
+                                  , visible
+                                        && (not <|
+                                                List.member tId <|
+                                                    (dataSet.trackables
+                                                        |> List.map Tuple.first
+                                                    )
+                                           )
+                                  )
+                                , question
+                                )
+                            )
             in
             [ div
                 [ class "border-t-4"
                 , Colour.class "bg" dataSet.colour
                 , Colour.classUp "border" dataSet.colour
                 , classList
-                    [ ( "grayscale", not dataSet.visible )
+                    [ ( "grayscale", not dataSet.visible || not ((model.selectedDataSet == Nothing && model.hoveredDataSet == Nothing) || model.selectedDataSet == Just chartableId || model.hoveredDataSet == Just chartableId) )
                     ]
                 , onMouseEnter <| ChartableHovered chartId (Just chartableId)
                 , onMouseLeave <| ChartableHovered chartId Nothing
                 ]
-                [ if model.editState /= EditingChartable chartableId True && model.editState /= EditingChartable chartableId False then
-                    div [ class "p-4 flex items-center" ]
+                [ if model.selectedDataSet /= Just chartableId then
+                    div
+                        [ class "p-4 flex items-center"
+                        ]
                         [ button
                             [ class "text-black focus:outline-none flex-grow-0 flex-shrink-0 text-opacity-70 hover:text-opacity-100 focus:text-opacity-100"
                             , Htmlx.onClickStopPropagation <| ChartableVisibleClicked chartId chartableId
@@ -711,22 +788,43 @@ viewLineChart chartableOptions trackableOptions ( chartId, model ) =
                                 else
                                     SolidEyeSlash
                             ]
-                        , span [ class "ml-4 font-bold" ]
-                            [ text <|
-                                if String.isEmpty dataSet.name then
-                                    "[no name]"
+                        , if dataSet.visible then
+                            span [ class "ml-4 w-full", Htmlx.onClickStopPropagation NoOp ]
+                                [ a [ class "block w-full font-bold flex items-center", href "#", target "_self", Htmlx.onClickPreventDefault (ChartableClicked chartId chartableId) ]
+                                    [ if model.selectedDataSet == Just chartableId then
+                                        icon "w-5 h-5 relative -ml-1 mr-0.5" SolidCaretRight
 
-                                else
-                                    dataSet.name
-                            ]
-                        , button
-                            [ class "ml-auto rounded text-black text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
-                            , onClick (ChartableEditClicked chartId chartableId)
-                            ]
-                            [ icon "w-5 h-5" <| SolidPencilAlt ]
+                                      else
+                                        span [] []
+                                    , span []
+                                        [ text <|
+                                            if String.isEmpty dataSet.name then
+                                                "[no name]"
+
+                                            else
+                                                dataSet.name
+                                        ]
+                                    ]
+                                ]
+
+                          else
+                            span [ class "ml-4 w-full font-bold" ]
+                                [ text <|
+                                    if String.isEmpty dataSet.name then
+                                        "[no name]"
+
+                                    else
+                                        dataSet.name
+                                ]
+
+                        -- , button
+                        --     [ class "ml-4 rounded text-black text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
+                        --     , Htmlx.onClickStopPropagation (ChartableEditClicked chartId chartableId)
+                        --     ]
+                        --     [ icon "w-5 h-5" <| SolidPencilAlt ]
                         , button
                             [ class "ml-4 rounded text-black text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
-                            , onClick (ChartableDeleteClicked chartId chartableId)
+                            , Htmlx.onClickStopPropagation (ChartableDeleteClicked chartId chartableId)
                             ]
                             [ icon "w-5 h-5" <| SolidTrashAlt ]
                         , button
@@ -795,12 +893,12 @@ viewLineChart chartableOptions trackableOptions ( chartId, model ) =
                             span [ class "ml-4" ] []
                         , button
                             [ class "ml-auto rounded text-black text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
-                            , onClick (ChartableCloseClicked chartId)
+                            , Htmlx.onClickStopPropagation (ChartableCloseClicked chartId)
                             ]
                             [ icon "w-5 h-5" <| SolidTimes ]
                         ]
                 ]
-            , if model.editState == EditingChartable chartableId True || model.editState == EditingChartable chartableId False then
+            , if model.selectedDataSet == Just chartableId then
                 div
                     [ class "p-4"
                     , Colour.classDown "bg" dataSet.colour
@@ -823,23 +921,7 @@ viewLineChart chartableOptions trackableOptions ( chartId, model ) =
                                         (TrackableChanged chartId chartableId trackableId)
                                         TrackableId.toString
                                         TrackableId.fromString
-                                        (trackableOptions
-                                            |> List.map
-                                                (\( tId, question ) ->
-                                                    ( ( tId
-                                                      , tId
-                                                            == trackableId
-                                                            || (not <|
-                                                                    List.member tId <|
-                                                                        (dataSet.trackables
-                                                                            |> List.map Tuple.first
-                                                                        )
-                                                               )
-                                                      )
-                                                    , question
-                                                    )
-                                                )
-                                        )
+                                        (options |> List.map (\( ( tId, visible ), q ) -> ( ( tId, visible || tId == trackableId ), q )))
                                         Nothing
                                         (Just trackableId)
                                         { showFilled = False }
@@ -847,24 +929,62 @@ viewLineChart chartableOptions trackableOptions ( chartId, model ) =
                                     , Controls.textbox [ class "ml-4 w-20 flex-grow-0 flex-shrink-0" ] [] t.multiplier { isValid = t.isValid, isRequired = True, isPristine = False } (TrackableMultiplierUpdated chartId chartableId trackableId)
                                     , button
                                         [ class "ml-4 rounded text-black text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
-                                        , onClick (TrackableDeleteClicked chartId chartableId trackableId)
+                                        , Htmlx.onClickStopPropagation (TrackableDeleteClicked chartId chartableId trackableId)
                                         ]
                                         [ icon "w-5 h-5" <| SolidTrashAlt ]
                                     ]
                             )
                     )
                         ++ [ div [ class "mt-4 first:mt-0 flex" ]
-                                [ Controls.button "ml-9 flex-grow-0 flex-shrink-0 whitespace-nowrap" Controls.ButtonGrey (TrackableAddClicked chartId chartableId) SolidPlusCircle "Add trackable" True ]
+                                [ Controls.button "ml-9 flex-grow-0 flex-shrink-0 whitespace-nowrap" Controls.ButtonGrey (TrackableAddClicked chartId chartableId) SolidPlusCircle "Add trackable" (options |> List.any (Tuple.second << Tuple.first)) ]
                            ]
 
               else
                 div [] []
             ]
     in
-    div []
-        [ div [ class "mx-4 my-0 flex scrollable-parent", style "height" "300px" ]
-            [ viewJustYAxis "flex-grow-0 flex-shrink-0" model
-            , viewScrollableContainer ("chart" ++ LineChartId.toString chartId) [ Html.map (GraphMsg chartId) <| viewLineGraph "h-full" model ]
+    div
+        []
+        [ div
+            [ id ("chart" ++ LineChartId.toString chartId)
+            , class "bg-white"
+            , classList
+                [ ( "p-8", fullScreen )
+                ]
+            ]
+            [ div
+                [ class "mx-4 my-0 flex scrollable-parent relative"
+                , style "height" "300px"
+                , onClick (ChartClicked chartId)
+                ]
+                [ viewJustYAxis "flex-grow-0 flex-shrink-0" model
+                , viewScrollableContainer ("chart" ++ LineChartId.toString chartId ++ "-scrollable") [ Html.map (GraphMsg chartId) <| viewLineGraph "h-full" model ]
+                , div [ class "absolute right-4 top-8 flex flex-col" ]
+                    [ button
+                        [ class "text-black text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
+                        , Htmlx.onClickStopPropagation (ChartFullScreenClicked chartId)
+                        ]
+                        [ icon "w-5 h-5" <|
+                            if fullScreen then
+                                SolidCompress
+
+                            else
+                                SolidExpand
+                        ]
+                    , button
+                        [ class "text-black text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
+                        , Htmlx.onClickStopPropagation (ChartZoomInClicked chartId)
+                        ]
+                        [ icon "mt-4 w-5 h-5" SolidPlus
+                        ]
+                    , button
+                        [ class "text-black text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
+                        , Htmlx.onClickStopPropagation (ChartZoomOutClicked chartId)
+                        ]
+                        [ icon "mt-4 w-5 h-5" SolidMinus
+                        ]
+                    ]
+                ]
             ]
         , div [ class "m-4 mt-4 flex flex-wrap justify-end" ]
             [ label [ class "text-right whitespace-nowrap", for "fill-lines" ] [ text "Colour under curves" ]
@@ -872,7 +992,7 @@ viewLineChart chartableOptions trackableOptions ( chartId, model ) =
                 [ type_ "checkbox"
                 , id "fill-lines"
                 , class "ml-2"
-                , onCheck (FillLinesChecked chartId)
+                , onCheck (ChartFillLinesChecked chartId)
                 , checked model.fillLines
                 ]
                 []
@@ -881,14 +1001,14 @@ viewLineChart chartableOptions trackableOptions ( chartId, model ) =
                 [ type_ "checkbox"
                 , id "show-points"
                 , class "ml-2"
-                , onCheck (ShowPointsChecked chartId)
+                , onCheck (ChartShowPointsChecked chartId)
                 , checked model.showPoints
                 ]
                 []
             ]
         , div [ class "mt-4 bg-gray-200" ] <|
             (model.data |> List.concatMap viewChartable)
-                ++ [ case model.editState of
+                ++ [ case model.addState of
                         AddingChartable addingChartableId ->
                             div [ class "px-4 py-2 bg-gray-300 border-t-4 border-gray-400 flex" ]
                                 [ Controls.textDropdown "w-full h-10"
@@ -912,13 +1032,10 @@ viewLineChart chartableOptions trackableOptions ( chartId, model ) =
                                 , Controls.button "ml-4" Controls.ButtonGrey (ChartableAddConfirmClicked chartId) SolidPlusCircle "Add" True
                                 , button
                                     [ class "ml-4 rounded text-black text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
-                                    , onClick (ChartableAddCancelClicked chartId)
+                                    , Htmlx.onClickStopPropagation (ChartableAddCancelClicked chartId)
                                     ]
                                     [ icon "w-5 h-5" <| SolidTimes ]
                                 ]
-
-                        EditingChartable _ True ->
-                            div [] []
 
                         _ ->
                             div [ class "px-4 py-2 bg-gray-300 border-t-4 border-gray-400 flex" ]
@@ -933,7 +1050,7 @@ viewScrollableContainer containerId children =
     div [ class "relative flex-grow" ]
         [ node "scrollable-container"
             [ id containerId
-            , class "absolute overflow-x-scroll top-0 bottom-scrollbar"
+            , class "absolute overflow-x-scroll top-0 left-0 right-0 bottom-0"
             ]
             children
         ]

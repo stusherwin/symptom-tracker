@@ -1,9 +1,10 @@
-module Svg.Graph exposing (DataSet, Model, Msg, hoverDataSet, selectDataSet, toggleDataSet, toggleDataSetSelected, update, viewJustYAxis, viewKey, viewLineGraph)
+module Svg.Graph exposing (DataSet, Model, Msg, hoverDataSet, selectDataSet, toggleDataSetSelected, toggleDataSetVisible, update, viewJustYAxis, viewKey, viewLineGraph)
 
 import Array
 import Colour exposing (Colour(..))
 import Date exposing (Date, Unit(..))
 import Dict exposing (Dict)
+import Htmlx
 import IdDict exposing (IdDict)
 import Listx
 import Svg as S exposing (..)
@@ -23,10 +24,12 @@ type alias Model m dataSetId dataSet =
         | today : Date
         , data : List ( dataSetId, DataSet dataSet )
         , selectedDataPoint : Maybe ( dataSetId, Int )
+        , hoveredDataPoint : Maybe ( dataSetId, Int )
         , fillLines : Bool
         , showPoints : Bool
         , selectedDataSet : Maybe dataSetId
         , hoveredDataSet : Maybe dataSetId
+        , leavingDataSet : Maybe dataSetId
     }
 
 
@@ -46,14 +49,11 @@ type alias DataSet dataSet =
 update : Msg dataSetId -> Model m dataSetId dataSet -> Model m dataSetId dataSet
 update msg model =
     case msg of
-        DataPointHovered (Just ( id, d )) ->
-            (selectDataPoint (Just ( id, d )) << hoverDataSet (Just id)) model
+        DataPointHovered p ->
+            hoverDataPoint p model
 
-        DataPointHovered _ ->
-            (selectDataPoint Nothing << hoverDataSet Nothing) model
-
-        DataPointClicked ( id, _ ) ->
-            toggleDataSetSelected id model
+        DataPointClicked ( id, d ) ->
+            toggleDataPointSelected ( id, d ) model
 
         DataLineHovered id ->
             hoverDataSet id model
@@ -65,42 +65,156 @@ update msg model =
 toggleDataSetSelected : dataSetId -> Model m dataSetId dataSet -> Model m dataSetId dataSet
 toggleDataSetSelected targetId model =
     let
-        newSelectedDataSet =
-            case model.selectedDataSet of
-                Just id ->
+        ( newSelectedDataSet, leavingDataSet ) =
+            case ( model.selectedDataSet, model.selectedDataPoint ) of
+                ( Just _, Just _ ) ->
+                    ( Just targetId, Nothing )
+
+                ( Just id, _ ) ->
                     if id == targetId then
-                        Nothing
+                        ( Nothing, Just id )
 
                     else
-                        Just targetId
+                        ( Just targetId, Nothing )
 
                 _ ->
-                    Just targetId
+                    ( Just targetId, Nothing )
+
+        wasVisible =
+            model.data |> Listx.lookup targetId |> Maybe.map .visible
     in
-    { model
-        | selectedDataSet = newSelectedDataSet
-        , hoveredDataSet = Nothing
-    }
+    case wasVisible of
+        Just True ->
+            { model
+                | selectedDataSet = newSelectedDataSet
+                , hoveredDataSet = Nothing
+                , leavingDataSet = leavingDataSet
+                , selectedDataPoint = Nothing
+            }
 
-
-selectDataPoint : Maybe ( dataSetId, Int ) -> Model m dataSetId dataSet -> Model m dataSetId dataSet
-selectDataPoint p model =
-    { model | selectedDataPoint = p }
+        _ ->
+            model
 
 
 selectDataSet : Maybe dataSetId -> Model m dataSetId dataSet -> Model m dataSetId dataSet
-selectDataSet id model =
-    { model | selectedDataSet = id }
+selectDataSet targetId model =
+    let
+        leavingDataSet =
+            case ( targetId, model.selectedDataSet ) of
+                ( Nothing, Just id ) ->
+                    Just id
+
+                _ ->
+                    Nothing
+
+        visible =
+            targetId |> Maybe.andThen (\id -> model.data |> Listx.lookup id |> Maybe.map .visible)
+    in
+    case ( targetId, visible ) of
+        ( Just id, Just True ) ->
+            { model
+                | selectedDataSet = Just id
+                , hoveredDataSet = Nothing
+                , leavingDataSet = leavingDataSet
+                , selectedDataPoint = Nothing
+            }
+
+        ( Nothing, _ ) ->
+            { model
+                | selectedDataSet = Nothing
+                , hoveredDataSet = Nothing
+                , leavingDataSet = leavingDataSet
+                , selectedDataPoint = Nothing
+            }
+
+        _ ->
+            model
 
 
 hoverDataSet : Maybe dataSetId -> Model m dataSetId dataSet -> Model m dataSetId dataSet
-hoverDataSet id model =
-    { model | hoveredDataSet = id }
+hoverDataSet idM model =
+    { model
+        | hoveredDataSet =
+            case idM of
+                Just id ->
+                    let
+                        visible =
+                            model.data |> Listx.lookup id |> Maybe.map .visible
+                    in
+                    if model.leavingDataSet == Just id || visible /= Just True then
+                        Nothing
+
+                    else
+                        Just id
+
+                _ ->
+                    Nothing
+        , leavingDataSet =
+            case idM of
+                Nothing ->
+                    Nothing
+
+                _ ->
+                    model.leavingDataSet
+    }
 
 
-toggleDataSet : dataSetId -> Model m dataSetId dataSet -> Model m dataSetId dataSet
-toggleDataSet id model =
-    { model | data = model.data |> Listx.updateLookup id (\ds -> { ds | visible = not ds.visible }) }
+toggleDataPointSelected : ( dataSetId, Int ) -> Model m dataSetId dataSet -> Model m dataSetId dataSet
+toggleDataPointSelected ( id, date ) model =
+    let
+        ( newSelectedDataPoint, newSelectedDataSet, leavingDataSet ) =
+            case model.selectedDataPoint of
+                Just p ->
+                    if p == ( id, date ) then
+                        ( Nothing, Nothing, Just id )
+
+                    else
+                        ( Just ( id, date ), Just id, Nothing )
+
+                _ ->
+                    ( Just ( id, date ), Just id, Nothing )
+    in
+    { model
+        | selectedDataPoint = newSelectedDataPoint
+        , hoveredDataPoint = Nothing
+        , selectedDataSet = newSelectedDataSet
+        , hoveredDataSet = Nothing
+        , leavingDataSet = leavingDataSet
+    }
+
+
+hoverDataPoint : Maybe ( dataSetId, Int ) -> Model m dataSetId dataSet -> Model m dataSetId dataSet
+hoverDataPoint p model =
+    { model
+        | hoveredDataPoint = p
+        , hoveredDataSet =
+            case p of
+                Just ( id, _ ) ->
+                    Just id
+
+                _ ->
+                    Nothing
+    }
+
+
+toggleDataSetVisible : dataSetId -> Model m dataSetId dataSet -> Model m dataSetId dataSet
+toggleDataSetVisible id model =
+    let
+        wasVisible =
+            model.data |> Listx.lookup id |> Maybe.map .visible
+    in
+    { model
+        | data = model.data |> Listx.updateLookup id (\ds -> { ds | visible = not ds.visible })
+        , selectedDataSet = Nothing
+        , hoveredDataSet = Nothing
+        , leavingDataSet =
+            case wasVisible of
+                Just False ->
+                    Just id
+
+                _ ->
+                    Nothing
+    }
 
 
 
@@ -169,7 +283,7 @@ viewJustYAxis class { data } =
 
 
 viewLineGraph : String -> Model m dataSetId dataSet -> Svg (Msg dataSetId)
-viewLineGraph class { data, today, selectedDataPoint, selectedDataSet, hoveredDataSet, fillLines, showPoints } =
+viewLineGraph class { data, today, selectedDataPoint, hoveredDataPoint, selectedDataSet, hoveredDataSet, fillLines, showPoints } =
     let
         startDate =
             findStartDate today data
@@ -199,9 +313,7 @@ viewLineGraph class { data, today, selectedDataPoint, selectedDataSet, hoveredDa
             ( v.mb, h - v.mt )
 
         xAxis =
-            List.map (\n -> line h { dottedLine | x1 = minX + toFloat n * v.xStep, y1 = minY, x2 = minX + toFloat n * v.xStep, y2 = maxY })
-                (List.range 0 xSteps)
-                ++ line h { axisLine | x1 = 0, y1 = minY, x2 = w, y2 = minY }
+            line h { axisLine | x1 = 0, y1 = minY, x2 = w, y2 = minY }
                 :: List.concatMap
                     (\n ->
                         if n == 0 then
@@ -224,12 +336,16 @@ viewLineGraph class { data, today, selectedDataPoint, selectedDataSet, hoveredDa
                     )
                     (List.range 0 xSteps)
 
-        yAxis =
+        xLines =
+            List.map (\n -> line h { dottedLine | x1 = minX + toFloat n * v.xStep, y1 = minY, x2 = minX + toFloat n * v.xStep, y2 = maxY })
+                (List.range 0 xSteps)
+
+        yLines =
             List.map
                 (\n -> line h { dottedLine | x1 = 0, y1 = minY + toFloat n * v.yStep, x2 = w, y2 = minY + toFloat n * v.yStep })
                 (List.range 1 5)
 
-        axes =
+        background =
             rect h
                 { fillCol = LighterGray
                 , x = 0
@@ -237,11 +353,30 @@ viewLineGraph class { data, today, selectedDataPoint, selectedDataSet, hoveredDa
                 , width = w
                 , height = maxY - minY
                 }
-                :: xAxis
-                ++ yAxis
+                :: xLines
+                ++ yLines
 
-        dataLine : ( dataSetId, DataSet dataSet ) -> List (Svg (Msg dataSetId))
-        dataLine ( id, dataSet ) =
+        axes =
+            xAxis
+
+        featuredDataSet =
+            case selectedDataSet of
+                Just id ->
+                    Just id
+
+                Nothing ->
+                    hoveredDataSet
+
+        featuredDataPoint =
+            case selectedDataPoint of
+                Just id ->
+                    Just id
+
+                Nothing ->
+                    hoveredDataPoint
+
+        dataLine : ( Order, ( dataSetId, DataSet dataSet ) ) -> List (Svg (Msg dataSetId))
+        dataLine ( order, ( id, dataSet ) ) =
             let
                 plotPoints : List PlotPoint
                 plotPoints =
@@ -256,45 +391,95 @@ viewLineGraph class { data, today, selectedDataPoint, selectedDataSet, hoveredDa
                             )
                             dataSet.dataPoints
             in
-            smoothLinePath h
-                { strokeCol = dataSet.colour
-                , strokeWidth = 2
-                , strokeLinecap = "round"
-                , strokeLinejoin = "round"
-                , strokeOpacity = 100
-                , fillCol =
-                    if fillLines then
-                        if selectedDataSet == Just id || hoveredDataSet == Just id then
-                            Opaque dataSet.colour
+            (if fillLines then
+                smoothLinePath h
+                    { strokeCol = dataSet.colour
+                    , strokeWidth = 0
+                    , strokeLinecap = "round"
+                    , strokeLinejoin = "round"
+                    , strokeOpacity = 0
+                    , fillCol = Normal dataSet.colour
+
+                    -- case order of
+                    --     EQ ->
+                    --         Opaque dataSet.colour
+                    --     LT ->
+                    --         Normal dataSet.colour
+                    --     GT ->
+                    --         Transparent dataSet.colour
+                    , filter =
+                        --NoFilter
+                        if (selectedDataSet == Nothing && hoveredDataSet == Nothing) || selectedDataSet == Just id || hoveredDataSet == Just id then
+                            -- if featuredDataSet == Nothing || featuredDataSet == Just id then
+                            NoFilter
 
                         else
-                            Transparent dataSet.colour
+                            Grayscale
+                    , fillOpacity = 100
+                    , points = List.map (\{ x, y } -> ( x, y )) plotPoints
+                    , onClick = Just (DataLineClicked id)
+                    , onMouseOver = Just <| DataLineHovered <| Just id
+                    , onMouseOut = Just <| DataLineHovered Nothing
+                    }
 
-                    else
-                        None
-                , fillOpacity = 100
-                , points = List.map (\{ x, y } -> ( x, y )) plotPoints
-                , onClick = Just (DataLineClicked id)
-                , onMouseOver = Just <| DataLineHovered <| Just id
-                , onMouseOut = Just <| DataLineHovered Nothing
-                }
+             else
+                S.path [] []
+            )
+                :: smoothLinePath h
+                    { strokeCol = dataSet.colour
+                    , strokeWidth = 2
+                    , strokeLinecap = "round"
+                    , strokeLinejoin = "round"
+                    , strokeOpacity = 100
+
+                    -- if order == GT then
+                    --     30
+                    -- else
+                    --     100
+                    , fillCol =
+                        -- if fillLines then
+                        --     Opaque dataSet.colour
+                        -- else
+                        NoFill
+                    , filter =
+                        --NoFilter
+                        if (selectedDataSet == Nothing && hoveredDataSet == Nothing) || selectedDataSet == Just id || hoveredDataSet == Just id then
+                            -- if featuredDataSet == Nothing || featuredDataSet == Just id then
+                            NoFilter
+
+                        else
+                            Grayscale
+                    , fillOpacity = 100
+                    , points = List.map (\{ x, y } -> ( x, y )) plotPoints
+                    , onClick = Just (DataLineClicked id)
+                    , onMouseOver = Just <| DataLineHovered <| Just id
+                    , onMouseOut = Just <| DataLineHovered Nothing
+                    }
                 :: (if showPoints then
                         List.map
                             (\{ date, x, y } ->
                                 circle h
                                     { cx = x
                                     , cy = y
-                                    , r =
-                                        if selectedDataPoint == Just ( id, date ) then
-                                            4
-
-                                        else
-                                            3
+                                    , r = 3
                                     , strokeCol = dataSet.colour
-                                    , strokeWidth = 1
+                                    , strokeWidth = 0
                                     , strokeOpacity = 100
                                     , fillCol = dataSet.colour
+                                    , filter =
+                                        -- NoFilter
+                                        if (selectedDataSet == Nothing && hoveredDataSet == Nothing) || selectedDataSet == Just id || hoveredDataSet == Just id then
+                                            -- if featuredDataSet == Nothing || featuredDataSet == Just id then
+                                            NoFilter
+
+                                        else
+                                            Grayscale
                                     , fillOpacity = 100
+
+                                    -- if order == GT then
+                                    --     50
+                                    -- else
+                                    --     100
                                     , onMouseOver = Just <| DataPointHovered <| Just ( id, date )
                                     , onMouseOut = Just <| DataPointHovered Nothing
                                     , onClick = Just (DataPointClicked ( id, date ))
@@ -308,22 +493,118 @@ viewLineGraph class { data, today, selectedDataPoint, selectedDataSet, hoveredDa
     in
     svg [ viewBox w h, A.class class ] <|
         (defs [] <|
-            List.concatMap
-                (\( _, { colour } ) ->
-                    [ linearGradient [ id <| "gradient-opaque-" ++ Colour.toString colour, x1 "0", x2 "0", y1 "0", y2 "1" ]
-                        [ stop [ offset "0%", A.class <| "stop-" ++ Colour.toString colour, stopOpacity "100%" ] []
-                        , stop [ offset "100%", A.class <| "stop-" ++ Colour.toString colour, stopOpacity "90%" ] []
+            S.filter [ id "grayscale" ]
+                [ feColorMatrix [ type_ "saturate", values "0.1" ] []
+                ]
+                :: List.concatMap
+                    (\( _, { colour } ) ->
+                        [ linearGradient [ id <| "gradient-opaque-" ++ Colour.toString colour, x1 "0", x2 "0", y1 "0", y2 "1" ]
+                            [ stop [ offset "0%", A.class <| "stop-" ++ Colour.toString colour, stopOpacity "90%" ] []
+                            , stop [ offset "100%", A.class <| "stop-" ++ Colour.toString colour, stopOpacity "70%" ] []
+                            ]
+                        , linearGradient [ id <| "gradient-normal-" ++ Colour.toString colour, x1 "0", x2 "0", y1 "0", y2 "1" ]
+                            [ stop [ offset "0%", A.class <| "stop-" ++ Colour.toString colour, stopOpacity "80%" ] []
+                            , stop [ offset "100%", A.class <| "stop-" ++ Colour.toString colour, stopOpacity "60%" ] []
+                            ]
+                        , linearGradient [ id <| "gradient-transparent-" ++ Colour.toString colour, x1 "0", x2 "0", y1 "0", y2 "1" ]
+                            [ stop [ offset "0%", A.class <| "stop-" ++ Colour.toString colour, stopOpacity "40%" ] []
+                            , stop [ offset "100%", A.class <| "stop-" ++ Colour.toString colour, stopOpacity "20%" ] []
+                            ]
                         ]
-                    , linearGradient [ id <| "gradient-transparent-" ++ Colour.toString colour, x1 "0", x2 "0", y1 "0", y2 "1" ]
-                        [ stop [ offset "0%", A.class <| "stop-" ++ Colour.toString colour, stopOpacity "80%" ] []
-                        , stop [ offset "100%", A.class <| "stop-" ++ Colour.toString colour, stopOpacity "60%" ] []
-                        ]
-                    ]
-                )
-                data
+                    )
+                    data
         )
-            :: (axes
-                    ++ (List.concatMap dataLine <| List.filter (.visible << Tuple.second) <| data)
+            :: background
+            ++ ((case featuredDataPoint of
+                    Nothing ->
+                        axes
+
+                    _ ->
+                        []
+                )
+                    ++ (let
+                            data_ =
+                                data
+                                    |> List.filter (.visible << Tuple.second)
+                                    |> List.foldl
+                                        (\( id, d ) t ->
+                                            if hoveredDataSet == Just id then
+                                                ( EQ, ( id, d ) ) :: t
+
+                                            else
+                                                case t of
+                                                    ( EQ, x ) :: xs ->
+                                                        ( GT, ( id, d ) ) :: ( EQ, x ) :: xs
+
+                                                    ( o, x ) :: xs ->
+                                                        ( o, ( id, d ) ) :: ( o, x ) :: xs
+
+                                                    [] ->
+                                                        [ ( LT, ( id, d ) ) ]
+                                        )
+                                        []
+                                    |> List.reverse
+                        in
+                        (data_
+                            |> List.filter ((\id -> selectedDataSet /= Just id) << Tuple.first << Tuple.second)
+                            |> List.concatMap dataLine
+                        )
+                            ++ (data_
+                                    |> List.filter ((\id -> selectedDataSet == Just id) << Tuple.first << Tuple.second)
+                                    |> List.concatMap dataLine
+                               )
+                       )
+                    ++ (case featuredDataPoint of
+                            Just ( id, date ) ->
+                                case data |> Listx.lookup id |> Maybe.andThen (.dataPoints >> Dict.get date) of
+                                    Just value ->
+                                        let
+                                            x =
+                                                minX + toFloat (date - startDateRD) * v.xStep
+
+                                            y =
+                                                minY + ((value / toFloat valueStep) * v.yStep)
+                                        in
+                                        [ line h { highlightLine | strokeOpacity = 60, x1 = x, y1 = minY + 1, x2 = x, y2 = y - 1.5 }
+                                        , circle h
+                                            { cx = x
+                                            , cy = y
+                                            , r = 4
+                                            , strokeCol = Colour.White
+                                            , strokeWidth = 0
+                                            , strokeOpacity = 0
+                                            , fillCol = Colour.White
+                                            , filter = NoFilter
+                                            , fillOpacity = 60
+                                            , onMouseOver = Just <| DataPointHovered <| Just ( id, date )
+                                            , onMouseOut = Just <| DataPointHovered Nothing
+                                            , onClick = Just (DataPointClicked ( id, date ))
+                                            }
+                                        ]
+                                            ++ axes
+                                            ++ [ line h { axisLine | x1 = x, y1 = minY - 3, x2 = x, y2 = y - 1.5 }
+                                               , circle h
+                                                    { cx = x
+                                                    , cy = y
+                                                    , r = 3
+                                                    , strokeCol = Colour.Black
+                                                    , strokeWidth = 0
+                                                    , strokeOpacity = 100
+                                                    , fillCol = Colour.Black
+                                                    , fillOpacity = 100
+                                                    , filter = NoFilter
+                                                    , onMouseOver = Just <| DataPointHovered <| Just ( id, date )
+                                                    , onMouseOut = Just <| DataPointHovered Nothing
+                                                    , onClick = Just (DataPointClicked ( id, date ))
+                                                    }
+                                               ]
+
+                                    _ ->
+                                        []
+
+                            _ ->
+                                []
+                       )
                )
 
 
@@ -349,6 +630,8 @@ viewKey class colour =
             , strokeWidth = 2
             , strokeDasharray = Nothing
             , strokeLinecap = "square"
+            , strokeOpacity = 100
+            , filter = NoFilter
             , x1 = 0
             , y1 = h / 2
             , x2 = w
@@ -388,6 +671,8 @@ type alias LineDefn =
     , strokeWidth : Float
     , strokeLinecap : String
     , strokeDasharray : Maybe String
+    , strokeOpacity : Int
+    , filter : Filter
     , x1 : Float
     , y1 : Float
     , x2 : Float
@@ -397,7 +682,12 @@ type alias LineDefn =
 
 axisLine : LineDefn
 axisLine =
-    { strokeCol = Black, strokeWidth = 1, strokeLinecap = "square", strokeDasharray = Nothing, x1 = 0, y1 = 0, x2 = 0, y2 = 0 }
+    { strokeCol = Black, filter = NoFilter, strokeWidth = 1, strokeLinecap = "square", strokeOpacity = 100, strokeDasharray = Nothing, x1 = 0, y1 = 0, x2 = 0, y2 = 0 }
+
+
+highlightLine : LineDefn
+highlightLine =
+    { strokeCol = White, filter = NoFilter, strokeWidth = 3, strokeOpacity = 100, strokeLinecap = "square", strokeDasharray = Nothing, x1 = 0, y1 = 0, x2 = 0, y2 = 0 }
 
 
 dottedLine : LineDefn
@@ -406,6 +696,8 @@ dottedLine =
     , strokeWidth = 1
     , strokeDasharray = Just "4"
     , strokeLinecap = "square"
+    , strokeOpacity = 100
+    , filter = NoFilter
     , x1 = 0
     , y1 = 0
     , x2 = 0
@@ -416,7 +708,16 @@ dottedLine =
 line : Float -> LineDefn -> Svg msg
 line h l =
     S.line
-        ([ class <| "stroke-" ++ Colour.toString l.strokeCol, strokeLinecap l.strokeLinecap, x1 (String.fromFloat l.x1), y1 (String.fromFloat (h - l.y1)), x2 (String.fromFloat l.x2), y2 (String.fromFloat (h - l.y2)) ]
+        ([ class <| "stroke-" ++ Colour.toString l.strokeCol
+         , A.filter <| filter l.filter
+         , strokeWidth <| String.fromFloat l.strokeWidth
+         , strokeOpacity <| String.fromInt l.strokeOpacity ++ "%"
+         , strokeLinecap l.strokeLinecap
+         , x1 (String.fromFloat l.x1)
+         , y1 (String.fromFloat (h - l.y1))
+         , x2 (String.fromFloat l.x2)
+         , y2 (String.fromFloat (h - l.y2))
+         ]
             ++ (case l.strokeDasharray of
                     Just sda ->
                         [ strokeDasharray sda ]
@@ -439,7 +740,14 @@ type alias RectDefn =
 
 rect : Float -> RectDefn -> Svg msg
 rect h r =
-    S.rect [ class <| "fill-" ++ Colour.toString r.fillCol, x (String.fromFloat r.x), y (String.fromFloat (h - r.y - r.height)), width (String.fromFloat r.width), height (String.fromFloat r.height) ] []
+    S.rect
+        [ class <| "fill-" ++ Colour.toString r.fillCol
+        , x (String.fromFloat r.x)
+        , y (String.fromFloat (h - r.y - r.height))
+        , width (String.fromFloat r.width)
+        , height (String.fromFloat r.height)
+        ]
+        []
 
 
 type alias CircleDefn msg =
@@ -448,6 +756,7 @@ type alias CircleDefn msg =
     , r : Float
     , fillCol : Colour
     , fillOpacity : Int
+    , filter : Filter
     , strokeCol : Colour
     , strokeWidth : Float
     , strokeOpacity : Int
@@ -464,6 +773,7 @@ circle h c =
          , cy (String.fromFloat (h - c.cy))
          , r (String.fromFloat c.r)
          , class <| "fill-" ++ Colour.toString c.fillCol
+         , A.filter <| filter c.filter
          , fillOpacity <| String.fromInt c.fillOpacity ++ "%"
          , class <| "stroke-" ++ Colour.toString c.strokeCol
          , strokeWidth (String.fromFloat c.strokeWidth)
@@ -485,7 +795,7 @@ circle h c =
                )
             ++ (case c.onClick of
                     Just msg ->
-                        [ onClick msg ]
+                        [ Htmlx.onClickStopPropagation msg ]
 
                     _ ->
                         []
@@ -516,6 +826,7 @@ type alias PathDefn msg =
     , strokeOpacity : Int
     , fillCol : FillColour
     , fillOpacity : Int
+    , filter : Filter
     , points : List ( Float, Float )
     , onClick : Maybe msg
     , onMouseOver : Maybe msg
@@ -527,6 +838,7 @@ polyLine : Float -> PathDefn msg -> Svg msg
 polyLine h p =
     S.polyline
         ([ fill <| gradient p.fillCol
+         , A.filter <| filter p.filter
          , fillOpacity <| String.fromInt p.fillOpacity ++ "%"
          , class <| "stroke-" ++ Colour.toString p.strokeCol
          , strokeWidth (String.fromFloat p.strokeWidth)
@@ -537,7 +849,7 @@ polyLine h p =
          ]
             ++ (case p.onClick of
                     Just msg ->
-                        [ onClick msg ]
+                        [ Htmlx.onClickStopPropagation msg ]
 
                     _ ->
                         []
@@ -581,6 +893,7 @@ straightLinePath h p =
     in
     S.path
         ([ fill <| gradient p.fillCol
+         , A.filter <| filter p.filter
          , fillOpacity <| String.fromInt p.fillOpacity ++ "%"
          , class <| "stroke-" ++ Colour.toString p.strokeCol
          , strokeWidth (String.fromFloat p.strokeWidth)
@@ -591,7 +904,7 @@ straightLinePath h p =
          ]
             ++ (case p.onClick of
                     Just msg ->
-                        [ onClick msg ]
+                        [ Htmlx.onClickStopPropagation msg ]
 
                     _ ->
                         []
@@ -622,6 +935,7 @@ smoothLinePath h p =
     in
     S.path
         ([ class <| "stroke-" ++ Colour.toString p.strokeCol
+         , A.filter <| filter p.filter
          , fill <| gradient p.fillCol
          , fillOpacity <| String.fromInt p.fillOpacity ++ "%"
          , strokeWidth (String.fromFloat p.strokeWidth)
@@ -688,7 +1002,7 @@ smoothLinePath h p =
                             in
                             if i == 0 then
                                 case p.fillCol of
-                                    None ->
+                                    NoFill ->
                                         "M " ++ toString ( x, y )
 
                                     _ ->
@@ -709,7 +1023,7 @@ smoothLinePath h p =
                                     ++ " "
                                     ++ toString ( x, y )
                                     ++ (case ( p.fillCol, i == Array.length points - 1 ) of
-                                            ( None, _ ) ->
+                                            ( NoFill, _ ) ->
                                                 ""
 
                                             ( _, True ) ->
@@ -725,7 +1039,7 @@ smoothLinePath h p =
          ]
             ++ (case p.onClick of
                     Just msg ->
-                        [ onClick msg ]
+                        [ Htmlx.onClickStopPropagation msg ]
 
                     _ ->
                         []
@@ -749,9 +1063,15 @@ smoothLinePath h p =
 
 
 type FillColour
-    = None
+    = NoFill
     | Opaque Colour
+    | Normal Colour
     | Transparent Colour
+
+
+type Filter
+    = NoFilter
+    | Grayscale
 
 
 gradient : FillColour -> String
@@ -760,11 +1080,24 @@ gradient maybeCol =
         Opaque c ->
             "url(#gradient-opaque-" ++ Colour.toString c ++ ")"
 
+        Normal c ->
+            "url(#gradient-normal-" ++ Colour.toString c ++ ")"
+
         Transparent c ->
             "url(#gradient-transparent-" ++ Colour.toString c ++ ")"
 
         _ ->
             "none"
+
+
+filter : Filter -> String
+filter f =
+    case f of
+        Grayscale ->
+            "url(#grayscale)"
+
+        _ ->
+            ""
 
 
 viewBox : Float -> Float -> Attribute msg

@@ -32,7 +32,7 @@ body {
 
 .mobile-width {
   width: 100%;
-  max-width: 640px;
+  max-width: 740px;
 }
 
 .hidden-all {
@@ -57,7 +57,11 @@ body {
 }
 
 .grayscale {
-  filter: grayscale(70%);
+  filter: grayscale(90%);
+}
+
+.darken {
+  filter:brightness(0.9);
 }
 
 .group:hover .group-hover\:bg-white.hover\:bg-gray-800:hover{

@@ -140,6 +140,12 @@ subscriptions model =
         [ Throttle.ifNeeded
             (Time.every 1000 (\_ -> UpdateThrottle))
             model.throttle
+        , case model.pageState of
+            Loaded _ _ (ChartsPage page) ->
+                Sub.map ChartsPageMsg (ChartsPage.subscriptions page)
+
+            _ ->
+                Sub.none
         ]
 
 
