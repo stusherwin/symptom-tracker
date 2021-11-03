@@ -18,7 +18,7 @@ import Time exposing (Month(..))
 import UserData exposing (UserData)
 import UserData.Chartable as Chartable
 import UserData.ChartableId exposing (ChartableId)
-import UserData.LineChart exposing (LineChart)
+import UserData.LineChart exposing (LineChart(..))
 import UserData.LineChartId as LineChartId exposing (LineChartId)
 import UserData.Trackable exposing (TrackableData(..))
 
@@ -221,30 +221,31 @@ update msg model =
         ChartAddClicked ->
             let
                 chartNames =
-                    model.userData |> UserData.lineCharts |> IdDict.values |> List.map .name
+                    model.userData |> UserData.lineCharts |> IdDict.values |> List.map (\(LineChart s _) -> s.name)
 
-                newChart =
+                newChartState =
                     { name = Stringx.nextName chartNames "Line Chart " 1
                     , fillLines = True
                     , data = Array.empty
                     }
 
-                ( idM, userData_ ) =
-                    model.userData |> UserData.addLineChart newChart
-
-                newChartModelM =
-                    idM |> Maybe.map (\id -> Chart.init model.today userData_ id newChart)
+                ( resultM, userData_ ) =
+                    model.userData |> UserData.addLineChart newChartState
             in
-            case ( idM, newChartModelM ) of
-                ( Just id, Just ( newChartModel, cmd ) ) ->
+            case resultM of
+                Just ( newId, newChart ) ->
+                    let
+                        ( newChartModel, cmd ) =
+                            Chart.init model.today userData_ newId newChart
+                    in
                     ( model
                         |> setUserData userData_
-                        |> addChart id newChartModel
+                        |> addChart newId newChartModel
                       -- |> (\m -> { m | state = Chart newChartModel })
                     , Cmd.batch
                         [ Task.perform UserDataUpdated <| Task.succeed userData_
-                        , Nav.pushUrl model.navKey ("/charts/" ++ LineChartId.toString id)
-                        , Cmd.map (ChartMsg id) cmd
+                        , Nav.pushUrl model.navKey ("/charts/" ++ LineChartId.toString newId)
+                        , Cmd.map (ChartMsg newId) cmd
                         ]
                     )
 

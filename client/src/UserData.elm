@@ -171,10 +171,8 @@ init =
                     }
                   )
                 ]
-    in
-    UserData
-        { trackables = tbles
-        , chartables =
+
+        cbles =
             ChartableId.toDict
                 [ ( ChartableId 1
                   , Chartable.build tbles
@@ -228,20 +226,26 @@ init =
                         }
                   )
                 ]
+    in
+    UserData
+        { trackables = tbles
+        , chartables = cbles
         , lineCharts =
             LineChartId.toDict
                 [ ( LineChartId 1
-                  , { name = "All Data"
-                    , fillLines = True
-                    , data =
-                        Array.fromList
-                            [ ( LineChart.Chartable (ChartableId 1), True )
-                            , ( LineChart.Chartable (ChartableId 2), False )
-                            , ( LineChart.Chartable (ChartableId 3), True )
-                            , ( LineChart.Chartable (ChartableId 4), True )
-                            , ( LineChart.Chartable (ChartableId 5), True )
-                            ]
-                    }
+                  , LineChart.build cbles
+                        tbles
+                        { name = "All Data"
+                        , fillLines = True
+                        , data =
+                            Array.fromList
+                                [ ( LineChart.StateChartable { chartableId = ChartableId 1 }, True )
+                                , ( LineChart.StateChartable { chartableId = ChartableId 2 }, False )
+                                , ( LineChart.StateChartable { chartableId = ChartableId 3 }, True )
+                                , ( LineChart.StateChartable { chartableId = ChartableId 4 }, True )
+                                , ( LineChart.StateChartable { chartableId = ChartableId 5 }, True )
+                                ]
+                        }
                   )
                 ]
         , activeTrackables =
@@ -390,24 +394,27 @@ updateLineChart id fn (UserData data) =
     UserData { data | lineCharts = data.lineCharts |> IdDict.update id fn }
 
 
-addLineChart : LineChart -> UserData -> ( Maybe LineChartId, UserData )
-addLineChart lineChart (UserData data) =
+addLineChart : LineChart.State -> UserData -> ( Maybe ( LineChartId, LineChart ), UserData )
+addLineChart lineChartState (UserData data) =
     let
+        lineChart =
+            LineChart.build data.chartables data.trackables lineChartState
+
         ( newId, lineChartsU ) =
             data.lineCharts |> IdDict.add lineChart
     in
-    ( newId
-    , case newId of
+    case newId of
         Just id ->
-            UserData
+            ( Just ( id, lineChart )
+            , UserData
                 { data
                     | lineCharts = lineChartsU
                     , activeLineCharts = data.activeLineCharts ++ [ id ]
                 }
+            )
 
         _ ->
-            UserData data
-    )
+            ( Nothing, UserData data )
 
 
 moveLineChartUp : LineChartId -> UserData -> UserData
@@ -507,11 +514,14 @@ decode =
                     let
                         cbles_ =
                             IdDict.map (\_ s -> Chartable.build tbles s) cbles
+
+                        cts_ =
+                            IdDict.map (\_ s -> LineChart.build cbles_ tbles s) cts
                     in
                     UserData
                         { trackables = tbles
                         , chartables = cbles_
-                        , lineCharts = cts
+                        , lineCharts = cts_
                         , activeTrackables = tbles |> IdDict.map (\k _ -> ( k, True )) |> IdDict.values
                         , activeChartables = cbles_ |> IdDict.map (\k _ -> ( k, True )) |> IdDict.values
                         , activeLineCharts = cts |> IdDict.keys
@@ -528,11 +538,14 @@ decode =
                     let
                         cbles_ =
                             IdDict.map (\_ s -> Chartable.build tbles s) cbles
+
+                        cts_ =
+                            IdDict.map (\_ s -> LineChart.build cbles_ tbles s) cts
                     in
                     UserData
                         { trackables = tbles
                         , chartables = cbles_
-                        , lineCharts = cts
+                        , lineCharts = cts_
                         , activeTrackables = atbles
                         , activeChartables = cbles_ |> IdDict.map (\k _ -> ( k, True )) |> IdDict.values
                         , activeLineCharts = cts |> IdDict.keys
@@ -555,11 +568,14 @@ decode =
                     let
                         cbles_ =
                             IdDict.map (\_ s -> Chartable.build tbles s) cbles
+
+                        cts_ =
+                            IdDict.map (\_ s -> LineChart.build cbles_ tbles s) cts
                     in
                     UserData
                         { trackables = tbles
                         , chartables = cbles_
-                        , lineCharts = cts
+                        , lineCharts = cts_
                         , activeTrackables = atbles
                         , activeChartables = cbles_ |> IdDict.map (\k _ -> ( k, True )) |> IdDict.values
                         , activeLineCharts = acts
@@ -585,11 +601,14 @@ decode =
                     let
                         cbles_ =
                             IdDict.map (\_ s -> Chartable.build tbles s) cbles
+
+                        cts_ =
+                            IdDict.map (\_ s -> LineChart.build cbles_ tbles s) cts
                     in
                     UserData
                         { trackables = tbles
                         , chartables = cbles_
-                        , lineCharts = cts
+                        , lineCharts = cts_
                         , activeTrackables = atbles
                         , activeChartables = acbles
                         , activeLineCharts = acts
@@ -621,11 +640,14 @@ decode =
                     let
                         cbles_ =
                             IdDict.map (\_ s -> Chartable.build tbles s) cbles
+
+                        cts_ =
+                            IdDict.map (\_ s -> LineChart.build cbles_ tbles s) cts
                     in
                     UserData
                         { trackables = tbles
                         , chartables = cbles_
-                        , lineCharts = cts
+                        , lineCharts = cts_
                         , activeTrackables = atbles
                         , activeChartables = acbles
                         , activeLineCharts = acts

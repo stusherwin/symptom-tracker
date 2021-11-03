@@ -18,7 +18,7 @@ import Task
 import UserData exposing (UserData)
 import UserData.Chartable as Chartable exposing (Chartable)
 import UserData.ChartableId as ChartableId exposing (ChartableId)
-import UserData.LineChart as LineChart exposing (LineChartData(..))
+import UserData.LineChart as LineChart exposing (LineChart(..))
 import UserData.Trackable as Trackable exposing (Trackable, TrackableData(..))
 import UserData.TrackableId as TrackableId exposing (TrackableId)
 
@@ -45,13 +45,13 @@ init userData =
                             canDelete =
                                 UserData.lineCharts userData
                                     |> IdDict.values
-                                    |> List.concatMap (Array.toList << .data)
+                                    |> List.concatMap (Array.toList << (\(LineChart s _) -> s.data))
                                     |> List.map Tuple.first
                                     |> List.filterMap
                                         (\dataSetId ->
                                             case dataSetId of
-                                                LineChart.Chartable cId ->
-                                                    Just cId
+                                                LineChart.StateChartable { chartableId } ->
+                                                    Just chartableId
 
                                                 _ ->
                                                     Nothing

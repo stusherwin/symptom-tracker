@@ -1,32 +1,56 @@
-module UserData.LineChart exposing (LineChart, LineChartData(..), LineChartDict, TrackableData, addChartable, addTrackable, decode, decodeV5, deleteData, encode, moveDataDown, moveDataUp, replaceTrackable, replaceTrackableWithChartable, setFillLines, setName, setTrackableInverted, setTrackableMultiplier, toggleDataVisible)
+module UserData.LineChart exposing (LineChart(..), LineChartDict, Presentation, PresentationDataSet(..), State, StateChartableData, StateDataSet(..), StateTrackableData, addChartable, addTrackable, build, decode, decodeV5, deleteData, encode, moveDataDown, moveDataUp, replaceTrackable, replaceTrackableWithChartable, setFillLines, setName, setTrackableInverted, setTrackableMultiplier, toggleDataVisible)
 
 import Array exposing (Array)
 import Arrayx
 import IdDict exposing (IdDict(..))
 import Json.Decode as D
 import Json.Encode as E
+import UserData.Chartable as Chartable exposing (Chartable, ChartableDict)
 import UserData.ChartableId as ChartableId exposing (ChartableId)
 import UserData.LineChartId exposing (LineChartId)
+import UserData.Trackable as Trackable exposing (Trackable, TrackableDict)
 import UserData.TrackableId as TrackableId exposing (TrackableId)
 
 
-type alias LineChart =
+type LineChart
+    = LineChart State Presentation
+
+
+type alias State =
     { name : String
     , fillLines : Bool
-    , data : Array ( LineChartData, Bool )
+    , data : Array ( StateDataSet, Bool )
     }
 
 
-type LineChartData
-    = Chartable ChartableId
-    | Trackable TrackableData
+type alias Presentation =
+    { data : Array ( PresentationDataSet, Bool ) }
 
 
-type alias TrackableData =
-    { id : TrackableId
+type StateDataSet
+    = StateChartable StateChartableData
+    | StateTrackable StateTrackableData
+
+
+type alias StateChartableData =
+    { chartableId : ChartableId }
+
+
+type alias StateTrackableData =
+    { trackableId : TrackableId
     , multiplier : Float
     , inverted : Bool
     }
+
+
+type PresentationDataSet
+    = PresentationChartable { chartableId : ChartableId, chartable : Chartable }
+    | PresentationTrackable
+        { trackableId : TrackableId
+        , trackable : Trackable
+        , multiplier : Float
+        , inverted : Bool
+        }
 
 
 type alias LineChartDict =
@@ -34,95 +58,172 @@ type alias LineChartDict =
 
 
 setName : String -> LineChart -> LineChart
-setName name c =
-    { c | name = name }
+setName name (LineChart s p) =
+    LineChart { s | name = name } p
 
 
 setFillLines : Bool -> LineChart -> LineChart
-setFillLines fl c =
-    { c | fillLines = fl }
+setFillLines fl (LineChart s p) =
+    LineChart { s | fillLines = fl } p
 
 
-addChartable : ChartableId -> LineChart -> LineChart
-addChartable id c =
-    { c | data = c.data |> Array.push ( Chartable id, True ) }
+addChartable : ChartableId -> Chartable -> LineChart -> LineChart
+addChartable id chartable (LineChart s p) =
+    LineChart
+        { s | data = s.data |> Array.push ( StateChartable { chartableId = id }, True ) }
+        { p | data = p.data |> Array.push ( PresentationChartable { chartableId = id, chartable = chartable }, True ) }
 
 
-addTrackable : TrackableId -> LineChart -> LineChart
-addTrackable id c =
-    { c | data = c.data |> Array.push ( Trackable { id = id, multiplier = 1, inverted = False }, True ) }
+addTrackable : TrackableId -> Trackable -> LineChart -> LineChart
+addTrackable id trackable (LineChart s p) =
+    LineChart
+        { s | data = s.data |> Array.push ( StateTrackable { trackableId = id, multiplier = 1, inverted = False }, True ) }
+        { p | data = p.data |> Array.push ( PresentationTrackable { trackableId = id, trackable = trackable, multiplier = 1, inverted = False }, True ) }
 
 
-replaceTrackableWithChartable : Int -> ChartableId -> LineChart -> LineChart
-replaceTrackableWithChartable i id c =
-    { c | data = c.data |> Array.set i ( Chartable id, True ) }
+replaceTrackableWithChartable : Int -> ChartableId -> Chartable -> LineChart -> LineChart
+replaceTrackableWithChartable i id chartable (LineChart s p) =
+    LineChart
+        { s | data = s.data |> Array.set i ( StateChartable { chartableId = id }, True ) }
+        { p | data = p.data |> Array.set i ( PresentationChartable { chartableId = id, chartable = chartable }, True ) }
 
 
-replaceTrackable : Int -> TrackableId -> Float -> Bool -> LineChart -> LineChart
-replaceTrackable i id multiplier inverted c =
-    { c | data = c.data |> Array.set i ( Trackable { id = id, multiplier = multiplier, inverted = inverted }, True ) }
+replaceTrackable : Int -> TrackableId -> Trackable -> Float -> Bool -> LineChart -> LineChart
+replaceTrackable i id trackable multiplier inverted (LineChart s p) =
+    LineChart
+        { s | data = s.data |> Array.set i ( StateTrackable { trackableId = id, multiplier = multiplier, inverted = inverted }, True ) }
+        { p | data = p.data |> Array.set i ( PresentationTrackable { trackableId = id, trackable = trackable, multiplier = multiplier, inverted = inverted }, True ) }
 
 
 setTrackableInverted : Int -> Bool -> LineChart -> LineChart
-setTrackableInverted i inverted c =
-    { c
-        | data =
-            c.data
-                |> Arrayx.update i
-                    (\d ->
-                        case d of
-                            ( Trackable t, visible ) ->
-                                ( Trackable { t | inverted = inverted }, visible )
+setTrackableInverted i inverted (LineChart s p) =
+    LineChart
+        { s
+            | data =
+                s.data
+                    |> Arrayx.update i
+                        (\d ->
+                            case d of
+                                ( StateTrackable t, visible ) ->
+                                    ( StateTrackable { t | inverted = inverted }, visible )
 
-                            _ ->
-                                d
-                    )
-    }
+                                _ ->
+                                    d
+                        )
+        }
+        { p
+            | data =
+                p.data
+                    |> Arrayx.update i
+                        (\d ->
+                            case d of
+                                ( PresentationTrackable t, visible ) ->
+                                    ( PresentationTrackable { t | inverted = inverted }, visible )
+
+                                _ ->
+                                    d
+                        )
+        }
 
 
 setTrackableMultiplier : Int -> Float -> LineChart -> LineChart
-setTrackableMultiplier i multiplier c =
-    { c
-        | data =
-            c.data
-                |> Arrayx.update i
-                    (\d ->
-                        case d of
-                            ( Trackable t, visible ) ->
-                                ( Trackable { t | multiplier = multiplier }, visible )
+setTrackableMultiplier i multiplier (LineChart s p) =
+    LineChart
+        { s
+            | data =
+                s.data
+                    |> Arrayx.update i
+                        (\d ->
+                            case d of
+                                ( StateTrackable t, visible ) ->
+                                    ( StateTrackable { t | multiplier = multiplier }, visible )
 
-                            _ ->
-                                d
-                    )
-    }
+                                _ ->
+                                    d
+                        )
+        }
+        { p
+            | data =
+                p.data
+                    |> Arrayx.update i
+                        (\d ->
+                            case d of
+                                ( PresentationTrackable t, visible ) ->
+                                    ( PresentationTrackable { t | multiplier = multiplier }, visible )
+
+                                _ ->
+                                    d
+                        )
+        }
 
 
 deleteData : Int -> LineChart -> LineChart
-deleteData i c =
-    { c | data = c.data |> Arrayx.delete i }
+deleteData i (LineChart s p) =
+    LineChart
+        { s | data = s.data |> Arrayx.delete i }
+        { p | data = p.data |> Arrayx.delete i }
 
 
 toggleDataVisible : Int -> LineChart -> LineChart
-toggleDataVisible i c =
-    { c | data = c.data |> Arrayx.update i (Tuple.mapSecond not) }
+toggleDataVisible i (LineChart s p) =
+    LineChart
+        { s | data = s.data |> Arrayx.update i (Tuple.mapSecond not) }
+        { p | data = p.data |> Arrayx.update i (Tuple.mapSecond not) }
 
 
 moveDataUp : Int -> LineChart -> LineChart
-moveDataUp i c =
-    { c | data = c.data |> Arrayx.swap i (i - 1) }
+moveDataUp i (LineChart s p) =
+    LineChart
+        { s | data = s.data |> Arrayx.swap i (i - 1) }
+        { p | data = p.data |> Arrayx.swap i (i - 1) }
 
 
 moveDataDown : Int -> LineChart -> LineChart
-moveDataDown i c =
-    { c | data = c.data |> Arrayx.swap i (i + 1) }
+moveDataDown i (LineChart s p) =
+    LineChart
+        { s | data = s.data |> Arrayx.swap i (i + 1) }
+        { p | data = p.data |> Arrayx.swap i (i + 1) }
 
 
-decode : D.Decoder LineChart
+build : ChartableDict -> TrackableDict -> State -> LineChart
+build chartables trackables s =
+    LineChart s
+        { data =
+            s.data
+                |> Array.toList
+                |> List.filterMap
+                    (\( d, visible ) ->
+                        case d of
+                            StateChartable { chartableId } ->
+                                chartables
+                                    |> IdDict.get chartableId
+                                    |> Maybe.map (\chartable -> ( PresentationChartable { chartableId = chartableId, chartable = chartable }, visible ))
+
+                            StateTrackable { trackableId, multiplier, inverted } ->
+                                trackables
+                                    |> IdDict.get trackableId
+                                    |> Maybe.map
+                                        (\trackable ->
+                                            ( PresentationTrackable
+                                                { trackableId = trackableId
+                                                , trackable = trackable
+                                                , multiplier = multiplier
+                                                , inverted = inverted
+                                                }
+                                            , visible
+                                            )
+                                        )
+                    )
+                |> Array.fromList
+        }
+
+
+decode : D.Decoder State
 decode =
     D.map3
-        (\name fillLines chartables ->
+        (\name fillLines cbles ->
             { name = name
-            , data = chartables |> List.map (Tuple.mapFirst Chartable) |> Array.fromList
+            , data = cbles |> List.map (Tuple.mapFirst (StateChartable << StateChartableData)) |> Array.fromList
             , fillLines = fillLines
             }
         )
@@ -136,7 +237,7 @@ decode =
         )
 
 
-decodeV5 : D.Decoder LineChart
+decodeV5 : D.Decoder State
 decodeV5 =
     D.map3
         (\name fillLines data ->
@@ -155,40 +256,40 @@ decodeV5 =
         )
 
 
-decodeData : D.Decoder LineChartData
+decodeData : D.Decoder StateDataSet
 decodeData =
     D.oneOf
-        [ D.map Chartable ChartableId.decode
-        , D.map Trackable <|
+        [ D.map (StateChartable << StateChartableData) ChartableId.decode
+        , D.map StateTrackable <|
             D.map3
-                TrackableData
+                StateTrackableData
                 (D.field "id" TrackableId.decode)
                 (D.field "multiplier" D.float)
                 (D.field "inverted" D.bool)
         ]
 
 
-encodeData : LineChartData -> E.Value
+encodeData : StateDataSet -> E.Value
 encodeData d =
     case d of
-        Chartable id ->
-            ChartableId.encode id
+        StateChartable { chartableId } ->
+            ChartableId.encode chartableId
 
-        Trackable { id, multiplier, inverted } ->
+        StateTrackable { trackableId, multiplier, inverted } ->
             E.object
-                [ ( "id", TrackableId.encode id )
+                [ ( "id", TrackableId.encode trackableId )
                 , ( "multiplier", E.float multiplier )
                 , ( "inverted", E.bool inverted )
                 ]
 
 
 encode : LineChart -> E.Value
-encode c =
+encode (LineChart s _) =
     E.object
-        [ ( "name", E.string c.name )
-        , ( "fillLines", E.bool c.fillLines )
+        [ ( "name", E.string s.name )
+        , ( "fillLines", E.bool s.fillLines )
         , ( "data"
-          , c.data
+          , s.data
                 |> Array.toList
                 |> E.list
                     (\( data, visible ) ->
