@@ -292,7 +292,7 @@ update msg model =
                 Loaded today userData (ChartablesPage chartablesPageModel) ->
                     let
                         ( newModel, cmd ) =
-                            ChartablesPage.update chartablesPageMsg chartablesPageModel
+                            ChartablesPage.update userData chartablesPageMsg chartablesPageModel
                     in
                     ( { model | pageState = Loaded today userData (ChartablesPage newModel) }, Cmd.map ChartablesPageMsg cmd )
 

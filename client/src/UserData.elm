@@ -322,8 +322,11 @@ moveTrackableDown id (UserData data) =
 updateChartable : ChartableId -> (Chartable -> Result String Chartable) -> UserData -> UserData
 updateChartable id fn (UserData data) =
     case data.chartables |> IdDict.update id fn of
-        Ok chartables_ -> UserData { data | chartables = chartables_ }
-        Err err -> UserData { data | errors = err :: data.errors }
+        Ok chartables_ ->
+            UserData { data | chartables = chartables_ }
+
+        Err err ->
+            UserData { data | errors = err :: data.errors }
 
 
 addChartable : C.New -> UserData -> ( Maybe ( ChartableId, Chartable ), UserData )
@@ -374,8 +377,11 @@ moveChartableDown chartableId (UserData data) =
 updateLineChart : LineChartId -> (LineChart -> Result String LineChart) -> UserData -> UserData
 updateLineChart id fn (UserData data) =
     case data.lineCharts |> IdDict.update id fn of
-        Ok lineCharts_ -> UserData { data | lineCharts = lineCharts_ }
-        Err err -> UserData { data | errors = err :: data.errors }
+        Ok lineCharts_ ->
+            UserData { data | lineCharts = lineCharts_ }
+
+        Err err ->
+            UserData { data | errors = err :: data.errors }
 
 
 addLineChart : LC.New -> UserData -> ( Maybe ( LineChartId, LineChart ), UserData )
