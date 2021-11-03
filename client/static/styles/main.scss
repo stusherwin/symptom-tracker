@@ -1144,6 +1144,22 @@ body {
   fill-opacity: 0.3;
 }
 
+.fill-icon.disabled path.stroke-back {
+  fill-opacity: 0.3;
+}
+
+.fill-icon.disabled path.stroke-front {
+  fill-opacity: 0.4;
+}
+
+.fill-icon.disabled path.fill-back {
+  fill-opacity: 0.1;
+}
+
+.fill-icon.disabled path.fill-front {
+  fill-opacity: 0.2;
+}
+
 .fill-icon:not(.disabled):hover path.stroke-back {
   fill-opacity: 0.7;
 }

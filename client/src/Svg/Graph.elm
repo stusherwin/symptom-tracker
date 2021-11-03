@@ -402,7 +402,13 @@ viewLineGraph svgId class m =
                 v.xStep * m.xScale * m.minWidth / m.currentWidth
 
         ( w, h ) =
-            ( Basics.max (m.minWidth * v.h / m.height) (xStep * toFloat xSteps), v.h )
+            ( if m.height == 0 then
+                0
+
+              else
+                Basics.max (m.minWidth * v.h / m.height) (xStep * toFloat xSteps)
+            , v.h
+            )
 
         minX =
             0

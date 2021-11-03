@@ -43,7 +43,8 @@ type Msg
     | ChartExpandValueClicked
     | ChartExpandValueCloseClicked
     | FullScreenChanged Bool
-    | ViewportUpdated (Result Dom.Error ( Dom.Viewport, Dom.Element ))
+    | ViewportUpdated (Result Dom.Error Dom.Viewport)
+    | ElementUpdated (Result Dom.Error Dom.Element)
     | WindowResized
     | UserDataUpdated UserData
     | GraphMsg (Graph.Msg ChartableId)
@@ -104,9 +105,7 @@ init today userData chartId chart =
           Dom.getViewportOf elementId
             |> Task.andThen (\info -> Dom.setViewportOf elementId info.scene.width 0)
             |> Task.attempt (always NoOp)
-        , Task.map2 Tuple.pair
-            (Dom.getViewportOf <| "chart" ++ LineChartId.toString chartId ++ "-scrollable")
-            (Dom.getElement <| "chart" ++ LineChartId.toString chartId ++ "-svg")
+        , Dom.getViewportOf ("chart" ++ LineChartId.toString chartId ++ "-scrollable")
             |> Task.attempt ViewportUpdated
         ]
     )
@@ -157,17 +156,13 @@ update msg model =
 
         ChartZoomOutClicked ->
             ( model |> updateGraph (\c -> { c | xScale = c.xScale * 3 / 4 })
-            , Task.map2 Tuple.pair
-                (Dom.getViewportOf <| "chart" ++ LineChartId.toString model.chartId ++ "-scrollable")
-                (Dom.getElement <| "chart" ++ LineChartId.toString model.chartId ++ "-svg")
+            , Dom.getViewportOf ("chart" ++ LineChartId.toString model.chartId ++ "-scrollable")
                 |> Task.attempt ViewportUpdated
             )
 
         ChartZoomInClicked ->
             ( model |> updateGraph (\c -> { c | xScale = c.xScale * 4 / 3 })
-            , Task.map2 Tuple.pair
-                (Dom.getViewportOf <| "chart" ++ LineChartId.toString model.chartId ++ "-scrollable")
-                (Dom.getElement <| "chart" ++ LineChartId.toString model.chartId ++ "-svg")
+            , Dom.getViewportOf ("chart" ++ LineChartId.toString model.chartId ++ "-scrollable")
                 |> Task.attempt ViewportUpdated
             )
 
@@ -188,18 +183,32 @@ update msg model =
 
         WindowResized ->
             ( model
-            , Task.map2 Tuple.pair
-                (Dom.getViewportOf <| "chart" ++ LineChartId.toString model.chartId ++ "-scrollable")
-                (Dom.getElement <| "chart" ++ LineChartId.toString model.chartId ++ "-svg")
+            , Dom.getViewportOf ("chart" ++ LineChartId.toString model.chartId ++ "-scrollable")
                 |> Task.attempt ViewportUpdated
             )
 
-        ViewportUpdated (Ok ( scrollable, svg )) ->
+        ViewportUpdated (Ok scrollable) ->
             ( model
                 |> (\c -> { c | viewport = Just scrollable })
-                |> (updateGraph <| \c -> { c | currentWidth = svg.element.width, minWidth = scrollable.viewport.width, height = svg.element.height })
-            , Cmd.none
+            , Dom.getElement ("chart" ++ LineChartId.toString model.chartId ++ "-svg")
+                |> Task.attempt ElementUpdated
             )
+
+        ElementUpdated (Ok svg) ->
+            case model.viewport of
+                Just viewport ->
+                    ( model
+                        |> (updateGraph <| \c -> { c | currentWidth = svg.element.width, minWidth = viewport.viewport.width, height = svg.element.height })
+                    , if model.graph.currentWidth /= svg.element.width then
+                        Dom.getElement ("chart" ++ LineChartId.toString model.chartId ++ "-svg")
+                            |> Task.attempt ElementUpdated
+
+                      else
+                        Cmd.none
+                    )
+
+                _ ->
+                    ( model, Cmd.none )
 
         GraphMsg graphMsg ->
             case graphMsg of
@@ -444,11 +453,11 @@ view model =
                 , button
                     [ class "mt-2 rounded shadow p-2 bg-white bg-opacity-80 text-black focus:outline-none"
                     , classList
-                        [ ( "text-opacity-50 cursor-default", List.isEmpty model.chartables || model.graph.currentWidth <= model.graph.minWidth )
-                        , ( "text-opacity-70 hover:text-opacity-100 hover:bg-opacity-100 focus:text-opacity-100 focus:bg-opacity-100", not (List.isEmpty model.chartables) || model.graph.currentWidth > model.graph.minWidth )
+                        [ ( "text-opacity-50 cursor-default", List.isEmpty model.chartables || model.graph.currentWidth > 0 && model.graph.currentWidth <= model.graph.minWidth )
+                        , ( "text-opacity-70 hover:text-opacity-100 hover:bg-opacity-100 focus:text-opacity-100 focus:bg-opacity-100", not (List.isEmpty model.chartables) && model.graph.currentWidth > model.graph.minWidth )
                         ]
                     , Htmlx.onClickStopPropagation ChartZoomOutClicked
-                    , disabled (List.isEmpty model.chartables || model.graph.currentWidth <= model.graph.minWidth)
+                    , disabled (List.isEmpty model.chartables || model.graph.currentWidth > 0 && model.graph.currentWidth <= model.graph.minWidth)
                     ]
                     [ icon "w-5 h-5" SolidMinus
                     ]

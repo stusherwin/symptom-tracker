@@ -150,7 +150,7 @@ view model =
                     |> List.map
                         (\( chartId, chart ) ->
                             div
-                                []
+                                [ class "mb-12" ]
                                 [ div [ class "ml-8 mb-2 px-4" ]
                                     [ a [ class "block w-full font-bold flex items-center relative text-opacity-70 hover:text-opacity-100 text-black", href <| "/charts/" ++ LineChartId.toString chartId ]
                                         [ span [] [ text <| Stringx.withDefault "[no name]" chart.name ]
