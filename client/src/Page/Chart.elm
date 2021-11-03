@@ -1,7 +1,7 @@
 module Page.Chart exposing (Model, Msg(..), init, subscriptions, update, view)
 
 import Browser.Dom as Dom
-import Chart.LineChart exposing (Model)
+import Chart.LineChart as Chart
 import Colour exposing (Colour)
 import Controls
 import Date exposing (Date, Unit(..))
@@ -29,7 +29,7 @@ import UserData.TrackableId as TrackableId exposing (TrackableId)
 
 type alias Model =
     { chartId : LineChartId
-    , chart : Chart.LineChart.Model
+    , chart : Chart.Model
     , trackableOptions : List ( TrackableId, ( String, Bool ) )
     , chartableOptions : List ( ChartableId, String )
     , addState : EditState
@@ -64,7 +64,7 @@ init : Date -> UserData -> LineChartId -> LineChart -> ( Model, Cmd Msg )
 init today userData chartId chart =
     let
         ( chartModel, chartCmd ) =
-            Chart.LineChart.init today userData chartId chart
+            Chart.init today userData chartId chart
     in
     ( { chartId = chartId
       , chart = chartModel
@@ -95,7 +95,7 @@ init today userData chartId chart =
 toChartableModel : UserData -> Bool -> Chartable -> ChartableModel
 toChartableModel userData visible chartable =
     { name = chartable.name
-    , colour = toColour userData chartable
+    , colour = UserData.getChartableColour userData chartable
     , inverted = chartable.inverted
     , trackables = chartable.sum |> List.filterMap (toTrackableModel userData)
     , visible = visible
@@ -118,30 +118,9 @@ toTrackableModel userData ( trackableId, multiplier ) =
             )
 
 
-toColour : UserData -> Chartable -> Colour
-toColour userData chartable =
-    let
-        firstColour =
-            List.head chartable.sum
-                |> Maybe.andThen ((\tId -> UserData.getTrackable tId userData) << Tuple.first)
-                |> Maybe.map .colour
-    in
-    Maybe.withDefault Colour.Gray <|
-        if List.length chartable.sum == 1 then
-            firstColour
-
-        else
-            case chartable.colour of
-                Just c ->
-                    Just c
-
-                Nothing ->
-                    firstColour
-
-
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    Sub.map ChartMsg (Chart.LineChart.subscriptions model.chart)
+    Sub.map ChartMsg (Chart.subscriptions model.chart)
 
 
 
@@ -150,7 +129,7 @@ subscriptions model =
 
 type Msg
     = NoOp
-    | ChartMsg Chart.LineChart.Msg
+    | ChartMsg Chart.Msg
     | ChartableHovered (Maybe ChartableId)
     | ChartableClicked ChartableId
     | ChartableEditClicked ChartableId
@@ -177,13 +156,6 @@ type Msg
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     let
-        updateGraph fn m =
-            let
-                chart =
-                    m.chart
-            in
-            { m | chart = { chart | graph = fn chart.graph } }
-
         updateChart fn m =
             { m | chart = m.chart |> fn }
 
@@ -198,20 +170,20 @@ update msg model =
     in
     case msg of
         ChartableHovered chartableId ->
-            ( model |> (updateGraph <| Graph.hoverDataSet chartableId), Cmd.none )
+            ( model |> (updateChart <| Chart.hoverDataSet chartableId), Cmd.none )
 
         ChartableClicked chartableId ->
-            ( model |> (updateGraph <| Graph.toggleDataSetSelected chartableId), Cmd.none )
+            ( model |> (updateChart <| Chart.toggleDataSetSelected chartableId), Cmd.none )
 
         ChartableEditClicked chartableId ->
-            ( model |> (updateGraph <| Graph.selectDataSet (Just chartableId) {- << (\c -> { c | editState = EditingChartable chartableId False }) -})
+            ( model |> (updateChart <| Chart.selectDataSet (Just chartableId))
             , Task.attempt (always NoOp) <| Dom.focus <| "chart" ++ LineChartId.toString model.chartId ++ "-chartable" ++ ChartableId.toString chartableId ++ "-name"
             )
 
         ChartableCloseClicked ->
             ( model
                 |> (updateChart <| \c -> { c | expandedValue = False })
-                |> (updateGraph <| Graph.selectDataSet Nothing)
+                |> (updateChart <| Chart.selectDataSet Nothing)
             , Cmd.none
             )
 
@@ -222,7 +194,7 @@ update msg model =
             in
             ( model
                 |> setUserData userData_
-                |> (updateGraph <| Graph.toggleDataSetVisible chartableId)
+                |> (updateChart <| Chart.toggleDataSetVisible chartableId)
             , Task.perform UserDataUpdated <| Task.succeed userData_
             )
 
@@ -233,7 +205,7 @@ update msg model =
             in
             ( model
                 |> setUserData userData_
-                |> (updateGraph <| \c -> { c | data = c.data |> Listx.moveHeadwardsBy Tuple.first chartableId })
+                |> (updateChart <| Chart.moveDataSetBack chartableId)
                 |> (\m -> { m | chartables = m.chartables |> Listx.moveHeadwardsBy Tuple.first chartableId })
             , Task.perform UserDataUpdated <| Task.succeed userData_
             )
@@ -245,7 +217,7 @@ update msg model =
             in
             ( model
                 |> setUserData userData_
-                |> (updateGraph <| \c -> { c | data = c.data |> Listx.moveTailwardsBy Tuple.first chartableId })
+                |> (updateChart <| Chart.moveDataSetForward chartableId)
                 |> (\m -> { m | chartables = m.chartables |> Listx.moveTailwardsBy Tuple.first chartableId })
             , Task.perform UserDataUpdated <| Task.succeed userData_
             )
@@ -281,8 +253,8 @@ update msg model =
                 Just chartable_ ->
                     ( model
                         |> setUserData userData_
-                        |> (updateChartable chartableId <| \c -> { c | colour = toColour userData_ chartable_ })
-                        |> (updateChart <| Chart.LineChart.updateColour userData_ chartableId)
+                        |> (updateChartable chartableId <| \c -> { c | colour = UserData.getChartableColour userData_ chartable_ })
+                        |> (updateChart <| Chart.updateDataSetColour userData_ chartableId)
                     , Task.perform UserDataUpdated <| Task.succeed userData_
                     )
 
@@ -296,19 +268,14 @@ update msg model =
             in
             ( model
                 |> setUserData userData_
-                |> (updateChartable chartableId <|
-                        \c ->
-                            { c
-                                | inverted = inverted
-                            }
-                   )
-                |> (updateChart <| Chart.LineChart.updateDataPoints userData_ chartableId)
+                |> (updateChartable chartableId <| \c -> { c | inverted = inverted })
+                |> (updateChart <| Chart.updateDataSetData userData_ chartableId)
             , Task.perform UserDataUpdated <| Task.succeed userData_
             )
 
         ChartableAddClicked ->
             ( model
-                |> (updateGraph <| Graph.selectDataSet Nothing)
+                |> (updateChart <| Chart.selectDataSet Nothing)
                 |> (\m ->
                         { m
                             | addState =
@@ -325,12 +292,8 @@ update msg model =
 
         ChartableToAddChanged chartableId ->
             ( model
-                |> (updateGraph <| Graph.selectDataSet Nothing)
-                |> (\m ->
-                        { m
-                            | addState = AddingChartable chartableId
-                        }
-                   )
+                |> (updateChart <| Chart.selectDataSet Nothing)
+                |> (\m -> { m | addState = AddingChartable chartableId })
             , Cmd.none
             )
 
@@ -374,8 +337,8 @@ update msg model =
                 ( Just chartableId, Just newChartableModel, Just userData__ ) ->
                     ( model
                         |> setUserData userData__
-                        |> (updateGraph <|
-                                Graph.selectDataSet
+                        |> (updateChart <|
+                                Chart.selectDataSet
                                     (if isNew then
                                         Just chartableId
 
@@ -389,7 +352,7 @@ update msg model =
                                     , addState = NotAdding
                                 }
                            )
-                        |> (updateChart <| Chart.LineChart.addDataSet userData_ chartableId)
+                        |> (updateChart <| Chart.addDataSet userData_ chartableId)
                         |> (updateChartableOptions <| Listx.insertLookup chartableId (Stringx.withDefault "[no name]" newChartableModel.name))
                     , Cmd.batch
                         [ Task.perform UserDataUpdated <| Task.succeed userData__
@@ -406,7 +369,7 @@ update msg model =
 
         ChartableAddCancelClicked ->
             ( model
-                |> (updateGraph <| Graph.selectDataSet Nothing)
+                |> (updateChart <| Chart.selectDataSet Nothing)
                 |> (\m -> { m | addState = NotAdding })
             , Cmd.none
             )
@@ -418,8 +381,8 @@ update msg model =
             in
             ( model
                 |> setUserData userData_
-                |> (updateGraph <| Graph.selectDataSet Nothing)
-                |> (updateChart <| Chart.LineChart.removeDataSet chartableId)
+                |> (updateChart <| Chart.selectDataSet Nothing)
+                |> (updateChart <| Chart.removeDataSet chartableId)
                 |> (\m ->
                         { m
                             | chartables = m.chartables |> List.filter (\( cId, _ ) -> cId /= chartableId)
@@ -448,11 +411,11 @@ update msg model =
                                 \c ->
                                     { c
                                         | trackables = c.trackables |> Listx.updateLookupWithKey trackableId (\( _, t ) -> ( newTrackableId, { t | question = question } ))
-                                        , colour = toColour userData_ chartable_
+                                        , colour = UserData.getChartableColour userData_ chartable_
                                     }
                            )
-                        |> (updateChart <| Chart.LineChart.updateDataPoints userData_ chartableId)
-                        |> (updateChart <| Chart.LineChart.updateColour userData_ chartableId)
+                        |> (updateChart <| Chart.updateDataSetData userData_ chartableId)
+                        |> (updateChart <| Chart.updateDataSetColour userData_ chartableId)
                     , Task.perform UserDataUpdated <| Task.succeed userData_
                     )
 
@@ -488,7 +451,7 @@ update msg model =
                                         |> Listx.updateLookup trackableId (\t -> { t | multiplier = stringValue, isValid = multiplierM /= Nothing })
                             }
                    )
-                |> (updateChart <| Chart.LineChart.updateDataPoints userData_ chartableId)
+                |> (updateChart <| Chart.updateDataSetData userData_ chartableId)
             , case userDataM_ of
                 Just _ ->
                     Task.perform UserDataUpdated <| Task.succeed userData_
@@ -531,10 +494,10 @@ update msg model =
                                 \c ->
                                     { c
                                         | trackables = c.trackables |> Listx.insertLookup trackableId trackableModel
-                                        , colour = toColour userData_ chartable_
+                                        , colour = UserData.getChartableColour userData_ chartable_
                                     }
                            )
-                        |> (updateChart <| Chart.LineChart.updateDataPoints userData_ chartableId)
+                        |> (updateChart <| Chart.updateDataSetData userData_ chartableId)
                     , Task.perform UserDataUpdated <| Task.succeed userData_
                     )
 
@@ -557,71 +520,23 @@ update msg model =
                                 \c ->
                                     { c
                                         | trackables = c.trackables |> (List.filter <| \( tId, _ ) -> tId /= trackableId)
-                                        , colour = toColour userData_ chartable_
+                                        , colour = UserData.getChartableColour userData_ chartable_
                                     }
                            )
-                        |> (updateChart <| Chart.LineChart.updateDataPoints userData_ chartableId)
+                        |> (updateChart <| Chart.updateDataSetData userData_ chartableId)
                     , Task.perform UserDataUpdated <| Task.succeed userData_
                     )
 
                 _ ->
                     ( model, Cmd.none )
 
-        -- ChartExpandValueClicked ->
-        --     ( model
-        --         |> (updateChartModel <| \c -> { c | expandedValue = not c.expandedValue })
-        --     , Cmd.none
-        --     )
-        -- GraphMsg (Graph.MouseDown ( x, y )) ->
-        --     ( model
-        --         |> (updateChartModel <|
-        --                 \c ->
-        --                     case c.viewport of
-        --                         Just { scene } ->
-        --                             let
-        --                                 xPerc =
-        --                                     x / scene.width
-        --                                 yPerc =
-        --                                     y / scene.height
-        --                             in
-        --                             c |> Graph.selectNearestDataPoint ( xPerc, yPerc )
-        --                         -- { c | point = Just ( xPerc, yPerc ) }
-        --                         _ ->
-        --                             c
-        --            )
-        --     , Cmd.none
-        --     )
-        -- GraphMsg (Graph.MouseMove ( x, y )) ->
-        --     ( model
-        --         |> (updateChartModel <|
-        --                 \c ->
-        --                     case c.viewport of
-        --                         Just { scene } ->
-        --                             let
-        --                                 xPerc =
-        --                                     x / scene.width
-        --                                 yPerc =
-        --                                     y / scene.height
-        --                             in
-        --                             c |> Graph.hoverNearestDataPoint ( xPerc, yPerc )
-        --                         _ ->
-        --                             c
-        --            )
-        --     , Cmd.none
-        --     )
-        -- ChartMsg chartMsg ->
-        --     ( model |> (updateChartModel <| Graph.update graphMsg), Cmd.none )
         ChartMsg chartMsg ->
             let
                 ( chart_, cmd ) =
-                    Chart.LineChart.update chartMsg model.chart
+                    Chart.update chartMsg model.chart
             in
             ( model |> updateChart (always chart_), Cmd.map ChartMsg cmd )
 
-        -- FullScreenChanged fullScreen ->
-        --     ( { model | fullScreen = fullScreen }, Cmd.none )
-        -- ViewportUpdated (Ok ( scrollable, svg )) ->
-        --     ( model |> (updateChartModel <| \c -> { c | viewport = Just scrollable, currentWidth = svg.element.width, minWidth = scrollable.viewport.width }), Cmd.none )
         _ ->
             ( model, Cmd.none )
 
@@ -848,7 +763,7 @@ viewLineChart model =
     in
     div
         []
-        [ Html.map ChartMsg (Chart.LineChart.view model.chartableOptions model.userData model.chart)
+        [ Html.map ChartMsg (Chart.view model.chartableOptions model.userData model.chart)
         , div [ class "mt-8 bg-gray-200" ] <|
             (model.chartables |> List.concatMap viewChartable)
                 ++ [ case model.addState of

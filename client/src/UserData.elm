@@ -1,9 +1,10 @@
-module UserData exposing (UserData, activeTrackables, addChartable, addTrackable, chartables, decode, deleteTrackable, encode, getChartable, getLineChart, getTrackable, init, lineCharts, moveTrackableDown, moveTrackableUp, toggleTrackableVisible, trackables, updateChartable, updateLineChart, updateTrackable)
+module UserData exposing (UserData, activeTrackables, addChartable, addTrackable, chartables, decode, deleteTrackable, encode, getChartable, getChartableColour, getChartableDataPoints, getLineChart, getTrackable, init, lineCharts, moveTrackableDown, moveTrackableUp, toggleTrackableVisible, trackables, updateChartable, updateLineChart, updateTrackable)
 
 import Array
 import Colour exposing (Colour(..))
 import Date exposing (Date, Unit(..))
 import Dict exposing (Dict)
+import Dictx
 import IdDict
 import Json.Decode as D
 import Json.Encode as E
@@ -52,6 +53,47 @@ chartables (UserData data) =
 getChartable : ChartableId -> UserData -> Maybe Chartable
 getChartable id (UserData data) =
     IdDict.get id data.chartables
+
+
+getChartableColour : UserData -> Chartable -> Colour
+getChartableColour userData chartable =
+    (if List.length chartable.sum == 1 || chartable.colour == Nothing then
+        List.head chartable.sum
+            |> Maybe.andThen ((\tId -> getTrackable tId userData) << Tuple.first)
+            |> Maybe.map .colour
+
+     else
+        chartable.colour
+    )
+        |> Maybe.withDefault Colour.Gray
+
+
+getChartableDataPoints : UserData -> Chartable -> Dict Int Float
+getChartableDataPoints userData chartable =
+    let
+        invert data =
+            case List.maximum <| Dict.values data of
+                Just max ->
+                    data |> Dict.map (\_ v -> max - v)
+
+                _ ->
+                    data
+    in
+    chartable.sum
+        |> List.filterMap
+            (\( trackableId, multiplier ) ->
+                userData
+                    |> getTrackable trackableId
+                    |> Maybe.map
+                        (Dict.map (\_ v -> v * multiplier) << Trackable.onlyFloatData)
+            )
+        |> List.foldl (Dictx.unionWith (\v1 v2 -> v1 + v2)) Dict.empty
+        |> (if chartable.inverted then
+                invert
+
+            else
+                identity
+           )
 
 
 lineCharts : UserData -> LineChartDict

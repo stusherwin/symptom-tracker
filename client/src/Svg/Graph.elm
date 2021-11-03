@@ -1,4 +1,4 @@
-module Svg.Graph exposing (DataSet, Model, Msg(..), hoverDataSet, hoverNearestDataPoint, selectDataSet, selectNearestDataPoint, toggleDataSetSelected, toggleDataSetVisible, update, viewJustYAxis, viewLineGraph)
+module Svg.Graph exposing (DataSet, Model, Msg(..), hoverDataSet, hoverNearestDataPoint, selectDataSet, selectNearestDataPoint, toggleDataSetSelected, toggleDataSetVisible, viewJustYAxis, viewLineGraph)
 
 import Array
 import Colour exposing (Colour(..))
@@ -42,23 +42,6 @@ type alias DataSet =
     , dataPoints : Dict Int Float
     , visible : Bool
     }
-
-
-
--- UPDATE
-
-
-update : Msg dataSetId -> Model dataSetId -> Model dataSetId
-update msg model =
-    case msg of
-        DataLineHovered id ->
-            hoverDataSet id model
-
-        DataLineClicked id ->
-            toggleDataSetSelected id model
-
-        _ ->
-            model
 
 
 toggleDataSetSelected : dataSetId -> Model dataSetId -> Model dataSetId
@@ -254,16 +237,34 @@ toggleDataSetVisible id model =
     }
 
 
+findStartDate : Date -> List ( dataSetId, DataSet ) -> Date
+findStartDate today data =
+    let
+        minDate =
+            Date.fromRataDie
+                << Maybe.withDefault (Date.toRataDie today)
+                << List.minimum
+                << List.filterMap (List.head << Dict.keys << .dataPoints)
+                << List.map Tuple.second
+            <|
+                data
+
+        fullWeeks =
+            ceiling <| toFloat (Date.diff Days minDate today) / 7
+    in
+    Date.add Weeks -fullWeeks today
+
+
+findMaxValue : List ( dataSetId, DataSet ) -> Float
+findMaxValue =
+    Maybe.withDefault 0
+        << List.maximum
+        << List.filterMap (List.maximum << Dict.values << .dataPoints)
+        << List.map Tuple.second
+
+
 
 -- VIEW
-
-
-type alias PlotPoint =
-    { date : Int
-    , value : Float
-    , x : Float
-    , y : Float
-    }
 
 
 type alias GraphVals =
@@ -293,6 +294,7 @@ v =
     }
 
 
+divideYAxis : List ( dataSetId, DataSet ) -> { maxValue : Float, valueSteps : Float, valueStep : Int, min : Float, max : Float, step : Float }
 divideYAxis data =
     let
         ( maxValue, valueSteps ) =
@@ -530,60 +532,9 @@ viewLineGraph svgId class m =
                     )
                     (List.range 0 xSteps)
 
-        xLines =
-            List.concatMap
-                (\n ->
-                    if xStep < 0.65 then
-                        let
-                            date =
-                                Date.add Days n startDate
-                        in
-                        if (xSteps <= 7 || modBy 7 n == 0) && Date.day date < 8 then
-                            if Date.month date == Jan then
-                                [ grayDottedLine [ f_ x1 <| minX + toFloat n * xStep, fh_ y1 yDiv.min, f_ x2 <| minX + toFloat n * xStep, fh_ y2 yDiv.max ] ]
-
-                            else
-                                []
-
-                        else
-                            []
-
-                    else if xStep < 6 then
-                        if xSteps <= 7 then
-                            []
-
-                        else if modBy 7 n == 0 then
-                            if Date.day (Date.add Days n startDate) < 8 then
-                                [ grayDottedLine [ f_ x1 <| minX + toFloat n * xStep, fh_ y1 yDiv.min, f_ x2 <| minX + toFloat n * xStep, fh_ y2 yDiv.max ] ]
-
-                            else
-                                []
-
-                        else
-                            []
-
-                    else if xSteps <= 7 then
-                        []
-
-                    else if modBy 14 n == 0 then
-                        [ rect
-                            [ fillColour_ LighterGray
-                            , f_ x <| minX + toFloat n * xStep
-                            , fh_ y yDiv.max
-                            , f_ width <| 7 * xStep
-                            , f_ height (yDiv.max - yDiv.min)
-                            ]
-                            []
-                        ]
-
-                    else
-                        []
-                )
-                (List.range 0 xSteps)
-
         yLines =
             List.map
-                (\n -> grayDottedLine [ f_ x1 0, fh_ y1 <| yDiv.min + toFloat n * yDiv.step, f_ x2 w, fh_ y2 <| yDiv.min + toFloat n * yDiv.step ])
+                (\n -> grayLine [ f_ x1 0, fh_ y1 <| yDiv.min + toFloat n * yDiv.step, f_ x2 w, fh_ y2 <| yDiv.min + toFloat n * yDiv.step ])
                 (List.range 1 <| ceiling yDiv.valueSteps)
 
         background =
@@ -600,22 +551,19 @@ viewLineGraph svgId class m =
         axes =
             xAxis
 
+        plotPoints : DataSet -> List ( Float, Float )
+        plotPoints dataSet =
+            Dict.values <|
+                Dict.map
+                    (\date value ->
+                        ( minX + toFloat (date - startDateRD) * xStep
+                        , yDiv.min + ((value / toFloat yDiv.valueStep) * yDiv.step)
+                        )
+                    )
+                    dataSet.dataPoints
+
         dataFill : ( dataSetId, DataSet ) -> List (Svg (Msg dataSetId))
         dataFill ( id, dataSet ) =
-            let
-                plotPoints : List PlotPoint
-                plotPoints =
-                    Dict.values <|
-                        Dict.map
-                            (\date value ->
-                                { date = date
-                                , value = value
-                                , x = minX + toFloat (date - startDateRD) * xStep
-                                , y = yDiv.min + ((value / toFloat yDiv.valueStep) * yDiv.step)
-                                }
-                            )
-                            dataSet.dataPoints
-            in
             [ S.path
                 ([ strokeColour_ dataSet.colour
                  , strokeWidth_ 0
@@ -640,7 +588,7 @@ viewLineGraph svgId class m =
 
                     else
                         Brighten
-                 , dSmoothLine h Closed <| List.map (\{ x, y } -> ( x, y )) plotPoints
+                 , dSmoothLine h Closed <| plotPoints dataSet
                  ]
                     ++ (if m.selectedDataSet == Nothing then
                             [ Htmlx.onClickStopPropagation <| DataLineClicked id
@@ -657,20 +605,6 @@ viewLineGraph svgId class m =
 
         dataLineBacking : ( dataSetId, DataSet ) -> List (Svg (Msg dataSetId))
         dataLineBacking ( id, dataSet ) =
-            let
-                plotPoints : List PlotPoint
-                plotPoints =
-                    Dict.values <|
-                        Dict.map
-                            (\date value ->
-                                { date = date
-                                , value = value
-                                , x = minX + toFloat (date - startDateRD) * xStep
-                                , y = yDiv.min + ((value / toFloat yDiv.valueStep) * yDiv.step)
-                                }
-                            )
-                            dataSet.dataPoints
-            in
             [ S.path
                 ([ strokeColour_ <|
                     if (m.selectedDataSet == Nothing && m.hoveredDataSet == Nothing) || m.selectedDataSet == Just id || m.hoveredDataSet == Just id then
@@ -689,7 +623,7 @@ viewLineGraph svgId class m =
                     else
                         Brighten
                  , fill "none"
-                 , dSmoothLine h Open <| List.map (\{ x, y } -> ( x, y )) plotPoints
+                 , dSmoothLine h Open <| plotPoints dataSet
                  ]
                     ++ (if m.selectedDataSet == Nothing then
                             [ Htmlx.onClickStopPropagation <| DataLineClicked id
@@ -707,18 +641,8 @@ viewLineGraph svgId class m =
         dataLine : ( dataSetId, DataSet ) -> List (Svg (Msg dataSetId))
         dataLine ( id, dataSet ) =
             let
-                plotPoints : List PlotPoint
-                plotPoints =
-                    Dict.values <|
-                        Dict.map
-                            (\date value ->
-                                { date = date
-                                , value = value
-                                , x = minX + toFloat (date - startDateRD) * xStep
-                                , y = yDiv.min + ((value / toFloat yDiv.valueStep) * yDiv.step)
-                                }
-                            )
-                            dataSet.dataPoints
+                points =
+                    plotPoints dataSet
             in
             S.path
                 ([ strokeColour_ <|
@@ -737,7 +661,7 @@ viewLineGraph svgId class m =
                     else
                         Brighten
                  , fill "none"
-                 , dSmoothLine h Open <| List.map (\{ x, y } -> ( x, y )) plotPoints
+                 , dSmoothLine h Open <| points
                  ]
                     ++ (if m.selectedDataSet == Nothing then
                             [ Htmlx.onClickStopPropagation <| DataLineClicked id
@@ -752,7 +676,7 @@ viewLineGraph svgId class m =
                 []
                 :: (if m.selectedDataSet == Just id then
                         List.map
-                            (\{ x, y } ->
+                            (\( x, y ) ->
                                 circle
                                     [ f_ cx x
                                     , fh_ cy y
@@ -763,7 +687,7 @@ viewLineGraph svgId class m =
                                     ]
                                     []
                             )
-                            plotPoints
+                            points
 
                     else
                         []
@@ -854,6 +778,15 @@ viewLineGraph svgId class m =
                                     ]
                                 )
                        )
+
+        visibleDataSets =
+            m.data |> List.filter (.visible << Tuple.second)
+
+        selectedDataSet =
+            visibleDataSets |> List.filter ((\id -> m.selectedDataSet == Just id) << Tuple.first)
+
+        unselectedDataSets =
+            visibleDataSets |> List.filter ((\id -> m.selectedDataSet /= Just id) << Tuple.first)
     in
     svg
         ([ viewBox (w + v.mr) h
@@ -877,88 +810,23 @@ viewLineGraph svgId class m =
     <|
         definitions
             :: background
-            ++ (case m.selectedDataSet of
-                    Nothing ->
+            ++ (case ( m.selectedDataSet, m.fillLines ) of
+                    ( Nothing, False ) ->
                         axes
+                            ++ (visibleDataSets |> List.concatMap dataFill)
+                            ++ (visibleDataSets |> List.concatMap dataLineBacking)
+                            ++ (visibleDataSets |> List.concatMap dataLine)
+
+                    ( Nothing, True ) ->
+                        axes
+                            ++ (visibleDataSets |> List.concatMap (\l -> dataFill l ++ dataLine l))
 
                     _ ->
-                        []
+                        (unselectedDataSets |> List.concatMap (\l -> dataFill l ++ dataLine l))
+                            ++ axes
+                            ++ (selectedDataSet |> List.concatMap (\l -> dataFill l ++ dataLine l))
+                            ++ highlightedDataPoint
                )
-            ++ (if m.fillLines then
-                    m.data
-                        |> List.filter (.visible << Tuple.second)
-                        |> List.filter ((\id -> m.selectedDataSet /= Just id) << Tuple.first)
-                        |> List.concatMap (\l -> dataFill l ++ dataLine l)
-
-                else
-                    (m.data
-                        |> List.filter (.visible << Tuple.second)
-                        |> List.filter ((\id -> m.selectedDataSet /= Just id) << Tuple.first)
-                        |> List.concatMap dataFill
-                    )
-                        ++ (m.data
-                                |> List.filter (.visible << Tuple.second)
-                                |> List.filter ((\id -> m.selectedDataSet /= Just id) << Tuple.first)
-                                |> List.concatMap dataLineBacking
-                           )
-                        ++ (m.data
-                                |> List.filter (.visible << Tuple.second)
-                                |> List.filter ((\id -> m.selectedDataSet /= Just id) << Tuple.first)
-                                |> List.concatMap dataLine
-                           )
-               )
-            ++ (case m.selectedDataSet of
-                    Just _ ->
-                        axes
-
-                    _ ->
-                        []
-               )
-            ++ (if m.fillLines then
-                    m.data
-                        |> List.filter (.visible << Tuple.second)
-                        |> List.filter ((\id -> m.selectedDataSet == Just id) << Tuple.first)
-                        |> List.concatMap (\l -> dataFill l ++ dataLine l)
-
-                else
-                    (m.data
-                        |> List.filter (.visible << Tuple.second)
-                        |> List.filter ((\id -> m.selectedDataSet == Just id) << Tuple.first)
-                        |> List.concatMap dataFill
-                    )
-                        ++ (m.data
-                                |> List.filter (.visible << Tuple.second)
-                                |> List.filter ((\id -> m.selectedDataSet == Just id) << Tuple.first)
-                                |> List.concatMap dataLine
-                           )
-               )
-            ++ highlightedDataPoint
-
-
-findStartDate : Date -> List ( dataSetId, DataSet ) -> Date
-findStartDate today data =
-    let
-        minDate =
-            Date.fromRataDie
-                << Maybe.withDefault (Date.toRataDie today)
-                << List.minimum
-                << List.filterMap (List.head << Dict.keys << .dataPoints)
-                << List.map Tuple.second
-            <|
-                data
-
-        fullWeeks =
-            ceiling <| toFloat (Date.diff Days minDate today) / 7
-    in
-    Date.add Weeks -fullWeeks today
-
-
-findMaxValue : List ( dataSetId, DataSet ) -> Float
-findMaxValue =
-    Maybe.withDefault 0
-        << List.maximum
-        << List.filterMap (List.maximum << Dict.values << .dataPoints)
-        << List.map Tuple.second
 
 
 axisLine : List (S.Attribute msg) -> S.Svg msg
@@ -971,14 +839,9 @@ highlightLine attrs =
     line ([ strokeColour_ White, strokeWidth_ 3, strokeLinecap "square" ] ++ attrs) []
 
 
-grayDottedLine : List (S.Attribute msg) -> S.Svg msg
-grayDottedLine attrs =
+grayLine : List (S.Attribute msg) -> S.Svg msg
+grayLine attrs =
     line ([ strokeColour_ LightGray, strokeWidth_ 1, strokeLinecap "square" ] ++ attrs) []
-
-
-graySolidLine : List (S.Attribute msg) -> S.Svg msg
-graySolidLine attrs =
-    line ([ strokeColour_ MidGray, strokeWidth_ 1, strokeLinecap "square" ] ++ attrs) []
 
 
 strokeColour_ : Colour -> S.Attribute msg

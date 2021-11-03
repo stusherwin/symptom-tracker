@@ -1,6 +1,6 @@
 module Page.Charts exposing (Model, Msg(..), init, subscriptions, update, view)
 
-import Chart.LineChart
+import Chart.LineChart as Chart
 import Controls
 import Date exposing (Date, Unit(..))
 import Html exposing (..)
@@ -12,16 +12,16 @@ import Stringx
 import Svg.Icon exposing (IconType(..), icon)
 import Time exposing (Month(..))
 import UserData exposing (UserData)
-import UserData.Chartable as Chartable exposing (Chartable)
-import UserData.ChartableId as ChartableId exposing (ChartableId)
-import UserData.LineChart as LineChart exposing (LineChart)
+import UserData.Chartable exposing (Chartable)
+import UserData.ChartableId exposing (ChartableId)
+import UserData.LineChart exposing (LineChart)
 import UserData.LineChartId as LineChartId exposing (LineChartId)
-import UserData.Trackable as Trackable exposing (TrackableData(..))
-import UserData.TrackableId as TrackableId exposing (TrackableId)
+import UserData.Trackable exposing (TrackableData(..))
+import UserData.TrackableId exposing (TrackableId)
 
 
 type alias Model =
-    { charts : List ( LineChartId, ( Chart.LineChart.Model, List ( ChartableId, ChartableModel ) ) )
+    { charts : List ( LineChartId, ( Chart.Model, List ( ChartableId, ChartableModel ) ) )
     , trackableOptions : List ( TrackableId, ( String, Bool ) )
     , chartableOptions : List ( ChartableId, String )
     , userData : UserData
@@ -66,7 +66,7 @@ init today userData =
     )
 
 
-toChartModel : Date -> UserData -> LineChartId -> LineChart -> ( ( Chart.LineChart.Model, List ( ChartableId, ChartableModel ) ), Cmd Msg )
+toChartModel : Date -> UserData -> LineChartId -> LineChart -> ( ( Chart.Model, List ( ChartableId, ChartableModel ) ), Cmd Msg )
 toChartModel today userData id chart =
     let
         toChartableModel_ ( chartableId, _ ) =
@@ -75,7 +75,7 @@ toChartModel today userData id chart =
                 |> Maybe.map (\c -> ( chartableId, toChartableModel userData c ))
 
         ( chartModel, chartCmd ) =
-            Chart.LineChart.init today userData id chart
+            Chart.init today userData id chart
     in
     ( ( chartModel
       , chart.chartables
@@ -110,7 +110,7 @@ toTrackableModel userData ( trackableId, multiplier ) =
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    model.charts |> List.map (\( id, ( chart, _ ) ) -> Sub.map (ChartMsg id) (Chart.LineChart.subscriptions chart)) |> Sub.batch
+    model.charts |> List.map (\( id, ( chart, _ ) ) -> Sub.map (ChartMsg id) (Chart.subscriptions chart)) |> Sub.batch
 
 
 
@@ -120,7 +120,7 @@ subscriptions model =
 type Msg
     = ChartAddClicked
     | UserDataUpdated UserData
-    | ChartMsg LineChartId Chart.LineChart.Msg
+    | ChartMsg LineChartId Chart.Msg
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -139,7 +139,7 @@ update msg model =
                 Just chart ->
                     let
                         ( chart_, cmd ) =
-                            Chart.LineChart.update chartMsg chart
+                            Chart.update chartMsg chart
                     in
                     ( model |> updateChart chartId (always chart_), Cmd.map (ChartMsg chartId) cmd )
 
@@ -173,7 +173,7 @@ view model =
                                         , icon "absolute right-4 w-5 h-5" SolidPencilAlt
                                         ]
                                     ]
-                                , Html.map (ChartMsg chartId) (Chart.LineChart.view model.chartableOptions model.userData c)
+                                , Html.map (ChartMsg chartId) (Chart.view model.chartableOptions model.userData c)
                                 ]
                         )
                )

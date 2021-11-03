@@ -1,13 +1,10 @@
-module Chart.LineChart exposing (Model, Msg, addDataSet, init, removeDataSet, subscriptions, update, updateColour, updateDataPoints, view)
+module Chart.LineChart exposing (Model, Msg, addDataSet, hoverDataSet, init, moveDataSetBack, moveDataSetForward, removeDataSet, selectDataSet, subscriptions, toggleDataSetSelected, toggleDataSetVisible, update, updateDataSetColour, updateDataSetData, view)
 
 import Browser.Dom as Dom
-import Colour exposing (Colour)
 import Date exposing (Date, Unit(..))
-import Dict exposing (Dict)
-import Dictx
+import Dict
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Events exposing (onCheck, onClick, onMouseEnter, onMouseLeave)
 import Htmlx
 import Listx
 import Maybe exposing (Maybe)
@@ -17,12 +14,10 @@ import Svg.Icon exposing (IconType(..), fillIcon, icon)
 import Task
 import Time exposing (Month(..))
 import UserData exposing (UserData)
-import UserData.Chartable as Chartable exposing (Chartable, ChartableDict)
-import UserData.ChartableId as ChartableId exposing (ChartableId)
+import UserData.ChartableId exposing (ChartableId)
 import UserData.LineChart as LineChart exposing (LineChart)
 import UserData.LineChartId as LineChartId exposing (LineChartId)
-import UserData.Trackable as Trackable exposing (TrackableData(..), TrackableDict)
-import UserData.TrackableId as TrackableId exposing (TrackableId)
+import UserData.Trackable as Trackable exposing (TrackableData(..))
 
 
 type alias Model =
@@ -109,61 +104,12 @@ toDataSet userData chartableId visible =
             (\c ->
                 ( chartableId
                 , { name = c.name
-                  , colour = toColour userData c
-                  , dataPoints = toDataPoints userData c
+                  , colour = UserData.getChartableColour userData c
+                  , dataPoints = UserData.getChartableDataPoints userData c
                   , visible = visible
                   }
                 )
             )
-
-
-toColour : UserData -> Chartable -> Colour
-toColour userData chartable =
-    let
-        firstColour =
-            List.head chartable.sum
-                |> Maybe.andThen ((\tId -> UserData.getTrackable tId userData) << Tuple.first)
-                |> Maybe.map .colour
-    in
-    Maybe.withDefault Colour.Gray <|
-        if List.length chartable.sum == 1 then
-            firstColour
-
-        else
-            case chartable.colour of
-                Just c ->
-                    Just c
-
-                Nothing ->
-                    firstColour
-
-
-toDataPoints : UserData -> Chartable -> Dict Int Float
-toDataPoints userData chartable =
-    let
-        invert data =
-            case List.maximum <| Dict.values data of
-                Just max ->
-                    data |> Dict.map (\_ v -> max - v)
-
-                _ ->
-                    data
-    in
-    chartable.sum
-        |> List.filterMap
-            (\( trackableId, multiplier ) ->
-                userData
-                    |> UserData.getTrackable trackableId
-                    |> Maybe.map
-                        (Dict.map (\_ v -> v * multiplier) << Trackable.onlyFloatData)
-            )
-        |> List.foldl (Dictx.unionWith (\v1 v2 -> v1 + v2)) Dict.empty
-        |> (if chartable.inverted then
-                invert
-
-            else
-                identity
-           )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -231,66 +177,91 @@ update msg model =
             , Cmd.none
             )
 
-        GraphMsg (Graph.MouseDown ( x, y )) ->
-            case model.viewport of
-                Just { scene } ->
-                    let
-                        xPerc =
-                            x / scene.width
-
-                        yPerc =
-                            y / scene.height
-                    in
-                    ( model |> (updateGraph <| Graph.selectNearestDataPoint ( xPerc, yPerc )), Cmd.none )
-
-                _ ->
-                    ( model, Cmd.none )
-
-        GraphMsg (Graph.MouseMove ( x, y )) ->
-            case model.viewport of
-                Just { scene } ->
-                    let
-                        xPerc =
-                            x / scene.width
-
-                        yPerc =
-                            y / scene.height
-                    in
-                    ( model |> (updateGraph <| Graph.hoverNearestDataPoint ( xPerc, yPerc )), Cmd.none )
-
-                _ ->
-                    ( model, Cmd.none )
-
         GraphMsg graphMsg ->
-            ( model |> (updateGraph <| Graph.update graphMsg), Cmd.none )
+            case graphMsg of
+                Graph.MouseDown ( x, y ) ->
+                    case model.viewport of
+                        Just { scene } ->
+                            let
+                                xPerc =
+                                    x / scene.width
+
+                                yPerc =
+                                    y / scene.height
+                            in
+                            ( model |> (updateGraph <| Graph.selectNearestDataPoint ( xPerc, yPerc )), Cmd.none )
+
+                        _ ->
+                            ( model, Cmd.none )
+
+                Graph.MouseMove ( x, y ) ->
+                    case model.viewport of
+                        Just { scene } ->
+                            let
+                                xPerc =
+                                    x / scene.width
+
+                                yPerc =
+                                    y / scene.height
+                            in
+                            ( model |> (updateGraph <| Graph.hoverNearestDataPoint ( xPerc, yPerc )), Cmd.none )
+
+                        _ ->
+                            ( model, Cmd.none )
+
+                Graph.DataLineHovered id ->
+                    ( model |> (updateGraph <| Graph.hoverDataSet id), Cmd.none )
+
+                Graph.DataLineClicked id ->
+                    ( model |> (updateGraph <| Graph.toggleDataSetSelected id), Cmd.none )
 
         _ ->
             ( model, Cmd.none )
 
 
-updateDataPoints : UserData -> ChartableId -> Model -> Model
-updateDataPoints userData chartableId model =
+hoverDataSet : Maybe ChartableId -> Model -> Model
+hoverDataSet id model =
+    { model | graph = model.graph |> Graph.hoverDataSet id }
+
+
+toggleDataSetVisible : ChartableId -> Model -> Model
+toggleDataSetVisible id model =
+    { model | graph = model.graph |> Graph.toggleDataSetVisible id }
+
+
+toggleDataSetSelected : ChartableId -> Model -> Model
+toggleDataSetSelected id model =
+    { model | graph = model.graph |> Graph.toggleDataSetSelected id }
+
+
+selectDataSet : Maybe ChartableId -> Model -> Model
+selectDataSet id model =
+    { model | graph = model.graph |> Graph.selectDataSet id }
+
+
+updateDataSetData : UserData -> ChartableId -> Model -> Model
+updateDataSetData userData chartableId model =
     case userData |> UserData.getChartable chartableId of
         Just chartable ->
             let
                 graph =
                     model.graph
             in
-            { model | graph = { graph | data = graph.data |> Listx.updateLookup chartableId (\d -> { d | dataPoints = toDataPoints userData chartable }) } }
+            { model | graph = { graph | data = graph.data |> Listx.updateLookup chartableId (\d -> { d | dataPoints = UserData.getChartableDataPoints userData chartable }) } }
 
         _ ->
             model
 
 
-updateColour : UserData -> ChartableId -> Model -> Model
-updateColour userData chartableId model =
+updateDataSetColour : UserData -> ChartableId -> Model -> Model
+updateDataSetColour userData chartableId model =
     case userData |> UserData.getChartable chartableId of
         Just chartable ->
             let
                 graph =
                     model.graph
             in
-            { model | graph = { graph | data = graph.data |> Listx.updateLookup chartableId (\d -> { d | colour = toColour userData chartable }) } }
+            { model | graph = { graph | data = graph.data |> Listx.updateLookup chartableId (\d -> { d | colour = UserData.getChartableColour userData chartable }) } }
 
         _ ->
             model
@@ -317,6 +288,24 @@ removeDataSet chartableId model =
             model.graph
     in
     { model | graph = { graph | data = graph.data |> List.filter (\( cId, _ ) -> cId /= chartableId) } }
+
+
+moveDataSetBack : ChartableId -> Model -> Model
+moveDataSetBack chartableId model =
+    let
+        graph =
+            model.graph
+    in
+    { model | graph = { graph | data = graph.data |> Listx.moveHeadwardsBy Tuple.first chartableId } }
+
+
+moveDataSetForward : ChartableId -> Model -> Model
+moveDataSetForward chartableId model =
+    let
+        graph =
+            model.graph
+    in
+    { model | graph = { graph | data = graph.data |> Listx.moveTailwardsBy Tuple.first chartableId } }
 
 
 subscriptions : Model -> Sub Msg
@@ -439,7 +428,7 @@ view chartableOptions userData model =
                                                 , p [ class "text-sm flex justify-between items-baseline" ]
                                                     [ span [] <|
                                                         [ text "Value"
-                                                        , span [ class "ml-1 font-bold" ] [ text <| String.fromFloat total ]
+                                                        , span [ class "ml-1 font-bold" ] [ text <| String.fromFloat <| (toFloat <| round <| total * 100) / 100 ]
                                                         ]
                                                             ++ (case invertedTotal of
                                                                     Just ( _, t ) ->
