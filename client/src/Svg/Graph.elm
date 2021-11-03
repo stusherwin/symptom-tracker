@@ -1,4 +1,4 @@
-module Graph exposing (DataSet, Model, Msg, bringDataSetForward, bringDataSetToFront, hoverDataSet, init, pushDataSetBack, selectDataSet, setFillLines, setShowPoints, toggleDataSet, toggleDataSetSelected, update, viewJustYAxis, viewKey, viewLineGraph)
+module Svg.Graph exposing (DataSet, Model, Msg, hoverDataSet, selectDataSet, toggleDataSet, toggleDataSetSelected, update, viewJustYAxis, viewKey, viewLineGraph)
 
 import Array
 import Colour exposing (Colour(..))
@@ -17,9 +17,9 @@ type Msg dataSetId
     | DataLineClicked dataSetId
 
 
-type alias Model dataSetId =
+type alias Model dataSetId a =
     { today : Date
-    , data : IdDict dataSetId DataSet
+    , data : IdDict dataSetId (DataSet a)
     , selectedDataPoint : Maybe ( dataSetId, Int )
     , fillLines : Bool
     , showPoints : Bool
@@ -29,37 +29,12 @@ type alias Model dataSetId =
     }
 
 
-type alias DataSet =
-    { name : String
-    , colour : Colour
-    , dataPoints : Dict Int Float
-    , visible : Bool
-    }
-
-
-
--- INIT
-
-
-init : Date -> Bool -> Bool -> IdDict dataSetId { name : String, colour : Colour, dataPoints : Dict Int Float } -> List dataSetId -> Model dataSetId
-init today fillLines showPoints dataSets dataOrder =
-    { today = today
-    , data =
-        dataSets
-            |> IdDict.map
-                (\_ ds ->
-                    { name = ds.name
-                    , colour = ds.colour
-                    , dataPoints = ds.dataPoints
-                    , visible = True
-                    }
-                )
-    , selectedDataPoint = Nothing
-    , selectedDataSet = Nothing
-    , hoveredDataSet = Nothing
-    , fillLines = fillLines
-    , showPoints = showPoints
-    , dataOrder = dataOrder
+type alias DataSet a =
+    { a
+        | name : String
+        , colour : Colour
+        , dataPoints : Dict Int Float
+        , visible : Bool
     }
 
 
@@ -67,7 +42,7 @@ init today fillLines showPoints dataSets dataOrder =
 -- UPDATE
 
 
-update : Msg dataSetId -> Model dataSetId -> Model dataSetId
+update : Msg dataSetId -> Model dataSetId a -> Model dataSetId a
 update msg model =
     case msg of
         DataPointHovered (Just ( id, d )) ->
@@ -86,17 +61,7 @@ update msg model =
             toggleDataSetSelected id model
 
 
-setFillLines : Bool -> Model dataSetId -> Model dataSetId
-setFillLines fl model =
-    { model | fillLines = fl }
-
-
-setShowPoints : Bool -> Model dataSetId -> Model dataSetId
-setShowPoints sp model =
-    { model | showPoints = sp }
-
-
-toggleDataSetSelected : dataSetId -> Model dataSetId -> Model dataSetId
+toggleDataSetSelected : dataSetId -> Model dataSetId a -> Model dataSetId a
 toggleDataSetSelected targetId model =
     let
         newSelectedDataSet =
@@ -117,72 +82,22 @@ toggleDataSetSelected targetId model =
     }
 
 
-selectDataPoint : Maybe ( dataSetId, Int ) -> Model dataSetId -> Model dataSetId
+selectDataPoint : Maybe ( dataSetId, Int ) -> Model dataSetId a -> Model dataSetId a
 selectDataPoint p model =
     { model | selectedDataPoint = p }
 
 
-selectDataSet : Maybe dataSetId -> Model dataSetId -> Model dataSetId
+selectDataSet : Maybe dataSetId -> Model dataSetId a -> Model dataSetId a
 selectDataSet id model =
     { model | selectedDataSet = id }
 
 
-hoverDataSet : Maybe dataSetId -> Model dataSetId -> Model dataSetId
+hoverDataSet : Maybe dataSetId -> Model dataSetId a -> Model dataSetId a
 hoverDataSet id model =
     { model | hoveredDataSet = id }
 
 
-bringDataSetToFront : dataSetId -> Model dataSetId -> Model dataSetId
-bringDataSetToFront id model =
-    { model | dataOrder = List.reverse <| id :: List.filter (\i -> i /= id) model.dataOrder }
-
-
-pushDataSetBack : dataSetId -> Model dataSetId -> Model dataSetId
-pushDataSetBack id model =
-    let
-        fn ids =
-            case ids of
-                [] ->
-                    []
-
-                [ x ] ->
-                    [ x ]
-
-                x :: y :: rest ->
-                    if x == id then
-                        x :: y :: rest
-
-                    else if y == id then
-                        y :: x :: rest
-
-                    else
-                        x :: fn (y :: rest)
-    in
-    { model | dataOrder = fn model.dataOrder }
-
-
-bringDataSetForward : dataSetId -> Model dataSetId -> Model dataSetId
-bringDataSetForward id model =
-    let
-        fn ids =
-            case ids of
-                [] ->
-                    []
-
-                [ x ] ->
-                    [ x ]
-
-                x :: y :: rest ->
-                    if x == id then
-                        y :: x :: rest
-
-                    else
-                        x :: fn (y :: rest)
-    in
-    { model | dataOrder = fn model.dataOrder }
-
-
-toggleDataSet : dataSetId -> Model dataSetId -> Model dataSetId
+toggleDataSet : dataSetId -> Model dataSetId a -> Model dataSetId a
 toggleDataSet id model =
     case IdDict.get id model.data of
         Just ds ->
@@ -241,7 +156,7 @@ v =
     }
 
 
-viewJustYAxis : String -> Model dataSetId -> Svg msg
+viewJustYAxis : String -> Model dataSetId a -> Svg msg
 viewJustYAxis class { data } =
     let
         maxValue =
@@ -269,7 +184,7 @@ viewJustYAxis class { data } =
                 (List.range 0 5)
 
 
-viewLineGraph : String -> Model dataSetId -> Svg (Msg dataSetId)
+viewLineGraph : String -> Model dataSetId a -> Svg (Msg dataSetId)
 viewLineGraph class { data, today, selectedDataPoint, selectedDataSet, hoveredDataSet, fillLines, showPoints, dataOrder } =
     let
         startDate =
@@ -341,7 +256,7 @@ viewLineGraph class { data, today, selectedDataPoint, selectedDataSet, hoveredDa
                 :: xAxis
                 ++ yAxis
 
-        dataLine : dataSetId -> DataSet -> List (Svg (Msg dataSetId))
+        dataLine : dataSetId -> DataSet a -> List (Svg (Msg dataSetId))
         dataLine id dataSet =
             let
                 plotPoints : List PlotPoint
@@ -462,7 +377,7 @@ viewKey class colour =
         ]
 
 
-findStartDate : Date -> IdDict dataSetId DataSet -> Date
+findStartDate : Date -> IdDict dataSetId (DataSet a) -> Date
 findStartDate today data =
     let
         minDate =
@@ -480,7 +395,7 @@ findStartDate today data =
     Date.add Weeks -fullWeeks today
 
 
-findMaxValue : IdDict dataSetId DataSet -> Float
+findMaxValue : IdDict dataSetId (DataSet a) -> Float
 findMaxValue =
     Maybe.withDefault 0
         << List.maximum

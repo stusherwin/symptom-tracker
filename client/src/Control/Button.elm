@@ -1,9 +1,9 @@
-module Button exposing (ButtonColour(..), view, viewCircle, viewIcon)
+module Control.Button exposing (ButtonColour(..), view, viewCircle, viewIcon)
 
 import Html as H exposing (..)
 import Html.Attributes as A exposing (..)
 import Html.Events exposing (onClick, onInput)
-import Icon as I exposing (IconType(..))
+import Svg.Icon as I exposing (IconType(..))
 
 
 type ButtonColour

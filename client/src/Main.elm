@@ -5,18 +5,16 @@ import Browser.Navigation as Nav
 import Date exposing (Date, Unit(..))
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Events exposing (preventDefaultOn, stopPropagationOn)
-import Icon exposing (IconType(..), icon, iconSymbols, logo)
 import Json.Decode as Decode
 import Json.Encode as Encode
 import Maybe exposing (Maybe)
+import Page.Charts as ChartsPage
 import Page.Day as DayPage
-import Page.Graph as GraphPage
 import Page.Settings as SettingsPage
+import Svg.Icon exposing (IconType(..), icon, iconSymbols, logo)
 import Task
 import Throttle exposing (Throttle)
 import Time exposing (Month(..))
-import Trackable exposing (TrackableData(..))
 import Url exposing (Url)
 import Url.Parser as Parser exposing ((</>), Parser, oneOf, s, top)
 import UserData exposing (UserData)
@@ -79,9 +77,9 @@ routeToPage today userData route =
         Just Graph ->
             let
                 ( model, cmd ) =
-                    GraphPage.init today userData
+                    ChartsPage.init today userData
             in
-            ( GraphPage model, Cmd.map GraphPageMsg cmd )
+            ( ChartsPage model, Cmd.map ChartsPageMsg cmd )
 
         _ ->
             ( NotFoundPage, Cmd.none )
@@ -107,7 +105,7 @@ type PageState
 type Page
     = DayPage DayPage.Model
     | SettingsPage SettingsPage.Model
-    | GraphPage GraphPage.Model
+    | ChartsPage ChartsPage.Model
     | NotFoundPage
 
 
@@ -157,7 +155,7 @@ type Msg
     | UrlChanged Url
     | LinkClicked Browser.UrlRequest
     | DayPageMsg DayPage.Msg
-    | GraphPageMsg GraphPage.Msg
+    | ChartsPageMsg ChartsPage.Msg
     | SettingsPageMsg SettingsPage.Msg
     | UserDataChanged Encode.Value
     | UpdateThrottle
@@ -241,14 +239,14 @@ update msg model =
                 _ ->
                     ( model, Cmd.none )
 
-        GraphPageMsg graphPageMsg ->
+        ChartsPageMsg chartsPageMsg ->
             case model.pageState of
-                Loaded today userData (GraphPage graphPageModel) ->
+                Loaded today userData (ChartsPage chartsPageModel) ->
                     let
                         ( newModel, cmd ) =
-                            GraphPage.update graphPageMsg graphPageModel
+                            ChartsPage.update chartsPageMsg chartsPageModel
                     in
-                    ( { model | pageState = Loaded today userData (GraphPage newModel) }, Cmd.map GraphPageMsg cmd )
+                    ( { model | pageState = Loaded today userData (ChartsPage newModel) }, Cmd.map ChartsPageMsg cmd )
 
                 _ ->
                     ( model, Cmd.none )
@@ -295,15 +293,6 @@ update msg model =
                     case model.pageState of
                         Loading route d _ ->
                             ( { model | pageState = Loading route d (Just userData) }, Cmd.none )
-
-                        Loaded today _ (GraphPage graphPageModel) ->
-                            let
-                                ( newModel, cmd ) =
-                                    GraphPage.update (GraphPage.UserDataChanged userData) graphPageModel
-                            in
-                            ( { model | pageState = Loaded today userData (GraphPage newModel) }
-                            , Cmd.map GraphPageMsg cmd
-                            )
 
                         Loaded today _ (DayPage dayPageModel) ->
                             let
@@ -363,8 +352,8 @@ view model =
                                     SettingsPage settingsModel ->
                                         Html.map SettingsPageMsg <| SettingsPage.view settingsModel
 
-                                    GraphPage graphModel ->
-                                        Html.map GraphPageMsg <| GraphPage.view graphModel
+                                    ChartsPage graphModel ->
+                                        Html.map ChartsPageMsg <| ChartsPage.view graphModel
 
                                     NotFoundPage ->
                                         viewNotFoundPage
@@ -410,21 +399,3 @@ viewNotFoundPage =
         [ h1 [ class "font-bold text-3xl text-center" ]
             [ text "Page not found" ]
         ]
-
-
-onClickPreventDefault : msg -> Attribute msg
-onClickPreventDefault msg =
-    let
-        alwaysPreventDefault m =
-            ( m, True )
-    in
-    preventDefaultOn "click" (Decode.map alwaysPreventDefault (Decode.succeed msg))
-
-
-onClickStopPropagation : msg -> Attribute msg
-onClickStopPropagation msg =
-    let
-        alwaysStopPropagation m =
-            ( m, True )
-    in
-    stopPropagationOn "click" (Decode.map alwaysStopPropagation (Decode.succeed msg))

@@ -1,4 +1,4 @@
-module Icon exposing (IconType(..), all, decode, encode, fromString, icon, iconSymbols, logo, toString, userSelectable)
+module Svg.Icon exposing (IconType(..), all, decode, encode, fromString, icon, iconSymbols, logo, toString, userSelectable)
 
 import Html exposing (p)
 import Json.Decode as D

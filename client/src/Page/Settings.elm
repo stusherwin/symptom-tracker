@@ -2,20 +2,21 @@ module Page.Settings exposing (Model, Msg(..), init, update, view)
 
 import Array exposing (Array)
 import Browser.Dom as Dom
-import Button
 import Colour exposing (Colour(..))
+import Control.Button as Button
+import Control.Dropdown as Dropdown
+import Control.Textbox as Textbox
 import Dict
-import Dropdown
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick, onInput)
-import Icon exposing (IconType(..), icon)
 import IdDict exposing (IdDict)
+import Listx
 import Platform.Cmd as Cmd
+import Svg.Icon exposing (IconType(..), icon)
 import Task
-import Textbox
-import Trackable exposing (Trackable, TrackableData(..), TrackableId)
 import UserData exposing (UserData)
+import UserData.Trackable as Trackable exposing (Trackable, TrackableData(..), TrackableId)
 
 
 type alias Model =
@@ -96,8 +97,8 @@ init userData =
             , scaleOptions =
                 let
                     ( maybeMin, maybeMax ) =
-                        ( Maybe.map truncate << List.minimum << concatMaybes <| floatData
-                        , Maybe.map truncate << List.maximum << concatMaybes <| floatData
+                        ( Maybe.map truncate << List.minimum << Listx.concatMaybes <| floatData
+                        , Maybe.map truncate << List.maximum << Listx.concatMaybes <| floatData
                         )
 
                     ( from, to ) =
@@ -140,7 +141,7 @@ init userData =
                     _ ->
                         let
                             max =
-                                Maybe.map truncate << List.maximum << concatMaybes <| floatData
+                                Maybe.map truncate << List.maximum << Listx.concatMaybes <| floatData
                         in
                         case max of
                             Just m ->
@@ -643,16 +644,3 @@ answerTypeFromString str =
 
         _ ->
             Nothing
-
-
-concatMaybes : List (Maybe a) -> List a
-concatMaybes maybeXs =
-    case maybeXs of
-        (Just x) :: xs ->
-            x :: concatMaybes xs
-
-        _ :: xs ->
-            concatMaybes xs
-
-        _ ->
-            []

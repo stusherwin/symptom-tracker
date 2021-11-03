@@ -1,13 +1,14 @@
-module Trackable exposing (Trackable, TrackableData(..), TrackableDict, TrackableId(..), addIcon, convertToFloat, convertToIcon, convertToInt, convertToScale, convertToText, convertToYesNo, decode, decodeDict, decodeId, deleteIcon, encode, encodeDict, encodeId, fromList, hasData, idToString, maybeFloatData, onlyFloatData, textData, toDict, toString, updateFloatData, updateIcon, updateIconData, updateIntData, updateScaleData, updateScaleFrom, updateScaleTo, updateTextData, updateYesNoData)
+module UserData.Trackable exposing (Trackable, TrackableData(..), TrackableDict, TrackableId(..), addIcon, convertToFloat, convertToIcon, convertToInt, convertToScale, convertToText, convertToYesNo, decode, decodeDict, decodeId, deleteIcon, encode, encodeDict, encodeId, fromList, hasData, idToString, maybeFloatData, onlyFloatData, textData, toDict, toString, updateFloatData, updateIcon, updateIconData, updateIntData, updateScaleData, updateScaleFrom, updateScaleTo, updateTextData, updateYesNoData)
 
 import Array exposing (Array)
 import Colour exposing (Colour(..))
 import Date exposing (Date, Unit(..))
 import Dict exposing (Dict)
-import Icon exposing (IconType(..))
+import Dictx
 import IdDict exposing (IdDict(..), IdDictProps)
 import Json.Decode as D
 import Json.Encode as E
+import Svg.Icon as Icon exposing (IconType(..))
 import Time exposing (Month(..))
 
 
@@ -60,7 +61,7 @@ maybeFloatData { data } =
 
 onlyFloatData : Trackable -> Dict Int Float
 onlyFloatData =
-    dictConcatMaybes << maybeFloatData
+    Dictx.concatMaybes << maybeFloatData
 
 
 textData : Trackable -> Dict Int String
@@ -286,8 +287,8 @@ convertToYesNo t =
             convert data
 
         convert =
-            dictConcatMaybes
-                << dictMapMaybes
+            Dictx.concatMaybes
+                << Dictx.mapMaybes
                     (\v ->
                         if v == 1 then
                             Just True
@@ -316,8 +317,8 @@ convertToIcon icons t =
             convert data
 
         convert =
-            dictConcatMaybes
-                << dictMapMaybes
+            Dictx.concatMaybes
+                << Dictx.mapMaybes
                     (\v ->
                         if ceiling v == floor v && v >= 0 && floor v <= Array.length icons then
                             Just (floor v)
@@ -343,8 +344,8 @@ convertToScale min max t =
             convert data
 
         convert =
-            dictConcatMaybes
-                << dictMapMaybes
+            Dictx.concatMaybes
+                << Dictx.mapMaybes
                     (\v ->
                         if ceiling v == floor v && floor v >= min && floor v <= max then
                             Just (floor v)
@@ -370,8 +371,8 @@ convertToInt t =
             convert data
 
         convert =
-            dictConcatMaybes
-                << dictMapMaybes
+            Dictx.concatMaybes
+                << Dictx.mapMaybes
                     (\v ->
                         if ceiling v == floor v then
                             Just (floor v)
@@ -397,8 +398,8 @@ convertToFloat t =
             convert data
 
         convert =
-            dictConcatMaybes
-                << dictMapMaybes
+            Dictx.concatMaybes
+                << Dictx.mapMaybes
                     (\v -> Just v)
     in
     if Dict.size data == Dict.size converted then
@@ -598,23 +599,3 @@ encode t =
                         ]
           )
         ]
-
-
-dictConcatMaybes : Dict comparable (Maybe a) -> Dict comparable a
-dictConcatMaybes =
-    Dict.fromList
-        << List.filterMap
-            (\( k, maybeV ) ->
-                case maybeV of
-                    Just v ->
-                        Just ( k, v )
-
-                    _ ->
-                        Nothing
-            )
-        << Dict.toList
-
-
-dictMapMaybes : (a -> Maybe b) -> Dict comparable (Maybe a) -> Dict comparable (Maybe b)
-dictMapMaybes fn =
-    Dict.map (\_ v -> Maybe.andThen fn v)

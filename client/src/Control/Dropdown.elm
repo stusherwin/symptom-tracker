@@ -1,11 +1,11 @@
-module Dropdown exposing (viewColour, viewColourWithText, viewIcon, viewText)
+module Control.Dropdown exposing (viewColour, viewColourWithText, viewIcon, viewText)
 
 import Colour exposing (Colour)
 import Html exposing (..)
 import Html.Attributes as A exposing (..)
 import Html.Events exposing (..)
-import Icon exposing (IconType(..), icon)
 import Json.Decode as Decode
+import Svg.Icon as Icon exposing (IconType(..), icon)
 
 
 view : String -> (Maybe a -> msg) -> (a -> String) -> (String -> Maybe a) -> List ( ( a, Bool ), Html msg ) -> Maybe a -> { unselectedItemClass : String, selectedItemClass : String, showFilled : Bool } -> Html msg

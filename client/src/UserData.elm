@@ -1,24 +1,24 @@
-module UserData exposing (UserData, chartables, charts, decode, encode, init, trackables, tryAddTrackable, tryDeleteTrackable, tryUpdateTrackable)
+module UserData exposing (UserData, chartables, decode, encode, init, lineCharts, trackables, tryAddTrackable, tryDeleteTrackable, tryUpdateTrackable)
 
 import Array
-import Chart exposing (Chart(..), ChartDict, ChartId(..))
-import Chartable exposing (Chartable, ChartableDict, ChartableId(..))
 import Colour exposing (Colour(..))
 import Date exposing (Date, Unit(..))
 import Dict exposing (Dict)
-import Icon exposing (IconType(..))
 import IdDict
 import Json.Decode as D
 import Json.Encode as E
+import Svg.Icon exposing (IconType(..))
 import Time exposing (Month(..))
-import Trackable exposing (Trackable, TrackableData(..), TrackableDict, TrackableId(..))
+import UserData.Chartable as Chartable exposing (Chartable, ChartableDict, ChartableId(..))
+import UserData.LineChart as LineChart exposing (LineChart, LineChartDict, LineChartId(..))
+import UserData.Trackable as Trackable exposing (Trackable, TrackableData(..), TrackableDict, TrackableId(..))
 
 
 type UserData
     = UserData
         { trackables : TrackableDict
         , chartables : ChartableDict
-        , charts : ChartDict
+        , lineCharts : LineChartDict
         }
 
 
@@ -32,9 +32,9 @@ chartables (UserData data) =
     data.chartables
 
 
-charts : UserData -> ChartDict
-charts (UserData data) =
-    data.charts
+lineCharts : UserData -> LineChartDict
+lineCharts (UserData data) =
+    data.lineCharts
 
 
 init : UserData
@@ -123,28 +123,28 @@ init =
                 , ( ChartableId 4, { name = "Energy", colour = Colour.Green, inverted = False, sum = [ ( TrackableId 4, 1.0 ) ] } )
                 , ( ChartableId 5, { name = "Running", colour = Colour.Indigo, inverted = False, sum = [ ( TrackableId 6, 1.0 ) ] } )
                 ]
-        , charts =
-            Chart.fromList
-                [ ( ChartId 1
-                  , LineChart
-                        { name = "All Data"
-                        , fillLines = True
-                        , showPoints = False
-                        , chartables = Chartable.fromList
+        , lineCharts =
+            LineChart.fromList
+                [ ( LineChartId 1
+                  , { name = "All Data"
+                    , fillLines = True
+                    , showPoints = False
+                    , chartables =
+                        Chartable.fromList
                             [ ( ChartableId 1, { visible = True } )
                             , ( ChartableId 2, { visible = False } )
                             , ( ChartableId 3, { visible = True } )
                             , ( ChartableId 4, { visible = True } )
                             , ( ChartableId 5, { visible = True } )
                             ]
-                        , chartableOrder =
-                            [ ChartableId 1
-                            , ChartableId 2
-                            , ChartableId 3
-                            , ChartableId 4
-                            , ChartableId 5
-                            ]
-                        }
+                    , chartableOrder =
+                        [ ChartableId 1
+                        , ChartableId 2
+                        , ChartableId 3
+                        , ChartableId 4
+                        , ChartableId 5
+                        ]
+                    }
                   )
                 ]
         }
@@ -169,14 +169,14 @@ decode : D.Decoder UserData
 decode =
     let
         v0 =
-            D.map (\ts -> UserData { trackables = ts, chartables = Chartable.toDict [], charts = Chart.toDict [] })
+            D.map (\ts -> UserData { trackables = ts, chartables = Chartable.toDict [], lineCharts = LineChart.toDict [] })
                 Trackable.decodeDict
 
         v1 =
-            D.map3 (\tbles cbles cts -> UserData { trackables = tbles, chartables = cbles, charts = cts })
+            D.map3 (\tbles cbles cts -> UserData { trackables = tbles, chartables = cbles, lineCharts = cts })
                 (D.field "trackables" <| Trackable.decodeDict)
                 (D.field "chartables" <| Chartable.decodeDict)
-                (D.field "charts" <| Chart.decodeDict)
+                (D.field "lineCharts" <| LineChart.decodeDict)
     in
     D.oneOf
         [ D.null init
@@ -203,7 +203,7 @@ encode (UserData data) =
           , E.object
                 [ ( "trackables", Trackable.encodeDict data.trackables )
                 , ( "chartables", Chartable.encodeDict data.chartables )
-                , ( "charts", Chart.encodeDict data.charts )
+                , ( "lineCharts", LineChart.encodeDict data.lineCharts )
                 ]
           )
         ]

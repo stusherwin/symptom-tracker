@@ -1,11 +1,11 @@
-module Chartable exposing (Chartable, ChartableDict, ChartableId(..), decode, decodeDict, decodeId, decodeIdDict, encode, encodeDict, encodeId, encodeIdDict, fromList, toDict)
+module UserData.Chartable exposing (Chartable, ChartableDict, ChartableId(..), decode, decodeDict, decodeId, decodeIdDict, encode, encodeDict, encodeId, encodeIdDict, fromList, toDict)
 
 import Colour exposing (Colour)
 import Dict
 import IdDict exposing (IdDict(..), IdDictProps)
 import Json.Decode as D
 import Json.Encode as E
-import Trackable exposing (TrackableId)
+import UserData.Trackable as Trackable exposing (TrackableId)
 
 
 type alias Chartable =

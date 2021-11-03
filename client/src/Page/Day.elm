@@ -1,24 +1,24 @@
 module Page.Day exposing (Model, Msg(..), init, update, view)
 
 import Array exposing (Array)
-import Button
 import Colour
+import Control.Button as Button
+import Control.Dropdown as Dropdown
+import Control.Textarea as Textarea
+import Control.Textbox as Textbox
 import Date exposing (Date, Unit(..))
 import Dict
-import Dropdown
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick, onInput)
-import Icon exposing (IconType(..), icon)
 import IdDict exposing (IdDict)
 import Maybe exposing (Maybe)
 import Result
+import Svg.Icon exposing (IconType(..), icon)
 import Task
-import Textarea
-import Textbox
 import Time exposing (Month(..))
-import Trackable exposing (Trackable, TrackableData(..), TrackableId)
 import UserData exposing (UserData)
+import UserData.Trackable as Trackable exposing (Trackable, TrackableData(..), TrackableId)
 
 
 type alias Model =

@@ -1,4 +1,4 @@
-module Textbox exposing (view)
+module Control.Textarea exposing (view)
 
 import Array exposing (isEmpty)
 import Html exposing (..)
@@ -22,10 +22,9 @@ view id class value toMsg isValid { showFilled } =
             , ( "border-red-500 border-opacity-70 hover:border-opacity-100 focus-within:border-opacity-100", not isValid && not isEmpty )
             ]
         ]
-        [ input
-            [ type_ "text"
-            , A.id id
-            , A.class "block w-full py-1 px-2 text-lg font-bold"
+        [ textarea
+            [ A.id id
+            , A.class "block w-full h-full py-1 px-2"
             , A.value value
             , onInput toMsg
             ]
