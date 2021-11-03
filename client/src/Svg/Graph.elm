@@ -391,39 +391,43 @@ viewLineGraph class { data, today, selectedDataPoint, hoveredDataPoint, selected
                             )
                             dataSet.dataPoints
             in
-            (if fillLines then
-                smoothLinePath h
-                    { strokeCol = dataSet.colour
-                    , strokeWidth = 0
-                    , strokeLinecap = "round"
-                    , strokeLinejoin = "round"
-                    , strokeOpacity = 0
-                    , fillCol = Normal dataSet.colour
+            (--if fillLines then
+             smoothLinePath h
+                { strokeCol = dataSet.colour
+                , strokeWidth = 0
+                , strokeLinecap = "round"
+                , strokeLinejoin = "round"
+                , strokeOpacity = 0
+                , fillCol = Normal dataSet.colour
 
-                    -- case order of
-                    --     EQ ->
-                    --         Opaque dataSet.colour
-                    --     LT ->
-                    --         Normal dataSet.colour
-                    --     GT ->
-                    --         Transparent dataSet.colour
-                    , filter =
-                        --NoFilter
-                        if (selectedDataSet == Nothing && hoveredDataSet == Nothing) || selectedDataSet == Just id || hoveredDataSet == Just id then
-                            -- if featuredDataSet == Nothing || featuredDataSet == Just id then
-                            NoFilter
+                -- case order of
+                --     EQ ->
+                --         Opaque dataSet.colour
+                --     LT ->
+                --         Normal dataSet.colour
+                --     GT ->
+                --         Transparent dataSet.colour
+                , filter =
+                    --NoFilter
+                    if (selectedDataSet == Nothing && hoveredDataSet == Nothing) || selectedDataSet == Just id || hoveredDataSet == Just id then
+                        -- if featuredDataSet == Nothing || featuredDataSet == Just id then
+                        NoFilter
 
-                        else
-                            Grayscale
-                    , fillOpacity = 100
-                    , points = List.map (\{ x, y } -> ( x, y )) plotPoints
-                    , onClick = Just (DataLineClicked id)
-                    , onMouseOver = Just <| DataLineHovered <| Just id
-                    , onMouseOut = Just <| DataLineHovered Nothing
-                    }
+                    else
+                        Grayscale
+                , fillOpacity =
+                    if fillLines then
+                        100
 
-             else
-                S.path [] []
+                    else
+                        10
+                , points = List.map (\{ x, y } -> ( x, y )) plotPoints
+                , onClick = Just (DataLineClicked id)
+                , onMouseOver = Just <| DataLineHovered <| Just id
+                , onMouseOut = Just <| DataLineHovered Nothing
+                }
+             --else
+             --   S.path [] []
             )
                 :: smoothLinePath h
                     { strokeCol = dataSet.colour
@@ -496,6 +500,18 @@ viewLineGraph class { data, today, selectedDataPoint, hoveredDataPoint, selected
             S.filter [ id "grayscale" ]
                 [ feColorMatrix [ type_ "saturate", values "0.1" ] []
                 ]
+                :: S.filter [ id "brighten" ]
+                    [ feComponentTransfer []
+                        [ feFuncR [ type_ "linear", slope "1.2" ]
+                            []
+                        , feFuncG
+                            [ type_ "linear", slope "1.2" ]
+                            []
+                        , feFuncB
+                            [ type_ "linear", slope "1.2" ]
+                            []
+                        ]
+                    ]
                 :: List.concatMap
                     (\( _, { colour } ) ->
                         [ linearGradient [ id <| "gradient-opaque-" ++ Colour.toString colour, x1 "0", x2 "0", y1 "0", y2 "1" ]
@@ -1094,7 +1110,7 @@ filter : Filter -> String
 filter f =
     case f of
         Grayscale ->
-            "url(#grayscale)"
+            "url(#grayscale) url(#brighten)"
 
         _ ->
             ""
