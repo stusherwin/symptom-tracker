@@ -2,6 +2,7 @@ module Page.Charts exposing (Model, Msg(..), init, update, view)
 
 import Browser.Dom as Dom
 import Colour
+import Control.Textbox as Textbox
 import Date exposing (Date, Unit(..))
 import Dict exposing (Dict)
 import Dictx
@@ -29,7 +30,13 @@ type alias Model =
 
 
 type alias ChartableModel =
-    {}
+    { trackables : List TrackableModel }
+
+
+type alias TrackableModel =
+    { question : String
+    , multiplier : Float
+    }
 
 
 init : Date -> UserData -> ( Model, Cmd Msg )
@@ -56,6 +63,15 @@ init today userData =
 
 toModel : Date -> ChartableDict -> TrackableDict -> LineChart -> Graph.Model ChartableId ChartableModel
 toModel today chartables trackables chart =
+    let
+        invert data =
+            case List.maximum <| Dict.values data of
+                Just max ->
+                    data |> Dict.map (\_ v -> max - v)
+
+                _ ->
+                    data
+    in
     { today = today
     , fillLines = chart.fillLines
     , showPoints = chart.showPoints
@@ -73,7 +89,28 @@ toModel today chartables trackables chart =
                                     |> Maybe.map .colour
                                     |> Maybe.withDefault Colour.Blue
                                 )
-                    , dataPoints = dataPoints trackables chartable
+                    , dataPoints =
+                        chartable.sum
+                            |> List.filterMap
+                                (\( trackableId, multiplier ) ->
+                                    IdDict.get trackableId trackables
+                                        |> Maybe.map
+                                            (Dict.map (\_ v -> v * multiplier) << Trackable.onlyFloatData)
+                                )
+                            |> List.foldl (Dictx.unionWith (\v1 v2 -> v1 + v2)) Dict.empty
+                            |> (if chartable.inverted then
+                                    invert
+
+                                else
+                                    identity
+                               )
+                    , trackables =
+                        chartable.sum
+                            |> List.filterMap
+                                (\( trackableId, multiplier ) ->
+                                    IdDict.get trackableId trackables
+                                        |> Maybe.map (\t -> { question = t.question, multiplier = multiplier })
+                                )
                     , visible = Maybe.withDefault False <| Maybe.map .visible <| IdDict.get id chart.chartables
                     }
                 )
@@ -82,33 +119,6 @@ toModel today chartables trackables chart =
     , hoveredDataSet = Nothing
     , selectedDataPoint = Nothing
     }
-
-
-dataPoints : TrackableDict -> Chartable -> Dict Int Float
-dataPoints trackables chartable =
-    let
-        invert data =
-            case List.maximum <| Dict.values data of
-                Just max ->
-                    data |> Dict.map (\_ v -> max - v)
-
-                _ ->
-                    data
-    in
-    chartable.sum
-        |> List.filterMap
-            (\( trackableId, multiplier ) ->
-                IdDict.get trackableId trackables
-                    |> Maybe.map
-                        (Dict.map (\_ v -> v * multiplier) << Trackable.onlyFloatData)
-            )
-        |> List.foldl (Dictx.unionWith (\v1 v2 -> v1 + v2)) Dict.empty
-        |> (if chartable.inverted then
-                invert
-
-            else
-                identity
-           )
 
 
 
@@ -193,66 +203,94 @@ viewLineChart chartId model =
                                 (List.head << List.reverse) model.dataOrder /= Just id
                         in
                         [ div
-                            [ class "p-2 flex first:mt-0 items-center"
-                            , classList
-                                [ ( "bg-gray-300", model.selectedDataSet == Just id || model.hoveredDataSet == Just id )
-                                ]
-                            , onMouseEnter <|
-                                case model.selectedDataSet of
-                                    Just _ ->
-                                        NoOp
-
-                                    _ ->
-                                        DataSetHovered chartId (Just id)
-                            , onMouseLeave <|
-                                case model.selectedDataSet of
-                                    Just _ ->
-                                        NoOp
-
-                                    _ ->
-                                        DataSetHovered chartId Nothing
-                            , onClick (DataSetClicked chartId id)
+                            [ class "p-4 border-t-4"
+                            , Colour.class "bg" dataSet.colour
+                            , Colour.classUp "border" dataSet.colour
+                            , onMouseEnter <| DataSetHovered chartId (Just id)
+                            , onMouseLeave <| DataSetHovered chartId Nothing
                             ]
                             [ div
-                                [ class "w-16 h-8 mr-4 flex-grow-0 flex-shrink-0"
+                                [ class "flex items-center"
+                                , onClick (DataSetClicked chartId id)
                                 ]
-                                [ Graph.viewKey "w-full h-full" dataSet.colour
-                                ]
-                            , span [ class "mr-4" ] [ text dataSet.name ]
-                            , button
-                                [ class "ml-auto text-black"
-                                , classList
-                                    [ ( "text-opacity-30 cursor-default", not canPushBack )
-                                    , ( "text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none", canPushBack )
+                                [ button
+                                    [ class "text-black focus:outline-none"
+                                    , classList
+                                        [ ( "text-opacity-30 hover:text-opacity-50 focus:text-opacity-50", not dataSet.visible )
+                                        , ( "text-opacity-70 hover:text-opacity-100 focus:text-opacity-100", dataSet.visible )
+                                        ]
+                                    , Htmlx.onClickStopPropagation <| DataSetVisibleClicked chartId id
                                     ]
-                                , Htmlx.onClickStopPropagation (DataSetPushBackClicked chartId id)
-                                , disabled (not canPushBack)
-                                ]
-                                [ icon "w-6 h-6" <| SolidArrowUp
-                                ]
-                            , button
-                                [ class "ml-2 text-black"
-                                , classList
-                                    [ ( "text-opacity-30 cursor-default", not canBringForward )
-                                    , ( "text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none", canBringForward )
-                                    ]
-                                , Htmlx.onClickStopPropagation (DataSetBringForwardClicked chartId id)
-                                , disabled (not canBringForward)
-                                ]
-                                [ icon "w-6 h-6" <| SolidArrowDown
-                                ]
-                            , button
-                                [ class "ml-2 text-black"
-                                , class "text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
-                                , Htmlx.onClickStopPropagation (DataSetVisibleClicked chartId id)
-                                ]
-                                [ icon "w-6 h-6" <|
-                                    if dataSet.visible then
-                                        SolidEye
+                                    [ icon "w-6 h-6" <|
+                                        if dataSet.visible then
+                                            SolidEye
 
-                                    else
-                                        SolidEyeSlash
+                                        else
+                                            SolidEyeSlash
+                                    ]
+                                , span
+                                    [ class "ml-4 font-bold text-black"
+                                    , classList
+                                        [ ( "text-opacity-30", not dataSet.visible )
+                                        , ( "text-opacity-100", dataSet.visible )
+                                        ]
+                                    ]
+                                    [ text dataSet.name ]
+                                , button
+                                    [ class "ml-2 text-black focus:outline-none"
+                                    , class "text-opacity-70 hover:text-opacity-100 focus:text-opacity-100"
+                                    , Htmlx.onClickStopPropagation <| DataSetClicked chartId id
+                                    ]
+                                    [ icon "w-6 h-6" <|
+                                        if model.selectedDataSet == Just id then
+                                            SolidAngleUp
+
+                                        else
+                                            SolidAngleDown
+                                    ]
+                                , button
+                                    [ class "ml-auto text-black focus:outline-none"
+                                    , classList
+                                        [ ( "text-opacity-0 cursor-default", not canPushBack )
+                                        , ( "text-opacity-70 hover:text-opacity-100 focus:text-opacity-100", canPushBack )
+                                        ]
+                                    , Htmlx.onClickStopPropagation <| DataSetPushBackClicked chartId id
+                                    , disabled (not canPushBack)
+                                    ]
+                                    [ icon "w-6 h-6" <| SolidArrowUp
+                                    ]
+                                , button
+                                    [ class "ml-2 text-black focus:outline-none"
+                                    , classList
+                                        [ ( "text-opacity-0 cursor-default", not canBringForward )
+                                        , ( "text-opacity-70 hover:text-opacity-100 focus:text-opacity-100", canBringForward )
+                                        ]
+                                    , Htmlx.onClickStopPropagation <| DataSetBringForwardClicked chartId id
+                                    , disabled (not canBringForward)
+                                    ]
+                                    [ icon "w-6 h-6" <| SolidArrowDown
+                                    ]
                                 ]
+                            , if model.selectedDataSet == Just id then
+                                div [ class "mt-4" ] <|
+                                    List.indexedMap
+                                        (\i t ->
+                                            div [ class "ml-2 flex" ]
+                                                [ if i == 0 then
+                                                    span [ class "ml-4" ] []
+
+                                                  else
+                                                    icon "mt-3 w-4 h-4" SolidPlus
+                                                , span [ class "ml-4 py-1 border-t-4 border-b-4 border-transparent text-lg font-bold" ] [ text t.question ]
+                                                , icon "ml-4 mt-3 w-4 h-4" SolidTimes
+                                                , Textbox.textbox [ class "ml-4 w-32" ] [] (String.fromFloat t.multiplier) True (always NoOp)
+                                                ]
+                                        )
+                                    <|
+                                        dataSet.trackables
+
+                              else
+                                div [] []
                             ]
                         ]
                     )
@@ -282,7 +320,7 @@ viewLineChart chartId model =
                 ]
                 []
             ]
-        , div [ class "m-4 mt-4" ] <|
+        , div [ class "mt-4" ] <|
             List.concat viewChartables
         ]
 

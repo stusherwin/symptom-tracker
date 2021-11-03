@@ -57,6 +57,7 @@ type IconType
     | SolidCalendarDay
     | SolidCalendarAlt
     | SolidAngleDown
+    | SolidAngleUp
     | SolidPlusCircle
     | SolidTrash
     | SolidTrashBan
@@ -66,6 +67,7 @@ type IconType
     | SolidArrowUp
     | SolidArrowDown
     | SolidCrosshairs
+    | SolidPlus
 
 
 toString : IconType -> String
@@ -125,6 +127,9 @@ toString iconType =
         SolidAngleDown ->
             "solid-angle-down"
 
+        SolidAngleUp ->
+            "solid-angle-up"
+
         SolidPlusCircle ->
             "solid-plus-circle"
 
@@ -151,6 +156,9 @@ toString iconType =
 
         SolidCrosshairs ->
             "solid-crosshairs"
+
+        SolidPlus ->
+            "solid-plus"
 
 
 fromString : String -> Maybe IconType
@@ -210,6 +218,9 @@ fromString str =
         "solid-angle-down" ->
             Just SolidAngleDown
 
+        "solid-angle-up" ->
+            Just SolidAngleUp
+
         "solid-plus-circle" ->
             Just SolidPlusCircle
 
@@ -236,6 +247,9 @@ fromString str =
 
         "solid-crosshairs" ->
             Just SolidCrosshairs
+
+        "solid-plus" ->
+            Just SolidPlus
 
         _ ->
             Nothing
@@ -334,6 +348,11 @@ iconSymbol iconType =
                 [ path [ d "M143 352.3L7 216.3c-9.4-9.4-9.4-24.6 0-33.9l22.6-22.6c9.4-9.4 24.6-9.4 33.9 0l96.4 96.4 96.4-96.4c9.4-9.4 24.6-9.4 33.9 0l22.6 22.6c9.4 9.4 9.4 24.6 0 33.9l-136 136c-9.2 9.4-24.4 9.4-33.8 0z" ] []
                 ]
 
+        SolidAngleUp ->
+            symbol [ id <| toString iconType, viewBox "0 0 320 512" ]
+                [ path [ d "M177 159.7l136 136c9.4 9.4 9.4 24.6 0 33.9l-22.6 22.6c-9.4 9.4-24.6 9.4-33.9 0L160 255.9l-96.4 96.4c-9.4 9.4-24.6 9.4-33.9 0L7 329.7c-9.4-9.4-9.4-24.6 0-33.9l136-136c9.4-9.5 24.6-9.5 34-.1z" ] []
+                ]
+
         SolidPlusCircle ->
             symbol [ id <| toString iconType, viewBox "0 0 512 512" ]
                 [ path [ d "M256 8C119 8 8 119 8 256s111 248 248 248 248-111 248-248S393 8 256 8zm144 276c0 6.6-5.4 12-12 12h-92v92c0 6.6-5.4 12-12 12h-56c-6.6 0-12-5.4-12-12v-92h-92c-6.6 0-12-5.4-12-12v-56c0-6.6 5.4-12 12-12h92v-92c0-6.6 5.4-12 12-12h56c6.6 0 12 5.4 12 12v92h92c6.6 0 12 5.4 12 12v56z" ] []
@@ -369,16 +388,19 @@ iconSymbol iconType =
                 [ path [ d "M413.1 222.5l22.2 22.2c9.4 9.4 9.4 24.6 0 33.9L241 473c-9.4 9.4-24.6 9.4-33.9 0L12.7 278.6c-9.4-9.4-9.4-24.6 0-33.9l22.2-22.2c9.5-9.5 25-9.3 34.3.4L184 343.4V56c0-13.3 10.7-24 24-24h32c13.3 0 24 10.7 24 24v287.4l114.8-120.5c9.3-9.8 24.8-10 34.3-.4z" ] []
                 ]
 
-        --, symbol [id "solid-arrow-down",
         SolidArrowUp ->
             symbol [ id <| toString iconType, viewBox "0 0 448 512" ]
                 [ path [ d "M34.9 289.5l-22.2-22.2c-9.4-9.4-9.4-24.6 0-33.9L207 39c9.4-9.4 24.6-9.4 33.9 0l194.3 194.3c9.4 9.4 9.4 24.6 0 33.9L413 289.4c-9.5 9.5-25 9.3-34.3-.4L264 168.6V456c0 13.3-10.7 24-24 24h-32c-13.3 0-24-10.7-24-24V168.6L69.2 289.1c-9.3 9.8-24.8 10-34.3.4z" ] []
                 ]
 
-        --, symbol [id "solid-arrow-up",
         SolidCrosshairs ->
             symbol [ id <| toString iconType, viewBox "0 0 512 512" ]
                 [ path [ d "M500 224h-30.364C455.724 130.325 381.675 56.276 288 42.364V12c0-6.627-5.373-12-12-12h-40c-6.627 0-12 5.373-12 12v30.364C130.325 56.276 56.276 130.325 42.364 224H12c-6.627 0-12 5.373-12 12v40c0 6.627 5.373 12 12 12h30.364C56.276 381.675 130.325 455.724 224 469.636V500c0 6.627 5.373 12 12 12h40c6.627 0 12-5.373 12-12v-30.364C381.675 455.724 455.724 381.675 469.636 288H500c6.627 0 12-5.373 12-12v-40c0-6.627-5.373-12-12-12zM288 404.634V364c0-6.627-5.373-12-12-12h-40c-6.627 0-12 5.373-12 12v40.634C165.826 392.232 119.783 346.243 107.366 288H148c6.627 0 12-5.373 12-12v-40c0-6.627-5.373-12-12-12h-40.634C119.768 165.826 165.757 119.783 224 107.366V148c0 6.627 5.373 12 12 12h40c6.627 0 12-5.373 12-12v-40.634C346.174 119.768 392.217 165.757 404.634 224H364c-6.627 0-12 5.373-12 12v40c0 6.627 5.373 12 12 12h40.634C392.232 346.174 346.243 392.217 288 404.634zM288 256c0 17.673-14.327 32-32 32s-32-14.327-32-32c0-17.673 14.327-32 32-32s32 14.327 32 32z" ] []
+                ]
+
+        SolidPlus ->
+            symbol [ id <| toString iconType, viewBox "0 0 448 512" ]
+                [ path [ d "M416 208H272V64c0-17.67-14.33-32-32-32h-32c-17.67 0-32 14.33-32 32v144H32c-17.67 0-32 14.33-32 32v32c0 17.67 14.33 32 32 32h144v144c0 17.67 14.33 32 32 32h32c17.67 0 32-14.33 32-32V304h144c17.67 0 32-14.33 32-32v-32c0-17.67-14.33-32-32-32z" ] []
                 ]
 
 
@@ -402,6 +424,7 @@ all =
     , SolidCalendarDay
     , SolidCalendarAlt
     , SolidAngleDown
+    , SolidAngleUp
     , SolidPlusCircle
     , SolidTrash
     , SolidTrashBan
@@ -411,6 +434,7 @@ all =
     , SolidArrowUp
     , SolidArrowDown
     , SolidCrosshairs
+    , SolidPlus
     ]
 
 

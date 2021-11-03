@@ -1,236 +1,292 @@
-<svg viewBox="0 0 735 196" class="h-full">
-<rect style="fill: #f3f4f6;" x="0" y="20" width="735" height="150">
-</rect>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="0" y1="170" x2="0" y2="20" stroke-dasharray="4">
-</line>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="15" y1="170" x2="15" y2="20" stroke-dasharray="4">
-</line>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="30" y1="170" x2="30" y2="20" stroke-dasharray="4">
-</line>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="45" y1="170" x2="45" y2="20" stroke-dasharray="4">
-</line>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="60" y1="170" x2="60" y2="20" stroke-dasharray="4">
-</line>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="75" y1="170" x2="75" y2="20" stroke-dasharray="4">
-</line>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="90" y1="170" x2="90" y2="20" stroke-dasharray="4">
-</line>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="105" y1="170" x2="105" y2="20" stroke-dasharray="4">
-</line>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="120" y1="170" x2="120" y2="20" stroke-dasharray="4">
-</line>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="135" y1="170" x2="135" y2="20" stroke-dasharray="4">
-</line>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="150" y1="170" x2="150" y2="20" stroke-dasharray="4">
-</line>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="165" y1="170" x2="165" y2="20" stroke-dasharray="4">
-</line>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="180" y1="170" x2="180" y2="20" stroke-dasharray="4">
-</line>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="195" y1="170" x2="195" y2="20" stroke-dasharray="4">
-</line>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="210" y1="170" x2="210" y2="20" stroke-dasharray="4">
-</line>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="225" y1="170" x2="225" y2="20" stroke-dasharray="4">
-</line>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="240" y1="170" x2="240" y2="20" stroke-dasharray="4">
-</line>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="255" y1="170" x2="255" y2="20" stroke-dasharray="4">
-</line>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="270" y1="170" x2="270" y2="20" stroke-dasharray="4">
-</line>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="285" y1="170" x2="285" y2="20" stroke-dasharray="4">
-</line>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="300" y1="170" x2="300" y2="20" stroke-dasharray="4">
-</line>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="315" y1="170" x2="315" y2="20" stroke-dasharray="4">
-</line>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="330" y1="170" x2="330" y2="20" stroke-dasharray="4">
-</line>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="345" y1="170" x2="345" y2="20" stroke-dasharray="4">
-</line>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="360" y1="170" x2="360" y2="20" stroke-dasharray="4">
-</line>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="375" y1="170" x2="375" y2="20" stroke-dasharray="4">
-</line>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="390" y1="170" x2="390" y2="20" stroke-dasharray="4">
-</line>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="405" y1="170" x2="405" y2="20" stroke-dasharray="4">
-</line>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="420" y1="170" x2="420" y2="20" stroke-dasharray="4">
-</line>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="435" y1="170" x2="435" y2="20" stroke-dasharray="4">
-</line>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="450" y1="170" x2="450" y2="20" stroke-dasharray="4">
-</line>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="465" y1="170" x2="465" y2="20" stroke-dasharray="4">
-</line>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="480" y1="170" x2="480" y2="20" stroke-dasharray="4">
-</line>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="495" y1="170" x2="495" y2="20" stroke-dasharray="4">
-</line>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="510" y1="170" x2="510" y2="20" stroke-dasharray="4">
-</line>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="525" y1="170" x2="525" y2="20" stroke-dasharray="4">
-</line>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="540" y1="170" x2="540" y2="20" stroke-dasharray="4">
-</line>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="555" y1="170" x2="555" y2="20" stroke-dasharray="4">
-</line>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="570" y1="170" x2="570" y2="20" stroke-dasharray="4">
-</line>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="585" y1="170" x2="585" y2="20" stroke-dasharray="4">
-</line>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="600" y1="170" x2="600" y2="20" stroke-dasharray="4">
-</line>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="615" y1="170" x2="615" y2="20" stroke-dasharray="4">
-</line>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="630" y1="170" x2="630" y2="20" stroke-dasharray="4">
-</line>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="645" y1="170" x2="645" y2="20" stroke-dasharray="4">
-</line>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="660" y1="170" x2="660" y2="20" stroke-dasharray="4">
-</line>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="675" y1="170" x2="675" y2="20" stroke-dasharray="4">
-</line>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="690" y1="170" x2="690" y2="20" stroke-dasharray="4">
-</line>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="705" y1="170" x2="705" y2="20" stroke-dasharray="4">
-</line>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="720" y1="170" x2="720" y2="20" stroke-dasharray="4">
-</line>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="735" y1="170" x2="735" y2="20" stroke-dasharray="4">
-</line>
-<line style="stroke: #000;" stroke-linecap="square" x1="0" y1="170" x2="735" y2="170">
-</line>
-<line style="stroke: #000;" stroke-linecap="square" x1="1" y1="170" x2="1" y2="175">
-</line>
-<text x="0" y="180" font-size="10px" dominant-baseline="hanging" text-anchor="start">12 Dec</text>
-<line style="stroke: #000;" stroke-linecap="square" x1="15" y1="170" x2="15" y2="173">
-</line>
-<line style="stroke: #000;" stroke-linecap="square" x1="30" y1="170" x2="30" y2="173">
-</line>
-<line style="stroke: #000;" stroke-linecap="square" x1="45" y1="170" x2="45" y2="173">
-</line>
-<line style="stroke: #000;" stroke-linecap="square" x1="60" y1="170" x2="60" y2="173">
-</line>
-<line style="stroke: #000;" stroke-linecap="square" x1="75" y1="170" x2="75" y2="173">
-</line>
-<line style="stroke: #000;" stroke-linecap="square" x1="90" y1="170" x2="90" y2="173">
-</line>
-<line style="stroke: #000;" stroke-linecap="square" x1="105" y1="170" x2="105" y2="175">
-</line>
-<text x="105" y="180" font-size="10px" dominant-baseline="hanging" text-anchor="middle">19 Dec</text>
-<line style="stroke: #000;" stroke-linecap="square" x1="120" y1="170" x2="120" y2="173">
-</line>
-<line style="stroke: #000;" stroke-linecap="square" x1="135" y1="170" x2="135" y2="173">
-</line>
-<line style="stroke: #000;" stroke-linecap="square" x1="150" y1="170" x2="150" y2="173">
-</line>
-<line style="stroke: #000;" stroke-linecap="square" x1="165" y1="170" x2="165" y2="173">
-</line>
-<line style="stroke: #000;" stroke-linecap="square" x1="180" y1="170" x2="180" y2="173">
-</line>
-<line style="stroke: #000;" stroke-linecap="square" x1="195" y1="170" x2="195" y2="173">
-</line>
-<line style="stroke: #000;" stroke-linecap="square" x1="210" y1="170" x2="210" y2="175">
-</line>
-<text x="210" y="180" font-size="10px" dominant-baseline="hanging" text-anchor="middle">26 Dec</text>
-<line style="stroke: #000;" stroke-linecap="square" x1="225" y1="170" x2="225" y2="173">
-</line>
-<line style="stroke: #000;" stroke-linecap="square" x1="240" y1="170" x2="240" y2="173">
-</line>
-<line style="stroke: #000;" stroke-linecap="square" x1="255" y1="170" x2="255" y2="173">
-</line>
-<line style="stroke: #000;" stroke-linecap="square" x1="270" y1="170" x2="270" y2="173">
-</line>
-<line style="stroke: #000;" stroke-linecap="square" x1="285" y1="170" x2="285" y2="173">
-</line>
-<line style="stroke: #000;" stroke-linecap="square" x1="300" y1="170" x2="300" y2="173">
-</line>
-<line style="stroke: #000;" stroke-linecap="square" x1="315" y1="170" x2="315" y2="175">
-</line>
-<text x="315" y="180" font-size="10px" dominant-baseline="hanging" text-anchor="middle">2 Jan</text>
-<line style="stroke: #000;" stroke-linecap="square" x1="330" y1="170" x2="330" y2="173">
-</line>
-<line style="stroke: #000;" stroke-linecap="square" x1="345" y1="170" x2="345" y2="173">
-</line>
-<line style="stroke: #000;" stroke-linecap="square" x1="360" y1="170" x2="360" y2="173">
-</line>
-<line style="stroke: #000;" stroke-linecap="square" x1="375" y1="170" x2="375" y2="173">
-</line>
-<line style="stroke: #000;" stroke-linecap="square" x1="390" y1="170" x2="390" y2="173">
-</line>
-<line style="stroke: #000;" stroke-linecap="square" x1="405" y1="170" x2="405" y2="173">
-</line>
-<line style="stroke: #000;" stroke-linecap="square" x1="420" y1="170" x2="420" y2="175">
-</line>
-<text x="420" y="180" font-size="10px" dominant-baseline="hanging" text-anchor="middle">9 Jan</text>
-<line style="stroke: #000;" stroke-linecap="square" x1="435" y1="170" x2="435" y2="173">
-</line>
-<line style="stroke: #000;" stroke-linecap="square" x1="450" y1="170" x2="450" y2="173">
-</line>
-<line style="stroke: #000;" stroke-linecap="square" x1="465" y1="170" x2="465" y2="173">
-</line>
-<line style="stroke: #000;" stroke-linecap="square" x1="480" y1="170" x2="480" y2="173">
-</line>
-<line style="stroke: #000;" stroke-linecap="square" x1="495" y1="170" x2="495" y2="173">
-</line>
-<line style="stroke: #000;" stroke-linecap="square" x1="510" y1="170" x2="510" y2="173">
-</line>
-<line style="stroke: #000;" stroke-linecap="square" x1="525" y1="170" x2="525" y2="175">
-</line>
-<text x="525" y="180" font-size="10px" dominant-baseline="hanging" text-anchor="middle">16 Jan</text>
-<line style="stroke: #000;" stroke-linecap="square" x1="540" y1="170" x2="540" y2="173">
-</line>
-<line style="stroke: #000;" stroke-linecap="square" x1="555" y1="170" x2="555" y2="173">
-</line>
-<line style="stroke: #000;" stroke-linecap="square" x1="570" y1="170" x2="570" y2="173">
-</line>
-<line style="stroke: #000;" stroke-linecap="square" x1="585" y1="170" x2="585" y2="173">
-</line>
-<line style="stroke: #000;" stroke-linecap="square" x1="600" y1="170" x2="600" y2="173">
-</line>
-<line style="stroke: #000;" stroke-linecap="square" x1="615" y1="170" x2="615" y2="173">
-</line>
-<line style="stroke: #000;" stroke-linecap="square" x1="630" y1="170" x2="630" y2="175">
-</line>
-<text x="630" y="180" font-size="10px" dominant-baseline="hanging" text-anchor="middle">23 Jan</text>
-<line style="stroke: #000;" stroke-linecap="square" x1="645" y1="170" x2="645" y2="173">
-</line>
-<line style="stroke: #000;" stroke-linecap="square" x1="660" y1="170" x2="660" y2="173">
-</line>
-<line style="stroke: #000;" stroke-linecap="square" x1="675" y1="170" x2="675" y2="173">
-</line>
-<line style="stroke: #000;" stroke-linecap="square" x1="690" y1="170" x2="690" y2="173">
-</line>
-<line style="stroke: #000;" stroke-linecap="square" x1="705" y1="170" x2="705" y2="173">
-</line>
-<line style="stroke: #000;" stroke-linecap="square" x1="720" y1="170" x2="720" y2="173">
-</line>
-<line style="stroke: #000;" stroke-linecap="square" x1="734" y1="170" x2="734" y2="175">
-</line>
-<text x="735" y="180" font-size="10px" dominant-baseline="hanging" text-anchor="end">30 Jan</text>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="0" y1="140" x2="735" y2="140" stroke-dasharray="4">
-</line>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="0" y1="110" x2="735" y2="110" stroke-dasharray="4">
-</line>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="0" y1="80" x2="735" y2="80" stroke-dasharray="4">
-</line>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="0" y1="50" x2="735" y2="50" stroke-dasharray="4">
-</line>
-<line style="stroke: #e5e7eb;" stroke-linecap="square" x1="0" y1="20" x2="735" y2="20" stroke-dasharray="4">
-</line>
-<path fill="none" style="stroke: #a855f7;" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M 645,145">
-</path>
-<path fill="none" style="stroke: #ec4899;" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M 645,160">
-</path>
-<path fill="none" style="stroke: #3b82f6;" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M 645,160 C 645,160 666,140 675,120 C 684,100 684,50 690,60 C 696,70 702,148 705,170">
-</path>
-<path fill="none" style="stroke: #f97316;" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M 15,160 C 15,160 -96,168 30,170 C 156,172 522,170 645,170">
-</path>
-<path fill="none" style="stroke: #22c55e;" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M 645,160">
-</path>
-<path fill="none" style="stroke: #84cc16;" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" d="M 15,140 C 15,140 -111,152 30,150 C 171,148 582,134 720,130">
-</path>
-</svg>
+<svg viewBox="0 0 945 186" class="h-full"><style>.a{stop-opacity:100%;}.b{stop-opacity:90%;}.c{stop-opacity:80%;}.d{stop-opacity:60%;}.e{stroke-dasharray:4;}.f{text-anchor:middle;}</style><style>  
+  .fill-transparent{
+  fill: transparent;
+}
+
+.fill-current{
+  fill: currentColor;
+}
+
+.fill-black{
+  fill: #000;
+}
+
+.fill-white{
+  fill: #fff;
+}
+
+.fill-red{
+  fill: #ef4444;
+}
+
+.fill-gray{
+  fill: #6b7280;
+}
+
+.fill-lightGray{
+  fill: #e5e7eb;
+}
+
+.fill-lighterGray{
+  fill: #f3f4f6;
+}
+
+.fill-orange{
+  fill: #f97316;
+}
+
+.fill-amber{
+  fill: #f59e0b;
+}
+
+.fill-yellow{
+  fill: #eab308;
+}
+
+.fill-lime{
+  fill: #84cc16;
+}
+
+.fill-green{
+  fill: #22c55e;
+}
+
+.fill-emerald{
+  fill: #10b981;
+}
+
+.fill-teal{
+  fill: #14b8a6;
+}
+
+.fill-cyan{
+  fill: #06b6d4;
+}
+
+.fill-lightBlue{
+  fill: #0ea5e9;
+}
+
+.fill-blue{
+  fill: #3b82f6;
+}
+
+.fill-indigo{
+  fill: #6366f1;
+}
+
+.fill-violet{
+  fill: #8b5cf6;
+}
+
+.fill-purple{
+  fill: #a855f7;
+}
+
+.fill-fuchsia{
+  fill: #d946ef;
+}
+
+.fill-pink{
+  fill: #ec4899;
+}
+
+.fill-rose{
+  fill: #f43f5e;
+}
+
+.stroke-transparent{
+  stroke: transparent;
+}
+
+.stroke-current{
+  stroke: currentColor;
+}
+
+.stroke-black{
+  stroke: #000;
+}
+
+.stroke-white{
+  stroke: #fff;
+}
+
+.stroke-red{
+  stroke: #ef4444;
+}
+
+.stroke-gray{
+  stroke: #6b7280;
+}
+
+.stroke-lightGray{
+  stroke: #e5e7eb;
+}
+
+.stroke-lighterGray{
+  stroke: #f3f4f6;
+}
+
+.stroke-orange{
+  stroke: #f97316;
+}
+
+.stroke-amber{
+  stroke: #f59e0b;
+}
+
+.stroke-yellow{
+  stroke: #eab308;
+}
+
+.stroke-lime{
+  stroke: #84cc16;
+}
+
+.stroke-green{
+  stroke: #22c55e;
+}
+
+.stroke-emerald{
+  stroke: #10b981;
+}
+
+.stroke-teal{
+  stroke: #14b8a6;
+}
+
+.stroke-cyan{
+  stroke: #06b6d4;
+}
+
+.stroke-lightBlue{
+  stroke: #0ea5e9;
+}
+
+.stroke-blue{
+  stroke: #3b82f6;
+}
+
+.stroke-indigo{
+  stroke: #6366f1;
+}
+
+.stroke-violet{
+  stroke: #8b5cf6;
+}
+
+.stroke-purple{
+  stroke: #a855f7;
+}
+
+.stroke-fuchsia{
+  stroke: #d946ef;
+}
+
+.stroke-pink{
+  stroke: #ec4899;
+}
+
+.stroke-rose{
+  stroke: #f43f5e;
+}
+
+.stop-transparent {
+  stop-color: transparent;
+}
+
+.stop-current {
+  stop-color: currentColor;
+}
+
+.stop-black {
+  stop-color: #000;
+}
+
+.stop-white {
+  stop-color: #fff;
+}
+
+.stop-red {
+  stop-color: #ef4444;
+}
+
+.stop-gray {
+  stop-color: #6b7280;
+}
+
+.stop-lightGray {
+  stop-color: #e5e7eb;
+}
+
+.stop-lighterGray {
+  stop-color: #f3f4f6;
+}
+
+.stop-orange {
+  stop-color: #f97316;
+}
+
+.stop-amber {
+  stop-color: #f59e0b;
+}
+
+.stop-yellow {
+  stop-color: #eab308;
+}
+
+.stop-lime {
+  stop-color: #84cc16;
+}
+
+.stop-green {
+  stop-color: #22c55e;
+}
+
+.stop-emerald {
+  stop-color: #10b981;
+}
+
+.stop-teal {
+  stop-color: #14b8a6;
+}
+
+.stop-cyan {
+  stop-color: #06b6d4;
+}
+
+.stop-lightBlue {
+  stop-color: #0ea5e9;
+}
+
+.stop-blue {
+  stop-color: #3b82f6;
+}
+
+.stop-indigo {
+  stop-color: #6366f1;
+}
+
+.stop-violet {
+  stop-color: #8b5cf6;
+}
+
+.stop-purple {
+  stop-color: #a855f7;
+}
+
+.stop-fuchsia {
+  stop-color: #d946ef;
+}
+
+.stop-pink {
+  stop-color: #ec4899;
+}
+
+.stop-rose {
+  stop-color: #f43f5e;
+}
+
+  </style><defs><linearGradient y2="1"><stop offset="0%" class="stop-lime" class="a"/><stop offset="100%" class="stop-lime" class="b"/></linearGradient><linearGradient y2="1"><stop offset="0%" class="stop-lime" class="c"/><stop offset="100%" class="stop-lime" class="d"/></linearGradient><linearGradient y2="1"><stop offset="0%" class="stop-green" class="a"/><stop offset="100%" class="stop-green" class="b"/></linearGradient><linearGradient y2="1"><stop offset="0%" class="stop-green" class="c"/><stop offset="100%" class="stop-green" class="d"/></linearGradient><linearGradient y2="1"><stop offset="0%" class="stop-orange" class="a"/><stop offset="100%" class="stop-orange" class="b"/></linearGradient><linearGradient y2="1"><stop offset="0%" class="stop-orange" class="c"/><stop offset="100%" class="stop-orange" class="d"/></linearGradient><linearGradient y2="1"><stop offset="0%" class="stop-blue" class="a"/><stop offset="100%" class="stop-blue" class="b"/></linearGradient><linearGradient y2="1"><stop offset="0%" class="stop-blue" class="c"/><stop offset="100%" class="stop-blue" class="d"/></linearGradient><linearGradient y2="1"><stop offset="0%" class="stop-purple" class="a"/><stop offset="100%" class="stop-purple" class="b"/></linearGradient><linearGradient y2="1"><stop offset="0%" class="stop-purple" class="c"/><stop offset="100%" class="stop-purple" class="d"/></linearGradient></defs><rect class="fill-lighterGray" y="10" width="945" height="150"/><line class="stroke-lightGray" y1="160" y2="10" class="e"/><line class="stroke-lightGray" x1="15" y1="160" x2="15" y2="10" class="e"/><line class="stroke-lightGray" x1="30" y1="160" x2="30" y2="10" class="e"/><line class="stroke-lightGray" x1="45" y1="160" x2="45" y2="10" class="e"/><line class="stroke-lightGray" x1="60" y1="160" x2="60" y2="10" class="e"/><line class="stroke-lightGray" x1="75" y1="160" x2="75" y2="10" class="e"/><line class="stroke-lightGray" x1="90" y1="160" x2="90" y2="10" class="e"/><line class="stroke-lightGray" x1="105" y1="160" x2="105" y2="10" class="e"/><line class="stroke-lightGray" x1="120" y1="160" x2="120" y2="10" class="e"/><line class="stroke-lightGray" x1="135" y1="160" x2="135" y2="10" class="e"/><line class="stroke-lightGray" x1="150" y1="160" x2="150" y2="10" class="e"/><line class="stroke-lightGray" x1="165" y1="160" x2="165" y2="10" class="e"/><line class="stroke-lightGray" x1="180" y1="160" x2="180" y2="10" class="e"/><line class="stroke-lightGray" x1="195" y1="160" x2="195" y2="10" class="e"/><line class="stroke-lightGray" x1="210" y1="160" x2="210" y2="10" class="e"/><line class="stroke-lightGray" x1="225" y1="160" x2="225" y2="10" class="e"/><line class="stroke-lightGray" x1="240" y1="160" x2="240" y2="10" class="e"/><line class="stroke-lightGray" x1="255" y1="160" x2="255" y2="10" class="e"/><line class="stroke-lightGray" x1="270" y1="160" x2="270" y2="10" class="e"/><line class="stroke-lightGray" x1="285" y1="160" x2="285" y2="10" class="e"/><line class="stroke-lightGray" x1="300" y1="160" x2="300" y2="10" class="e"/><line class="stroke-lightGray" x1="315" y1="160" x2="315" y2="10" class="e"/><line class="stroke-lightGray" x1="330" y1="160" x2="330" y2="10" class="e"/><line class="stroke-lightGray" x1="345" y1="160" x2="345" y2="10" class="e"/><line class="stroke-lightGray" x1="360" y1="160" x2="360" y2="10" class="e"/><line class="stroke-lightGray" x1="375" y1="160" x2="375" y2="10" class="e"/><line class="stroke-lightGray" x1="390" y1="160" x2="390" y2="10" class="e"/><line class="stroke-lightGray" x1="405" y1="160" x2="405" y2="10" class="e"/><line class="stroke-lightGray" x1="420" y1="160" x2="420" y2="10" class="e"/><line class="stroke-lightGray" x1="435" y1="160" x2="435" y2="10" class="e"/><line class="stroke-lightGray" x1="450" y1="160" x2="450" y2="10" class="e"/><line class="stroke-lightGray" x1="465" y1="160" x2="465" y2="10" class="e"/><line class="stroke-lightGray" x1="480" y1="160" x2="480" y2="10" class="e"/><line class="stroke-lightGray" x1="495" y1="160" x2="495" y2="10" class="e"/><line class="stroke-lightGray" x1="510" y1="160" x2="510" y2="10" class="e"/><line class="stroke-lightGray" x1="525" y1="160" x2="525" y2="10" class="e"/><line class="stroke-lightGray" x1="540" y1="160" x2="540" y2="10" class="e"/><line class="stroke-lightGray" x1="555" y1="160" x2="555" y2="10" class="e"/><line class="stroke-lightGray" x1="570" y1="160" x2="570" y2="10" class="e"/><line class="stroke-lightGray" x1="585" y1="160" x2="585" y2="10" class="e"/><line class="stroke-lightGray" x1="600" y1="160" x2="600" y2="10" class="e"/><line class="stroke-lightGray" x1="615" y1="160" x2="615" y2="10" class="e"/><line class="stroke-lightGray" x1="630" y1="160" x2="630" y2="10" class="e"/><line class="stroke-lightGray" x1="645" y1="160" x2="645" y2="10" class="e"/><line class="stroke-lightGray" x1="660" y1="160" x2="660" y2="10" class="e"/><line class="stroke-lightGray" x1="675" y1="160" x2="675" y2="10" class="e"/><line class="stroke-lightGray" x1="690" y1="160" x2="690" y2="10" class="e"/><line class="stroke-lightGray" x1="705" y1="160" x2="705" y2="10" class="e"/><line class="stroke-lightGray" x1="720" y1="160" x2="720" y2="10" class="e"/><line class="stroke-lightGray" x1="735" y1="160" x2="735" y2="10" class="e"/><line class="stroke-lightGray" x1="750" y1="160" x2="750" y2="10" class="e"/><line class="stroke-lightGray" x1="765" y1="160" x2="765" y2="10" class="e"/><line class="stroke-lightGray" x1="780" y1="160" x2="780" y2="10" class="e"/><line class="stroke-lightGray" x1="795" y1="160" x2="795" y2="10" class="e"/><line class="stroke-lightGray" x1="810" y1="160" x2="810" y2="10" class="e"/><line class="stroke-lightGray" x1="825" y1="160" x2="825" y2="10" class="e"/><line class="stroke-lightGray" x1="840" y1="160" x2="840" y2="10" class="e"/><line class="stroke-lightGray" x1="855" y1="160" x2="855" y2="10" class="e"/><line class="stroke-lightGray" x1="870" y1="160" x2="870" y2="10" class="e"/><line class="stroke-lightGray" x1="885" y1="160" x2="885" y2="10" class="e"/><line class="stroke-lightGray" x1="900" y1="160" x2="900" y2="10" class="e"/><line class="stroke-lightGray" x1="915" y1="160" x2="915" y2="10" class="e"/><line class="stroke-lightGray" x1="930" y1="160" x2="930" y2="10" class="e"/><line class="stroke-lightGray" x1="945" y1="160" x2="945" y2="10" class="e"/><line class="stroke-black" y1="160" x2="945" y2="160"/><line class="stroke-black" x1="1" y1="160" x2="1" y2="165"/><text y="170" font-size="10px" dominant-baseline="hanging">  11 Dec</text><line class="stroke-black" x1="15" y1="160" x2="15" y2="163"/><line class="stroke-black" x1="30" y1="160" x2="30" y2="163"/><line class="stroke-black" x1="45" y1="160" x2="45" y2="163"/><line class="stroke-black" x1="60" y1="160" x2="60" y2="163"/><line class="stroke-black" x1="75" y1="160" x2="75" y2="163"/><line class="stroke-black" x1="90" y1="160" x2="90" y2="163"/><line class="stroke-black" x1="105" y1="160" x2="105" y2="165"/><text x="105" y="170" font-size="10px" dominant-baseline="hanging" class="f">  18 Dec</text><line class="stroke-black" x1="120" y1="160" x2="120" y2="163"/><line class="stroke-black" x1="135" y1="160" x2="135" y2="163"/><line class="stroke-black" x1="150" y1="160" x2="150" y2="163"/><line class="stroke-black" x1="165" y1="160" x2="165" y2="163"/><line class="stroke-black" x1="180" y1="160" x2="180" y2="163"/><line class="stroke-black" x1="195" y1="160" x2="195" y2="163"/><line class="stroke-black" x1="210" y1="160" x2="210" y2="165"/><text x="210" y="170" font-size="10px" dominant-baseline="hanging" class="f">  25 Dec</text><line class="stroke-black" x1="225" y1="160" x2="225" y2="163"/><line class="stroke-black" x1="240" y1="160" x2="240" y2="163"/><line class="stroke-black" x1="255" y1="160" x2="255" y2="163"/><line class="stroke-black" x1="270" y1="160" x2="270" y2="163"/><line class="stroke-black" x1="285" y1="160" x2="285" y2="163"/><line class="stroke-black" x1="300" y1="160" x2="300" y2="163"/><line class="stroke-black" x1="315" y1="160" x2="315" y2="165"/><text x="315" y="170" font-size="10px" dominant-baseline="hanging" class="f">  1 Jan</text><line class="stroke-black" x1="330" y1="160" x2="330" y2="163"/><line class="stroke-black" x1="345" y1="160" x2="345" y2="163"/><line class="stroke-black" x1="360" y1="160" x2="360" y2="163"/><line class="stroke-black" x1="375" y1="160" x2="375" y2="163"/><line class="stroke-black" x1="390" y1="160" x2="390" y2="163"/><line class="stroke-black" x1="405" y1="160" x2="405" y2="163"/><line class="stroke-black" x1="420" y1="160" x2="420" y2="165"/><text x="420" y="170" font-size="10px" dominant-baseline="hanging" class="f">  8 Jan</text><line class="stroke-black" x1="435" y1="160" x2="435" y2="163"/><line class="stroke-black" x1="450" y1="160" x2="450" y2="163"/><line class="stroke-black" x1="465" y1="160" x2="465" y2="163"/><line class="stroke-black" x1="480" y1="160" x2="480" y2="163"/><line class="stroke-black" x1="495" y1="160" x2="495" y2="163"/><line class="stroke-black" x1="510" y1="160" x2="510" y2="163"/><line class="stroke-black" x1="525" y1="160" x2="525" y2="165"/><text x="525" y="170" font-size="10px" dominant-baseline="hanging" class="f">  15 Jan</text><line class="stroke-black" x1="540" y1="160" x2="540" y2="163"/><line class="stroke-black" x1="555" y1="160" x2="555" y2="163"/><line class="stroke-black" x1="570" y1="160" x2="570" y2="163"/><line class="stroke-black" x1="585" y1="160" x2="585" y2="163"/><line class="stroke-black" x1="600" y1="160" x2="600" y2="163"/><line class="stroke-black" x1="615" y1="160" x2="615" y2="163"/><line class="stroke-black" x1="630" y1="160" x2="630" y2="165"/><text x="630" y="170" font-size="10px" dominant-baseline="hanging" class="f">  22 Jan</text><line class="stroke-black" x1="645" y1="160" x2="645" y2="163"/><line class="stroke-black" x1="660" y1="160" x2="660" y2="163"/><line class="stroke-black" x1="675" y1="160" x2="675" y2="163"/><line class="stroke-black" x1="690" y1="160" x2="690" y2="163"/><line class="stroke-black" x1="705" y1="160" x2="705" y2="163"/><line class="stroke-black" x1="720" y1="160" x2="720" y2="163"/><line class="stroke-black" x1="735" y1="160" x2="735" y2="165"/><text x="735" y="170" font-size="10px" dominant-baseline="hanging" class="f">  29 Jan</text><line class="stroke-black" x1="750" y1="160" x2="750" y2="163"/><line class="stroke-black" x1="765" y1="160" x2="765" y2="163"/><line class="stroke-black" x1="780" y1="160" x2="780" y2="163"/><line class="stroke-black" x1="795" y1="160" x2="795" y2="163"/><line class="stroke-black" x1="810" y1="160" x2="810" y2="163"/><line class="stroke-black" x1="825" y1="160" x2="825" y2="163"/><line class="stroke-black" x1="840" y1="160" x2="840" y2="165"/><text x="840" y="170" font-size="10px" dominant-baseline="hanging" class="f">  5 Feb</text><line class="stroke-black" x1="855" y1="160" x2="855" y2="163"/><line class="stroke-black" x1="870" y1="160" x2="870" y2="163"/><line class="stroke-black" x1="885" y1="160" x2="885" y2="163"/><line class="stroke-black" x1="900" y1="160" x2="900" y2="163"/><line class="stroke-black" x1="915" y1="160" x2="915" y2="163"/><line class="stroke-black" x1="930" y1="160" x2="930" y2="163"/><line class="stroke-black" x1="944" y1="160" x2="944" y2="165"/><text x="945" y="170" font-size="10px" dominant-baseline="hanging" text-anchor="end">  12 Feb</text><line class="stroke-lightGray" y1="130" x2="945" y2="130" class="e"/><line class="stroke-lightGray" y1="100" x2="945" y2="100" class="e"/><line class="stroke-lightGray" y1="70" x2="945" y2="70" class="e"/><line class="stroke-lightGray" y1="40" x2="945" y2="40" class="e"/><line class="stroke-lightGray" y1="10" x2="945" y2="10" class="e"/><path class="stroke-purple" d="M285 160L285 90C322.8 90 652.4 135.6 660 135 667.6 134.4 669.1 55.1 675 60 680.9 64.9 681.6 165.6 690 160 698.4 154.4 694.5 43.5 705 40 715.5 36.5 710.4 146.8 720 150 729.6 153.2 726.3 52.9 735 50 743.7 47.1 749.5 138.3 750 140 750.5 141.7 764.4 151.7 765 150 765.6 148.3 772.1 62.3 780 60 787.9 57.7 810 137 810 137L810 160" style="fill-opacity:100%;fill:url(#gradient-transparent-purple);stroke-linejoin:round;stroke-opacity:100%;stroke-width:2"/><path class="stroke-orange" d="M30 160L30 130C35.2 130 39.8 80.8 45 80 50.2 79.2 261 89.6 285 90 309 90.4 648.7 88.3 660 90 671.3 91.7 741.5 159.4 750 160 758.5 160.6 810 100 810 100L810 160" style="fill-opacity:100%;fill:url(#gradient-opaque-orange);stroke-linejoin:round;stroke-opacity:100%;stroke-width:2"/><path class="stroke-green" d="M285 160L285 110C322.5 110 649.8 108.9 660 110 670.2 111.1 742.2 160 750 160 757.8 160 810 110 810 110L810 160" style="fill-opacity:100%;fill:url(#gradient-transparent-green);stroke-linejoin:round;stroke-opacity:100%;stroke-width:2"/><path class="stroke-blue" d="M285 160L285 130C322.6 130 655 150.2 660 150 665 149.8 687.9 114.6 690 110 692.1 105.4 701.8 44.7 705 50 708.2 55.3 716.5 155.3 720 160 723.5 164.7 744.5 111.8 750 110 755.5 108.2 810 130 810 130L810 160" style="fill-opacity:100%;fill:url(#gradient-transparent-blue);stroke-linejoin:round;stroke-opacity:100%;stroke-width:2"/><path class="stroke-lime" d="M30 160L30 130C31.8 130 43.2 140 45 140 46.8 140 58.2 129.9 60 130 61.8 130.1 279 149.6 285 150 291 150.4 339 149.8 345 150 351 150.2 613.2 160 615 160 616.8 160 628.5 151 630 150 631.5 149 643.7 141.3 645 140 646.3 138.7 657.9 118.6 660 120 662.1 121.4 672.9 158.6 675 160 677.1 161.4 687.5 140 690 140 692.5 140 702.6 160.8 705 160 707.4 159.2 718.9 131.4 720 130 721.1 128.6 733.3 119.4 735 120 736.7 120.6 748.3 139.4 750 140 751.7 140.6 763.3 129.4 765 130 766.7 130.6 810 160 810 160L810 160" style="fill-opacity:100%;fill:url(#gradient-transparent-lime);stroke-linejoin:round;stroke-opacity:100%;stroke-width:2"/></svg>
+ 
+This website was created by Peter Collingridge.

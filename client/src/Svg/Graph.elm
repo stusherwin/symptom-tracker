@@ -344,7 +344,7 @@ viewLineGraph class { data, today, selectedDataPoint, selectedDataSet, hoveredDa
                         data
         )
             :: axes
-            ++ (List.concatMap (\id -> Maybe.withDefault [] <| IdDict.get id dataLines) <| dataOrder)
+            ++ (List.concatMap (\id -> Maybe.withDefault [] <| IdDict.get id dataLines) <| List.reverse dataOrder)
 
 
 viewKey : String -> Colour -> Svg msg
