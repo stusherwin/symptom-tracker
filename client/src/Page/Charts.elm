@@ -1011,7 +1011,7 @@ viewLineChart fullScreen chartableOptions trackableOptions userData ( chartId, m
                  , viewScrollableContainer ("chart" ++ LineChartId.toString chartId ++ "-scrollable") [ Html.map (GraphMsg chartId) <| viewLineGraph ("chart" ++ LineChartId.toString chartId ++ "-svg") "h-full" model ]
                  , div [ class "absolute right-2 top-6 flex flex-col" ]
                     [ button
-                        [ class "rounded bg-white bg-opacity-50 hover:bg-opacity-80 p-2 text-black text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
+                        [ class "rounded shadow p-2 bg-white bg-opacity-80 text-black focus:outline-none text-opacity-70 hover:bg-opacity-100 hover:text-opacity-100 focus:text-opacity-100"
                         , Htmlx.onClickStopPropagation (ChartFullScreenClicked chartId)
                         ]
                         [ icon "w-5 h-5" <|
@@ -1022,16 +1022,16 @@ viewLineChart fullScreen chartableOptions trackableOptions userData ( chartId, m
                                 SolidExpand
                         ]
                     , button
-                        [ class "mt-2 rounded bg-white bg-opacity-50 hover:bg-opacity-80 p-2 text-black text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
+                        [ class "mt-2 rounded shadow p-2 bg-white bg-opacity-80 text-black focus:outline-none text-opacity-70 hover:bg-opacity-100 hover:text-opacity-100 focus:text-opacity-100"
                         , Htmlx.onClickStopPropagation (ChartZoomInClicked chartId)
                         ]
                         [ icon "w-5 h-5" SolidPlus
                         ]
                     , button
-                        [ class "mt-2 rounded bg-white bg-opacity-50 p-2 text-black text-opacity-70 focus:outline-none"
+                        [ class "mt-2 rounded shadow p-2 bg-white bg-opacity-80 text-black focus:outline-none"
                         , classList
                             [ ( "text-opacity-50 cursor-default", model.currentWidth <= model.minWidth )
-                            , ( "text-opacity-70 hover:text-opacity-100 hover:bg-opacity-80 focus:text-opacity-100 focus:bg-opacity-80", model.currentWidth > model.minWidth )
+                            , ( "text-opacity-70 hover:text-opacity-100 hover:bg-opacity-100 focus:text-opacity-100 focus:bg-opacity-100", model.currentWidth > model.minWidth )
                             ]
                         , Htmlx.onClickStopPropagation (ChartZoomOutClicked chartId)
                         , disabled (model.currentWidth <= model.minWidth)
@@ -1039,7 +1039,7 @@ viewLineChart fullScreen chartableOptions trackableOptions userData ( chartId, m
                         [ icon "w-5 h-5" <| SolidMinus
                         ]
                     , button
-                        [ class "mt-2 rounded bg-white bg-opacity-50 p-2 text-black text-opacity-70 focus:outline-none hover:bg-opacity-80 fill-icon"
+                        [ class "mt-2 rounded shadow p-2 bg-white bg-opacity-80 text-black focus:outline-none fill-icon text-opacity-70 hover:bg-opacity-100 focus:bg-opacity:100 focus:text-opacity-100"
                         , Htmlx.onClickStopPropagation (ChartFillLinesChecked chartId <| not model.fillLines)
                         ]
                         [ fillIcon "w-5 h-5" model.fillLines ]
