@@ -11,6 +11,7 @@ import Listx
 import Svg as S exposing (..)
 import Svg.Attributes as A exposing (..)
 import Svg.Events as E exposing (onClick, onMouseOut, onMouseOver)
+import Time exposing (Month(..))
 
 
 type Msg dataSetId
@@ -334,6 +335,7 @@ viewLineGraph svgId class m =
         startDate =
             findStartDate m.today m.data
 
+        --Date.fromCalendarDate 2020 Mar 30
         maxValue =
             toFloat <| ceiling (findMaxValue m.data / 5) * 5
 
@@ -377,19 +379,84 @@ viewLineGraph svgId class m =
             axisLine [ f_ x1 0, fh_ y1 minY, f_ x2 w, fh_ y2 minY ]
                 :: List.concatMap
                     (\n ->
-                        if n == 0 then
+                        let
+                            date =
+                                Date.add Days n startDate
+                        in
+                        if xStep < 0.65 then
+                            if n == 0 then
+                                [ axisLine [ f_ x1 <| minX + toFloat n * xStep + 1, fh_ y1 minY, f_ x2 <| minX + toFloat n * xStep + 1, fh_ y2 <| minY - v.longDash ]
+                                , text_ [ f_ x <| minX + toFloat n * xStep, fh_ y <| minY - v.longDash - 5.0, fontSize "10px", dominantBaseline "hanging", textAnchor "start" ] [ text <| Date.format "y" date ]
+                                ]
+
+                            else if (xSteps <= 7 || modBy 7 n == 0) && Date.day date < 8 then
+                                if Date.month date == Jan then
+                                    [ axisLine [ f_ x1 <| minX + toFloat n * xStep + 1, fh_ y1 minY, f_ x2 <| minX + toFloat n * xStep + 1, fh_ y2 <| minY - v.longDash ]
+                                    , text_ [ f_ x <| minX + toFloat n * xStep, fh_ y <| minY - v.longDash - 5.0, fontSize "10px", dominantBaseline "hanging", textAnchor "start" ] [ text <| Date.format "y" date ]
+                                    ]
+
+                                else
+                                    [ axisLine [ f_ x1 <| minX + toFloat n * xStep, fh_ y1 minY, f_ x2 <| minX + toFloat n * xStep, fh_ y2 <| minY - v.shortDash ]
+                                    ]
+
+                            else
+                                []
+
+                        else if xStep < 2 then
+                            if n == 0 then
+                                [ axisLine [ f_ x1 <| minX + toFloat n * xStep + 1, fh_ y1 minY, f_ x2 <| minX + toFloat n * xStep + 1, fh_ y2 <| minY - v.longDash ]
+                                , text_ [ f_ x <| minX + toFloat n * xStep, fh_ y <| minY - v.longDash - 5.0, fontSize "10px", dominantBaseline "hanging", textAnchor "start" ] [ text <| Date.format "y" date ]
+                                ]
+
+                            else if xSteps <= 7 || modBy 7 n == 0 then
+                                if Date.day date < 8 then
+                                    [ axisLine [ f_ x1 <| minX + toFloat n * xStep + 1, fh_ y1 minY, f_ x2 <| minX + toFloat n * xStep + 1, fh_ y2 <| minY - v.longDash ]
+                                    , text_ [ f_ x <| minX + toFloat n * xStep, fh_ y <| minY - v.longDash - 5.0, fontSize "10px", dominantBaseline "hanging", textAnchor "start" ]
+                                        [ text <|
+                                            (if Date.month date == Jan then
+                                                Date.format "y"
+
+                                             else
+                                                Date.format "MMM"
+                                            )
+                                                date
+                                        ]
+                                    ]
+
+                                else
+                                    [ axisLine [ f_ x1 <| minX + toFloat n * xStep, fh_ y1 minY, f_ x2 <| minX + toFloat n * xStep, fh_ y2 <| minY - v.shortDash ]
+                                    ]
+
+                            else
+                                []
+
+                        else if xStep < 6 then
+                            if n == 0 then
+                                [ axisLine [ f_ x1 <| minX + toFloat n * xStep + 1, fh_ y1 minY, f_ x2 <| minX + toFloat n * xStep + 1, fh_ y2 <| minY - v.longDash ]
+                                , text_ [ f_ x <| minX + toFloat n * xStep, fh_ y <| minY - v.longDash - 5.0, fontSize "10px", dominantBaseline "hanging", textAnchor "start" ] [ text <| Date.format "MMM y" date ]
+                                ]
+
+                            else if xSteps <= 7 || modBy 7 n == 0 then
+                                if Date.day date < 8 then
+                                    [ axisLine [ f_ x1 <| minX + toFloat n * xStep + 1, fh_ y1 minY, f_ x2 <| minX + toFloat n * xStep + 1, fh_ y2 <| minY - v.longDash ]
+                                    , text_ [ f_ x <| minX + toFloat n * xStep, fh_ y <| minY - v.longDash - 5.0, fontSize "10px", dominantBaseline "hanging", textAnchor "start" ] [ text <| Date.format "MMM y" date ]
+                                    ]
+
+                                else
+                                    [ axisLine [ f_ x1 <| minX + toFloat n * xStep, fh_ y1 minY, f_ x2 <| minX + toFloat n * xStep, fh_ y2 <| minY - v.shortDash ]
+                                    ]
+
+                            else
+                                []
+
+                        else if n == 0 then
                             [ axisLine [ f_ x1 <| minX + toFloat n * xStep + 1, fh_ y1 minY, f_ x2 <| minX + toFloat n * xStep + 1, fh_ y2 <| minY - v.longDash ]
-                            , text_ [ f_ x <| minX + toFloat n * xStep, fh_ y <| minY - v.longDash - 5.0, fontSize "10px", dominantBaseline "hanging", textAnchor "start" ] [ text <| Date.format "d MMM" <| Date.add Days n startDate ]
+                            , text_ [ f_ x <| minX + toFloat n * xStep, fh_ y <| minY - v.longDash - 5.0, fontSize "10px", dominantBaseline "hanging", textAnchor "start" ] [ text <| Date.format "d MMM" date ]
                             ]
 
-                        else if n == xSteps then
-                            [ axisLine [ f_ x1 <| minX + toFloat n * xStep - 1, fh_ y1 minY, f_ x2 <| minX + toFloat n * xStep - 1, fh_ y2 <| minY - v.longDash ]
-                            , text_ [ f_ x <| minX + toFloat n * xStep, fh_ y <| minY - v.longDash - 5.0, fontSize "10px", dominantBaseline "hanging", textAnchor "end" ] [ text <| Date.format "d MMM" <| Date.add Days n startDate ]
-                            ]
-
-                        else if xSteps <= 7 || n == xSteps || modBy 7 n == 0 then
+                        else if xSteps <= 7 || modBy 7 n == 0 then
                             [ axisLine [ f_ x1 <| minX + toFloat n * xStep, fh_ y1 minY, f_ x2 <| minX + toFloat n * xStep, fh_ y2 <| minY - v.longDash ]
-                            , text_ [ f_ x <| minX + toFloat n * xStep, fh_ y <| minY - v.longDash - 5.0, fontSize "10px", dominantBaseline "hanging", textAnchor "middle" ] [ text <| Date.format "d MMM" <| Date.add Days n startDate ]
+                            , text_ [ f_ x <| minX + toFloat n * xStep, fh_ y <| minY - v.longDash - 5.0, fontSize "10px", dominantBaseline "hanging", textAnchor "start" ] [ text <| Date.format "d MMM" date ]
                             ]
 
                         else
@@ -398,12 +465,45 @@ viewLineGraph svgId class m =
                     (List.range 0 xSteps)
 
         xLines =
-            List.map (\n -> dottedLine [ f_ x1 <| minX + toFloat n * xStep, fh_ y1 minY, f_ x2 <| minX + toFloat n * xStep, fh_ y2 maxY ])
+            List.concatMap
+                (\n ->
+                    if xStep < 0.65 then
+                        let
+                            date =
+                                Date.add Days n startDate
+                        in
+                        if (xSteps <= 7 || modBy 7 n == 0) && Date.day date < 8 then
+                            if Date.month date == Jan then
+                                [ graySolidLine [ f_ x1 <| minX + toFloat n * xStep, fh_ y1 minY, f_ x2 <| minX + toFloat n * xStep, fh_ y2 maxY ] ]
+
+                            else
+                                [ grayDottedLine [ f_ x1 <| minX + toFloat n * xStep, fh_ y1 minY, f_ x2 <| minX + toFloat n * xStep, fh_ y2 maxY ] ]
+
+                        else
+                            []
+
+                    else if xStep < 6 then
+                        if xSteps <= 7 || modBy 7 n == 0 then
+                            if Date.day (Date.add Days n startDate) < 8 then
+                                [ graySolidLine [ f_ x1 <| minX + toFloat n * xStep, fh_ y1 minY, f_ x2 <| minX + toFloat n * xStep, fh_ y2 maxY ] ]
+
+                            else
+                                [ grayDottedLine [ f_ x1 <| minX + toFloat n * xStep, fh_ y1 minY, f_ x2 <| minX + toFloat n * xStep, fh_ y2 maxY ] ]
+
+                        else
+                            []
+
+                    else if xSteps <= 7 || modBy 7 n == 0 then
+                        [ graySolidLine [ f_ x1 <| minX + toFloat n * xStep, fh_ y1 minY, f_ x2 <| minX + toFloat n * xStep, fh_ y2 maxY ] ]
+
+                    else
+                        [ grayDottedLine [ f_ x1 <| minX + toFloat n * xStep, fh_ y1 minY, f_ x2 <| minX + toFloat n * xStep, fh_ y2 maxY ] ]
+                )
                 (List.range 0 xSteps)
 
         yLines =
             List.map
-                (\n -> dottedLine [ f_ x1 0, fh_ y1 <| minY + toFloat n * v.yStep, f_ x2 w, fh_ y2 <| minY + toFloat n * v.yStep ])
+                (\n -> grayDottedLine [ f_ x1 0, fh_ y1 <| minY + toFloat n * v.yStep, f_ x2 w, fh_ y2 <| minY + toFloat n * v.yStep ])
                 (List.range 1 5)
 
         background =
@@ -694,9 +794,14 @@ highlightLine attrs =
     line ([ strokeColour_ White, strokeWidth_ 3, strokeLinecap "square" ] ++ attrs) []
 
 
-dottedLine : List (S.Attribute msg) -> S.Svg msg
-dottedLine attrs =
+grayDottedLine : List (S.Attribute msg) -> S.Svg msg
+grayDottedLine attrs =
     line ([ strokeColour_ LightGray, strokeWidth_ 1, strokeLinecap "square", strokeDasharray "4" ] ++ attrs) []
+
+
+graySolidLine : List (S.Attribute msg) -> S.Svg msg
+graySolidLine attrs =
+    line ([ strokeColour_ LightGray, strokeWidth_ 1, strokeLinecap "square" ] ++ attrs) []
 
 
 strokeColour_ : Colour -> S.Attribute msg
