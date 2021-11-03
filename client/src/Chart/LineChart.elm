@@ -17,6 +17,7 @@ import Svg.Icon exposing (IconType(..), fillIcon, icon)
 import Task
 import Time exposing (Month(..))
 import UserData exposing (UserData)
+import UserData.Chartable as Chartable
 import UserData.ChartableId exposing (ChartableId)
 import UserData.LineChart as LineChart exposing (LineChart, LineChartData(..))
 import UserData.LineChartId as LineChartId exposing (LineChartId)
@@ -109,14 +110,14 @@ init today userData chartId chart =
                                 userData
                                     |> UserData.getChartable chartableId
                                     |> Maybe.map
-                                        (\c ->
-                                            { name = c.name
-                                            , inverted = c.inverted
+                                        (\(Chartable.Chartable s p) ->
+                                            { name = s.name
+                                            , inverted = s.inverted
                                             , data =
-                                                c.sum
-                                                    |> List.filterMap
-                                                        (\( tId, m ) ->
-                                                            userData |> UserData.getTrackable tId |> Maybe.map (\t -> ( t.question, Trackable.onlyFloatData t, m ))
+                                                p.sum
+                                                    |> List.map
+                                                        (\( _, ( t, m ) ) ->
+                                                            ( t.question, Trackable.onlyFloatData t, m )
                                                         )
                                             }
                                         )
@@ -161,10 +162,10 @@ chartableToDataSet userData chartableId visible =
     userData
         |> UserData.getChartable chartableId
         |> (Maybe.map <|
-                \c ->
-                    { name = c.name
-                    , colour = UserData.getChartableColour userData chartableId
-                    , dataPoints = UserData.getChartableDataPoints userData c
+                \(Chartable.Chartable s p) ->
+                    { name = s.name
+                    , colour = p.colour
+                    , dataPoints = p.dataPoints
                     , visible = visible
                     }
            )
@@ -348,24 +349,24 @@ updateDataSetName i name model =
 updateChartableData : Int -> UserData -> ChartableId -> Model -> ( Model, Cmd Msg )
 updateChartableData i userData chartableId model =
     case userData |> UserData.getChartable chartableId of
-        Just chartable ->
+        Just (Chartable.Chartable s p) ->
             let
                 graph =
                     model.graph
             in
             ( { model
-                | graph = { graph | data = graph.data |> Arrayx.update i (\d -> { d | dataPoints = UserData.getChartableDataPoints userData chartable }) }
+                | graph = { graph | data = graph.data |> Arrayx.update i (\d -> { d | dataPoints = p.dataPoints }) }
                 , data =
                     model.data
                         |> Arrayx.update i
                             (\c ->
                                 { c
-                                    | inverted = chartable.inverted
+                                    | inverted = s.inverted
                                     , data =
-                                        chartable.sum
-                                            |> List.filterMap
-                                                (\( tId, m ) ->
-                                                    userData |> UserData.getTrackable tId |> Maybe.map (\t -> ( t.question, Trackable.onlyFloatData t, m ))
+                                        p.sum
+                                            |> List.map
+                                                (\( _, ( t, m ) ) ->
+                                                    ( t.question, Trackable.onlyFloatData t, m )
                                                 )
                                 }
                             )
@@ -420,13 +421,13 @@ updateDataSetColour i userData dataSetId model =
     case dataSetId of
         ChartableId chartableId ->
             case userData |> UserData.getChartable chartableId of
-                Just chartable ->
+                Just (Chartable.Chartable _ p) ->
                     let
                         graph =
                             model.graph
                     in
                     ( { model
-                        | graph = { graph | data = graph.data |> Arrayx.update i (\d -> { d | colour = UserData.getChartableColour userData chartableId }) }
+                        | graph = { graph | data = graph.data |> Arrayx.update i (\d -> { d | colour = p.colour }) }
                       }
                     , Cmd.none
                     )
@@ -448,19 +449,19 @@ addChartableDataSet userData chartableId model =
             chartableToDataSet userData chartableId True
     in
     case userData |> UserData.getChartable chartableId of
-        Just chartable ->
+        Just (Chartable.Chartable s p) ->
             ( { model
                 | graph = { graph | data = graph.data |> Array.push dataSet }
                 , data =
                     model.data
                         |> Array.push
-                            { name = chartable.name
-                            , inverted = chartable.inverted
+                            { name = s.name
+                            , inverted = s.inverted
                             , data =
-                                chartable.sum
-                                    |> List.filterMap
-                                        (\( tId, m ) ->
-                                            userData |> UserData.getTrackable tId |> Maybe.map (\t -> ( t.question, Trackable.onlyFloatData t, m ))
+                                p.sum
+                                    |> List.map
+                                        (\( _, ( t, m ) ) ->
+                                            ( t.question, Trackable.onlyFloatData t, m )
                                         )
                             }
               }
@@ -482,19 +483,19 @@ replaceDataSetWithChartable userData i chartableId model =
             chartableToDataSet userData chartableId True
     in
     case userData |> UserData.getChartable chartableId of
-        Just chartable ->
+        Just (Chartable.Chartable s p) ->
             ( { model
                 | graph = { graph | data = graph.data |> Array.set i dataSet }
                 , data =
                     model.data
                         |> Array.set i
-                            { name = chartable.name
-                            , inverted = chartable.inverted
+                            { name = s.name
+                            , inverted = s.inverted
                             , data =
-                                chartable.sum
-                                    |> List.filterMap
-                                        (\( tId, m ) ->
-                                            userData |> UserData.getTrackable tId |> Maybe.map (\t -> ( t.question, Trackable.onlyFloatData t, m ))
+                                p.sum
+                                    |> List.map
+                                        (\( _, ( t, m ) ) ->
+                                            ( t.question, Trackable.onlyFloatData t, m )
                                         )
                             }
               }

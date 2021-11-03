@@ -13,6 +13,7 @@ import Html.Attributes exposing (..)
 import Htmlx
 import Maybe exposing (Maybe)
 import Stringx
+import Svg.Attributes exposing (in_)
 import Svg.Icon exposing (IconType(..), icon)
 import Task
 import Time exposing (Month(..))
@@ -141,7 +142,7 @@ buildChartableOptions userData chartId =
     )
         ++ (UserData.activeChartables userData
                 |> (List.filter <| Tuple.second << Tuple.second)
-                |> (List.map <| Tuple.mapSecond (Stringx.withDefault "[no name]" << .name << Tuple.first))
+                |> (List.map <| Tuple.mapSecond (Stringx.withDefault "[no name]" << (\(Chartable.Chartable s _) -> s.name) << Tuple.first))
                 |> (List.map <| \( cId, name ) -> ( ( ChartableOption cId, not <| List.member cId chartablesInUse ), name ))
                 |> (List.sortBy <| String.toUpper << Tuple.second)
            )
@@ -386,8 +387,16 @@ update msg model =
 
                         Chart.Chartable.TrackableChanged trackableId (Just newTrackableId) ->
                             let
+                                newTrackableM =
+                                    model.userData |> UserData.getTrackable newTrackableId
+
                                 userData_ =
-                                    model.userData |> UserData.updateChartable chartable.chartableId (Chartable.replaceTrackable trackableId newTrackableId)
+                                    case newTrackableM of
+                                        Just newTrackable ->
+                                            model.userData |> UserData.updateChartable chartable.chartableId (Chartable.replaceTrackable trackableId newTrackableId newTrackable)
+
+                                        _ ->
+                                            model.userData
                             in
                             ( model, Cmd.none )
                                 |> setUserData userData_
@@ -412,8 +421,16 @@ update msg model =
 
                         Chart.Chartable.TrackableAddClicked (Just trackableId) ->
                             let
+                                trackableM =
+                                    model.userData |> UserData.getTrackable trackableId
+
                                 userData_ =
-                                    model.userData |> UserData.updateChartable chartable.chartableId (Chartable.addTrackable ( trackableId, 1.0 ))
+                                    case trackableM of
+                                        Just trackable ->
+                                            model.userData |> UserData.updateChartable chartable.chartableId (Chartable.addTrackable trackableId trackable 1.0)
+
+                                        _ ->
+                                            model.userData
                             in
                             ( model, Cmd.none )
                                 |> setUserData userData_
@@ -632,10 +649,10 @@ update msg model =
                                             Debug.log "userData_" (model.userData |> UserData.addChartable newChartable)
                                     in
                                     case chartableIdM of
-                                        Just chartableId ->
+                                        Just ( chartableId, chartable ) ->
                                             let
                                                 newChartableModel =
-                                                    Chart.Chartable.init userData_ True chartableId ( newChartable, True )
+                                                    Chart.Chartable.init userData_ True chartableId ( chartable, True )
 
                                                 userData__ =
                                                     userData_ |> UserData.updateLineChart model.chartId (LineChart.replaceTrackableWithChartable i chartableId)

@@ -1,4 +1,4 @@
-module UserData exposing (UserData, activeChartables, activeLineCharts, activeTrackables, addChartable, addLineChart, addTrackable, chartables, decode, deleteChartable, deleteLineChart, deleteTrackable, encode, getChartable, getChartableColour, getChartableDataPoints, getLineChart, getTrackable, getTrackableDataPoints, init, lineCharts, moveChartableDown, moveChartableUp, moveData, moveLineChartDown, moveLineChartUp, moveTrackableDown, moveTrackableUp, toggleChartableVisible, toggleTrackableVisible, trackables, updateChartable, updateLineChart, updateTrackable)
+module UserData exposing (UserData, activeChartables, activeLineCharts, activeTrackables, addChartable, addLineChart, addTrackable, chartables, decode, deleteChartable, deleteLineChart, deleteTrackable, encode, getChartable, getLineChart, getTrackable, getTrackableDataPoints, init, lineCharts, moveChartableDown, moveChartableUp, moveData, moveLineChartDown, moveLineChartUp, moveTrackableDown, moveTrackableUp, toggleChartableVisible, toggleTrackableVisible, trackables, updateChartable, updateLineChart, updateTrackable)
 
 import Array
 import Colour exposing (Colour(..))
@@ -11,7 +11,7 @@ import Json.Encode as E
 import Listx
 import Svg.Icon exposing (IconType(..))
 import Time exposing (Month(..))
-import UserData.Chartable as Chartable exposing (Chartable, ChartableDict)
+import UserData.Chartable as Chartable exposing (Chartable(..), ChartableDict)
 import UserData.ChartableId as ChartableId exposing (ChartableId(..))
 import UserData.LineChart as LineChart exposing (LineChart, LineChartDict)
 import UserData.LineChartId as LineChartId exposing (LineChartId(..))
@@ -63,54 +63,6 @@ getChartable id (UserData data) =
     IdDict.get id data.chartables
 
 
-getChartableColour : UserData -> ChartableId -> Colour
-getChartableColour userData chartableId =
-    let
-        colourM =
-            case getChartable chartableId userData of
-                Just chartable ->
-                    if List.length chartable.sum == 1 || chartable.colour == Nothing then
-                        List.head chartable.sum
-                            |> Maybe.andThen ((\tId -> getTrackable tId userData) << Tuple.first)
-                            |> Maybe.map .colour
-
-                    else
-                        chartable.colour
-
-                _ ->
-                    Nothing
-    in
-    colourM |> Maybe.withDefault Colour.Gray
-
-
-getChartableDataPoints : UserData -> Chartable -> Dict Int Float
-getChartableDataPoints userData chartable =
-    let
-        invert data =
-            case List.maximum <| Dict.values data of
-                Just max ->
-                    data |> Dict.map (\_ v -> max - v)
-
-                _ ->
-                    data
-    in
-    chartable.sum
-        |> List.filterMap
-            (\( trackableId, multiplier ) ->
-                userData
-                    |> getTrackable trackableId
-                    |> Maybe.map
-                        (Dict.map (\_ v -> v * multiplier) << Trackable.onlyFloatData)
-            )
-        |> List.foldl (Dictx.unionWith (\v1 v2 -> v1 + v2)) Dict.empty
-        |> (if chartable.inverted then
-                invert
-
-            else
-                identity
-           )
-
-
 getTrackableDataPoints : Float -> Bool -> Trackable -> Dict Int Float
 getTrackableDataPoints multiplier inverted trackable =
     let
@@ -150,8 +102,8 @@ getLineChart id (UserData data) =
 
 init : UserData
 init =
-    UserData
-        { trackables =
+    let
+        tbles =
             TrackableId.toDict
                 [ ( TrackableId 1
                   , { question = "How did you feel?"
@@ -219,53 +171,61 @@ init =
                     }
                   )
                 ]
+    in
+    UserData
+        { trackables = tbles
         , chartables =
             ChartableId.toDict
                 [ ( ChartableId 1
-                  , { name = "Mood"
-                    , colour = Nothing
-                    , inverted = False
-                    , sum =
-                        [ ( TrackableId 1, 1.0 )
-                        ]
-                    }
+                  , Chartable.build tbles
+                        { name = "Mood"
+                        , colour = Nothing
+                        , inverted = False
+                        , sum =
+                            [ ( TrackableId 1, 1.0 )
+                            ]
+                        }
                   )
                 , ( ChartableId 2
-                  , { name = "Bath"
-                    , colour = Nothing
-                    , inverted = False
-                    , sum =
-                        [ ( TrackableId 2, 5.0 )
-                        ]
-                    }
+                  , Chartable.build tbles
+                        { name = "Bath"
+                        , colour = Nothing
+                        , inverted = False
+                        , sum =
+                            [ ( TrackableId 2, 5.0 )
+                            ]
+                        }
                   )
                 , ( ChartableId 3
-                  , { name = "Bad things"
-                    , colour = Just Colour.Orange
-                    , inverted = True
-                    , sum =
-                        [ ( TrackableId 3, 5.0 )
-                        , ( TrackableId 5, 1.0 )
-                        ]
-                    }
+                  , Chartable.build tbles
+                        { name = "Bad things"
+                        , colour = Just Colour.Orange
+                        , inverted = True
+                        , sum =
+                            [ ( TrackableId 3, 5.0 )
+                            , ( TrackableId 5, 1.0 )
+                            ]
+                        }
                   )
                 , ( ChartableId 4
-                  , { name = "Energy"
-                    , colour = Nothing
-                    , inverted = False
-                    , sum =
-                        [ ( TrackableId 4, 1.0 )
-                        ]
-                    }
+                  , Chartable.build tbles
+                        { name = "Energy"
+                        , colour = Nothing
+                        , inverted = False
+                        , sum =
+                            [ ( TrackableId 4, 1.0 )
+                            ]
+                        }
                   )
                 , ( ChartableId 5
-                  , { name = "Running"
-                    , colour = Nothing
-                    , inverted = False
-                    , sum =
-                        [ ( TrackableId 6, 1.0 )
-                        ]
-                    }
+                  , Chartable.build tbles
+                        { name = "Running"
+                        , colour = Nothing
+                        , inverted = False
+                        , sum =
+                            [ ( TrackableId 6, 1.0 )
+                            ]
+                        }
                   )
                 ]
         , lineCharts =
@@ -373,24 +333,27 @@ updateChartable id fn (UserData data) =
     UserData { data | chartables = data.chartables |> IdDict.update id fn }
 
 
-addChartable : Chartable -> UserData -> ( Maybe ChartableId, UserData )
-addChartable chartable (UserData data) =
+addChartable : Chartable.State -> UserData -> ( Maybe ( ChartableId, Chartable ), UserData )
+addChartable chartableState (UserData data) =
     let
+        chartable =
+            Chartable.build data.trackables chartableState
+
         ( newId, chartablesU ) =
             data.chartables |> IdDict.add chartable
     in
-    ( newId
-    , case newId of
+    case newId of
         Just id ->
-            UserData
+            ( Just ( id, chartable )
+            , UserData
                 { data
                     | chartables = chartablesU
                     , activeChartables = data.activeChartables ++ [ ( id, True ) ]
                 }
+            )
 
         _ ->
-            UserData data
-    )
+            ( Nothing, UserData data )
 
 
 deleteChartable : ChartableId -> UserData -> UserData
@@ -541,12 +504,16 @@ decode =
         v1 =
             D.map3
                 (\tbles cbles cts ->
+                    let
+                        cbles_ =
+                            IdDict.map (\_ s -> Chartable.build tbles s) cbles
+                    in
                     UserData
                         { trackables = tbles
-                        , chartables = cbles
+                        , chartables = cbles_
                         , lineCharts = cts
                         , activeTrackables = tbles |> IdDict.map (\k _ -> ( k, True )) |> IdDict.values
-                        , activeChartables = cbles |> IdDict.map (\k _ -> ( k, True )) |> IdDict.values
+                        , activeChartables = cbles_ |> IdDict.map (\k _ -> ( k, True )) |> IdDict.values
                         , activeLineCharts = cts |> IdDict.keys
                         , errors = []
                         }
@@ -558,12 +525,16 @@ decode =
         v2 =
             D.map4
                 (\tbles cbles cts atbles ->
+                    let
+                        cbles_ =
+                            IdDict.map (\_ s -> Chartable.build tbles s) cbles
+                    in
                     UserData
                         { trackables = tbles
-                        , chartables = cbles
+                        , chartables = cbles_
                         , lineCharts = cts
                         , activeTrackables = atbles
-                        , activeChartables = cbles |> IdDict.map (\k _ -> ( k, True )) |> IdDict.values
+                        , activeChartables = cbles_ |> IdDict.map (\k _ -> ( k, True )) |> IdDict.values
                         , activeLineCharts = cts |> IdDict.keys
                         , errors = []
                         }
@@ -581,12 +552,16 @@ decode =
         v3 =
             D.map5
                 (\tbles cbles cts atbles acts ->
+                    let
+                        cbles_ =
+                            IdDict.map (\_ s -> Chartable.build tbles s) cbles
+                    in
                     UserData
                         { trackables = tbles
-                        , chartables = cbles
+                        , chartables = cbles_
                         , lineCharts = cts
                         , activeTrackables = atbles
-                        , activeChartables = cbles |> IdDict.map (\k _ -> ( k, True )) |> IdDict.values
+                        , activeChartables = cbles_ |> IdDict.map (\k _ -> ( k, True )) |> IdDict.values
                         , activeLineCharts = acts
                         , errors = []
                         }
@@ -607,9 +582,13 @@ decode =
         v4 =
             D.map6
                 (\tbles cbles cts atbles acbles acts ->
+                    let
+                        cbles_ =
+                            IdDict.map (\_ s -> Chartable.build tbles s) cbles
+                    in
                     UserData
                         { trackables = tbles
-                        , chartables = cbles
+                        , chartables = cbles_
                         , lineCharts = cts
                         , activeTrackables = atbles
                         , activeChartables = acbles
@@ -639,9 +618,13 @@ decode =
         v5 =
             D.map6
                 (\tbles cbles cts atbles acbles acts ->
+                    let
+                        cbles_ =
+                            IdDict.map (\_ s -> Chartable.build tbles s) cbles
+                    in
                     UserData
                         { trackables = tbles
-                        , chartables = cbles
+                        , chartables = cbles_
                         , lineCharts = cts
                         , activeTrackables = atbles
                         , activeChartables = acbles

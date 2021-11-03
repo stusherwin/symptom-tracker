@@ -83,7 +83,7 @@ update msg model =
     case msg of
         ChartableAddClicked ->
             let
-                chartable =
+                newChartable =
                     { name = ""
                     , colour = Nothing
                     , inverted = False
@@ -91,10 +91,10 @@ update msg model =
                     }
 
                 ( idM, userData_ ) =
-                    model.userData |> UserData.addChartable chartable
+                    model.userData |> UserData.addChartable newChartable
             in
             case idM of
-                Just id ->
+                Just ( id, chartable ) ->
                     ( { model
                         | chartables = model.chartables |> Array.push ( id, Chart.Chartable.init userData_ True id ( chartable, True ) )
                         , editState = EditingChartable id
@@ -220,8 +220,16 @@ update msg model =
 
                         Chart.Chartable.TrackableChanged trackableId (Just newTrackableId) ->
                             let
+                                newTrackableM =
+                                    model.userData |> UserData.getTrackable newTrackableId
+
                                 userData_ =
-                                    model.userData |> UserData.updateChartable chartableId (Chartable.replaceTrackable trackableId newTrackableId)
+                                    case newTrackableM of
+                                        Just newTrackable ->
+                                            model.userData |> UserData.updateChartable chartableId (Chartable.replaceTrackable trackableId newTrackableId newTrackable)
+
+                                        _ ->
+                                            model.userData
                             in
                             ( model, Cmd.none )
                                 |> setUserData userData_
@@ -253,8 +261,16 @@ update msg model =
                                         |> List.head
                                         |> Maybe.map (\tId -> ( tId, 1.0 ))
 
+                                newTrackableM =
+                                    model.userData |> UserData.getTrackable newTrackableId
+
                                 userData_ =
-                                    model.userData |> UserData.updateChartable chartableId (Chartable.addTrackable ( newTrackableId, 1 ))
+                                    case newTrackableM of
+                                        Just newTrackable ->
+                                            model.userData |> UserData.updateChartable chartableId (Chartable.addTrackable newTrackableId newTrackable 1)
+
+                                        _ ->
+                                            model.userData
                             in
                             ( model, Cmd.none )
                                 |> setUserData userData_

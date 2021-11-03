@@ -166,3 +166,8 @@ updateLookupWithKey id fn list =
 
             else
                 ( xId, x ) :: updateLookupWithKey id fn xs
+
+
+deleteBy : (a -> b) -> b -> List a -> List a
+deleteBy fn id list =
+    list |> List.filter (\x -> fn x /= id)

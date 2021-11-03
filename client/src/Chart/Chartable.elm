@@ -16,9 +16,9 @@ import Svg.Icon exposing (IconType(..), icon)
 import Task
 import Time exposing (Month(..))
 import UserData exposing (UserData)
-import UserData.Chartable exposing (Chartable)
+import UserData.Chartable as Chartable exposing (Chartable)
 import UserData.ChartableId as ChartableId exposing (ChartableId)
-import UserData.Trackable as Trackable exposing (TrackableData(..))
+import UserData.Trackable as Trackable exposing (Trackable, TrackableData(..))
 import UserData.TrackableId as TrackableId exposing (TrackableId)
 
 
@@ -43,13 +43,13 @@ type alias TrackableModel =
 
 
 init : UserData -> Bool -> ChartableId -> ( Chartable, Bool ) -> Model
-init userData canDelete chartableId ( chartable, visible ) =
+init userData canDelete chartableId ( Chartable.Chartable s p, visible ) =
     { chartableId = chartableId
-    , name = chartable.name
-    , colour = UserData.getChartableColour userData chartableId
-    , inverted = chartable.inverted
+    , name = s.name
+    , colour = p.colour
+    , inverted = s.inverted
     , canDelete = canDelete
-    , trackables = chartable.sum |> List.filterMap (toTrackableModel userData)
+    , trackables = p.sum |> List.map toTrackableModel
     , visible = visible
     , nameIsPristine = True
     , trackableOptions = buildTrackableOptions userData chartableId
@@ -61,7 +61,7 @@ buildTrackableOptions userData chartableId =
     let
         trackablesInUse =
             UserData.getChartable chartableId userData
-                |> Maybe.map .sum
+                |> Maybe.map (\(Chartable.Chartable s _) -> s.sum)
                 |> Maybe.withDefault []
                 |> List.map Tuple.first
     in
@@ -91,19 +91,14 @@ buildTrackableOptions userData chartableId =
         |> (List.sortBy <| String.toUpper << Tuple.first << Tuple.second)
 
 
-toTrackableModel : UserData -> ( TrackableId, Float ) -> Maybe ( TrackableId, TrackableModel )
-toTrackableModel userData ( trackableId, multiplier ) =
-    userData
-        |> UserData.getTrackable trackableId
-        |> Maybe.map
-            (\{ question } ->
-                ( trackableId
-                , { question = question
-                  , multiplier = String.fromFloat multiplier
-                  , isValid = True
-                  }
-                )
-            )
+toTrackableModel : ( TrackableId, ( Trackable, Float ) ) -> ( TrackableId, TrackableModel )
+toTrackableModel ( trackableId, ( trackable, multiplier ) ) =
+    ( trackableId
+    , { question = trackable.question
+      , multiplier = String.fromFloat multiplier
+      , isValid = True
+      }
+    )
 
 
 type Msg
@@ -127,66 +122,85 @@ type Msg
 
 update : UserData -> Msg -> Model -> ( Model, Cmd Msg )
 update userData msg model =
-    case msg of
-        ChartableEditClicked ->
-            ( model
-            , Dom.focus ("chartable" ++ ChartableId.toString model.chartableId ++ "-name")
-                |> Task.attempt (always NoOp)
-            )
+    case userData |> UserData.getChartable model.chartableId of
+        Just (Chartable.Chartable s p) ->
+            case msg of
+                ChartableEditClicked ->
+                    ( model
+                    , Dom.focus ("chartable" ++ ChartableId.toString model.chartableId ++ "-name")
+                        |> Task.attempt (always NoOp)
+                    )
 
-        ChartableVisibleClicked ->
-            ( { model | visible = not model.visible }
-            , Cmd.none
-            )
+                ChartableVisibleClicked ->
+                    ( { model | visible = not model.visible }
+                    , Cmd.none
+                    )
 
-        ChartableNameUpdated name ->
-            ( { model | name = name, nameIsPristine = False }
-            , Cmd.none
-            )
+                ChartableNameUpdated name ->
+                    ( { model | name = name, nameIsPristine = False }
+                    , Cmd.none
+                    )
 
-        ChartableColourUpdated _ ->
-            ( { model | colour = UserData.getChartableColour userData model.chartableId }
-            , Cmd.none
-            )
+                ChartableColourUpdated _ ->
+                    ( { model | colour = p.colour }
+                    , Cmd.none
+                    )
 
-        ChartableInvertedChanged inverted ->
-            ( { model | inverted = inverted }
-            , Cmd.none
-            )
+                ChartableInvertedChanged inverted ->
+                    ( { model | inverted = inverted }
+                    , Cmd.none
+                    )
 
-        TrackableChanged trackableId (Just newTrackableId) ->
-            let
-                trackableOptions =
-                    buildTrackableOptions userData model.chartableId
-            in
-            case trackableOptions |> Listx.lookup newTrackableId |> Maybe.map Tuple.first of
-                Just question ->
+                TrackableChanged trackableId (Just newTrackableId) ->
+                    let
+                        trackableOptions =
+                            buildTrackableOptions userData model.chartableId
+
+                        trackableOptionM =
+                            trackableOptions
+                                |> Listx.lookup newTrackableId
+                                |> Maybe.map Tuple.first
+                    in
+                    case trackableOptionM of
+                        Just question ->
+                            ( { model
+                                | trackables = model.trackables |> Listx.updateLookupWithKey trackableId (\( _, t ) -> ( newTrackableId, { t | question = question } ))
+                                , colour = p.colour
+                                , trackableOptions = trackableOptions
+                              }
+                            , Cmd.none
+                            )
+
+                        _ ->
+                            ( model, Cmd.none )
+
+                TrackableMultiplierUpdated trackableId stringValue ->
                     ( { model
-                        | trackables = model.trackables |> Listx.updateLookupWithKey trackableId (\( _, t ) -> ( newTrackableId, { t | question = question } ))
-                        , colour = UserData.getChartableColour userData model.chartableId
-                        , trackableOptions = trackableOptions
+                        | trackables =
+                            model.trackables
+                                |> Listx.updateLookup trackableId (\t -> { t | multiplier = stringValue, isValid = Trackable.parseMultiplier stringValue /= Nothing })
                       }
                     , Cmd.none
                     )
 
-                _ ->
-                    ( model, Cmd.none )
+                TrackableAddClicked (Just trackableId) ->
+                    case userData |> UserData.getTrackable trackableId of
+                        Just trackable ->
+                            ( { model
+                                | trackables = model.trackables ++ [ toTrackableModel ( trackableId, ( trackable, 1.0 ) ) ]
+                                , colour = p.colour
+                                , trackableOptions = buildTrackableOptions userData model.chartableId
+                              }
+                            , Cmd.none
+                            )
 
-        TrackableMultiplierUpdated trackableId stringValue ->
-            ( { model
-                | trackables =
-                    model.trackables
-                        |> Listx.updateLookup trackableId (\t -> { t | multiplier = stringValue, isValid = Trackable.parseMultiplier stringValue /= Nothing })
-              }
-            , Cmd.none
-            )
+                        _ ->
+                            ( model, Cmd.none )
 
-        TrackableAddClicked (Just trackableId) ->
-            case toTrackableModel userData ( trackableId, 1.0 ) of
-                Just ( _, trackableModel ) ->
+                TrackableDeleteClicked trackableId ->
                     ( { model
-                        | trackables = model.trackables |> Listx.insertLookup trackableId trackableModel
-                        , colour = UserData.getChartableColour userData model.chartableId
+                        | trackables = model.trackables |> (List.filter <| \( tId, _ ) -> tId /= trackableId)
+                        , colour = p.colour
                         , trackableOptions = buildTrackableOptions userData model.chartableId
                       }
                     , Cmd.none
@@ -194,15 +208,6 @@ update userData msg model =
 
                 _ ->
                     ( model, Cmd.none )
-
-        TrackableDeleteClicked trackableId ->
-            ( { model
-                | trackables = model.trackables |> (List.filter <| \( tId, _ ) -> tId /= trackableId)
-                , colour = UserData.getChartableColour userData model.chartableId
-                , trackableOptions = buildTrackableOptions userData model.chartableId
-              }
-            , Cmd.none
-            )
 
         _ ->
             ( model, Cmd.none )

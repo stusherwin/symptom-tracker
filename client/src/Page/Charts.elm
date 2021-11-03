@@ -16,6 +16,7 @@ import Svg.Icon exposing (IconType(..), icon)
 import Task
 import Time exposing (Month(..))
 import UserData exposing (UserData)
+import UserData.Chartable as Chartable
 import UserData.ChartableId exposing (ChartableId)
 import UserData.LineChart exposing (LineChart)
 import UserData.LineChartId as LineChartId exposing (LineChartId)
@@ -48,7 +49,7 @@ init today userData navKey chartIdM =
               , chartableOptions =
                     UserData.chartables userData
                         |> IdDict.toList
-                        |> (List.map <| Tuple.mapSecond (Stringx.withDefault "[no name]" << .name))
+                        |> (List.map <| Tuple.mapSecond (Stringx.withDefault "[no name]" << (\(Chartable.Chartable s p) -> s.name)))
                         |> List.sortBy (String.toUpper << Tuple.second)
               , userData = userData
               , state = Chart chartModel
@@ -67,7 +68,7 @@ init today userData navKey chartIdM =
               , chartableOptions =
                     UserData.chartables userData
                         |> IdDict.toList
-                        |> (List.map <| Tuple.mapSecond (Stringx.withDefault "[no name]" << .name))
+                        |> (List.map <| Tuple.mapSecond (Stringx.withDefault "[no name]" << (\(Chartable.Chartable s p) -> s.name)))
                         |> List.sortBy (String.toUpper << Tuple.second)
               , userData = userData
               , state = Charts (chartsWithCmds |> List.map (\( id, ( chart, _ ) ) -> ( id, chart )))
