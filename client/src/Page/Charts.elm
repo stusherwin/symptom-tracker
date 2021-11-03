@@ -757,35 +757,35 @@ viewLineChart chartableOptions trackableOptions ( chartId, model ) =
                 []
             ]
         , div [ class "mt-4 bg-gray-200" ] <|
-            List.concat viewChartables
-                ++ [ div [ class "p-4 bg-gray-300 border-t-4 border-gray-400 flex" ] <|
-                        if model.addingChartable == Nothing then
-                            [ Controls.button "" Controls.ButtonGrey (ChartableAddClicked chartId) SolidPlusCircle "Add chartable" True
-                            ]
+            [ div [ class "px-4 py-2 bg-gray-300 border-t-4 border-gray-400 flex" ] <|
+                if model.addingChartable == Nothing then
+                    [ Controls.button "" Controls.ButtonGrey (ChartableAddClicked chartId) SolidPlusCircle "Add chartable" True
+                    ]
 
-                        else
-                            [ Controls.textDropdown "w-full h-10"
-                                (ChartableToAddChanged chartId)
-                                Chartable.idToString
-                                Chartable.idFromString
-                                (chartableOptions
-                                    |> List.map
-                                        (\( cId, name ) ->
-                                            ( ( cId
-                                              , not <|
-                                                    List.member cId <|
-                                                        model.dataOrder
-                                              )
-                                            , name
-                                            )
-                                        )
+                else
+                    [ Controls.textDropdown "w-full h-10"
+                        (ChartableToAddChanged chartId)
+                        Chartable.idToString
+                        Chartable.idFromString
+                        (chartableOptions
+                            |> List.map
+                                (\( cId, name ) ->
+                                    ( ( cId
+                                      , not <|
+                                            List.member cId <|
+                                                model.dataOrder
+                                      )
+                                    , name
+                                    )
                                 )
-                                model.addingChartable
-                                { showFilled = False }
-                            , Controls.button "ml-4" Controls.ButtonGrey (ChartableAddConfirmClicked chartId) SolidPlusCircle "Add" True
-                            , Controls.button "ml-2" Controls.ButtonGrey (ChartableAddCancelClicked chartId) SolidTimesCircle "Cancel" True
-                            ]
-                   ]
+                        )
+                        model.addingChartable
+                        { showFilled = False }
+                    , Controls.button "ml-4" Controls.ButtonGrey (ChartableAddConfirmClicked chartId) SolidPlusCircle "Add" True
+                    , Controls.button "ml-2" Controls.ButtonGrey (ChartableAddCancelClicked chartId) SolidTimesCircle "Cancel" True
+                    ]
+            ]
+                ++ List.concat viewChartables
         ]
 
 
