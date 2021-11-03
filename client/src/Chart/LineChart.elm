@@ -151,7 +151,7 @@ chartableToDataSet userData chartableId visible =
             (\c ->
                 ( ChartableId chartableId
                 , { name = c.name
-                  , colour = UserData.getChartableColour userData c
+                  , colour = UserData.getChartableColour userData chartableId
                   , dataPoints = UserData.getChartableDataPoints userData c
                   , visible = visible
                   }
@@ -316,44 +316,46 @@ update msg model =
             ( model, Cmd.none )
 
 
-updateName : String -> Model -> Model
+updateName : String -> Model -> ( Model, Cmd Msg )
 updateName name model =
-    { model | name = name }
+    ( { model | name = name }, Cmd.none )
 
 
-hoverDataSet : Maybe DataSetId -> Model -> Model
+hoverDataSet : Maybe DataSetId -> Model -> ( Model, Cmd Msg )
 hoverDataSet id model =
-    { model | graph = model.graph |> Graph.hoverDataSet id }
+    ( { model | graph = model.graph |> Graph.hoverDataSet id }, Cmd.none )
 
 
-toggleDataSetVisible : DataSetId -> Model -> Model
+toggleDataSetVisible : DataSetId -> Model -> ( Model, Cmd Msg )
 toggleDataSetVisible id model =
-    { model | graph = model.graph |> Graph.toggleDataSetVisible id }
+    ( { model | graph = model.graph |> Graph.toggleDataSetVisible id }, Cmd.none )
 
 
-toggleDataSetSelected : DataSetId -> Model -> Model
+toggleDataSetSelected : DataSetId -> Model -> ( Model, Cmd Msg )
 toggleDataSetSelected id model =
-    { model | graph = model.graph |> Graph.toggleDataSetSelected id }
+    ( { model | graph = model.graph |> Graph.toggleDataSetSelected id }, Cmd.none )
 
 
-selectDataSet : Maybe DataSetId -> Model -> Model
+selectDataSet : Maybe DataSetId -> Model -> ( Model, Cmd Msg )
 selectDataSet id model =
-    { model | graph = model.graph |> Graph.selectDataSet id }
+    ( { model | graph = model.graph |> Graph.selectDataSet id }, Cmd.none )
 
 
-updateDataSetName : DataSetId -> String -> Model -> Model
+updateDataSetName : DataSetId -> String -> Model -> ( Model, Cmd Msg )
 updateDataSetName id name model =
     let
         graph =
             model.graph
     in
-    { model
+    ( { model
         | graph = { graph | data = graph.data |> Listx.updateLookup id (\d -> { d | name = name }) }
         , data = model.data |> Listx.updateLookup id (\d -> { d | name = name })
-    }
+      }
+    , Cmd.none
+    )
 
 
-updateChartableData : UserData -> ChartableId -> Model -> Model
+updateChartableData : UserData -> ChartableId -> Model -> ( Model, Cmd Msg )
 updateChartableData userData chartableId model =
     case userData |> UserData.getChartable chartableId of
         Just chartable ->
@@ -361,7 +363,7 @@ updateChartableData userData chartableId model =
                 graph =
                     model.graph
             in
-            { model
+            ( { model
                 | graph = { graph | data = graph.data |> Listx.updateLookup (ChartableId chartableId) (\d -> { d | dataPoints = UserData.getChartableDataPoints userData chartable }) }
                 , data =
                     model.data
@@ -377,13 +379,15 @@ updateChartableData userData chartableId model =
                                                 )
                                 }
                             )
-            }
+              }
+            , Cmd.none
+            )
 
         _ ->
-            model
+            ( model, Cmd.none )
 
 
-updateTrackableData : UserData -> TrackableId -> Maybe Float -> Maybe Bool -> Model -> Model
+updateTrackableData : UserData -> TrackableId -> Maybe Float -> Maybe Bool -> Model -> ( Model, Cmd Msg )
 updateTrackableData userData trackableId multiplierM invertedM model =
     case userData |> UserData.getTrackable trackableId of
         Just trackable ->
@@ -399,7 +403,7 @@ updateTrackableData userData trackableId multiplierM invertedM model =
             in
             case ( trackableDataM, trackableListDataM ) of
                 ( Just { inverted }, Just ( _, _, multiplier ) ) ->
-                    { model
+                    ( { model
                         | graph = { graph | data = graph.data |> Listx.updateLookup (TrackableId trackableId) (\d -> { d | dataPoints = UserData.getTrackableDataPoints (Maybe.withDefault multiplier multiplierM) (Maybe.withDefault inverted invertedM) trackable }) }
                         , data =
                             model.data
@@ -410,16 +414,18 @@ updateTrackableData userData trackableId multiplierM invertedM model =
                                             , inverted = Maybe.withDefault inverted invertedM
                                         }
                                     )
-                    }
+                      }
+                    , Cmd.none
+                    )
 
                 _ ->
-                    model
+                    ( model, Cmd.none )
 
         _ ->
-            model
+            ( model, Cmd.none )
 
 
-updateDataSetColour : UserData -> DataSetId -> Model -> Model
+updateDataSetColour : UserData -> DataSetId -> Model -> ( Model, Cmd Msg )
 updateDataSetColour userData dataSetId model =
     case dataSetId of
         ChartableId chartableId ->
@@ -429,15 +435,17 @@ updateDataSetColour userData dataSetId model =
                         graph =
                             model.graph
                     in
-                    { model
-                        | graph = { graph | data = graph.data |> Listx.updateLookup dataSetId (\d -> { d | colour = UserData.getChartableColour userData chartable }) }
-                    }
+                    ( { model
+                        | graph = { graph | data = graph.data |> Listx.updateLookup dataSetId (\d -> { d | colour = UserData.getChartableColour userData chartableId }) }
+                      }
+                    , Cmd.none
+                    )
 
                 _ ->
-                    model
+                    ( model, Cmd.none )
 
         _ ->
-            model
+            ( model, Cmd.none )
 
 
 addChartableDataSet : UserData -> ChartableId -> Model -> ( Model, Cmd Msg )
@@ -573,22 +581,22 @@ removeDataSet dataSetId model =
     )
 
 
-moveDataSetBack : DataSetId -> Model -> Model
+moveDataSetBack : DataSetId -> Model -> ( Model, Cmd Msg )
 moveDataSetBack dataSetId model =
     let
         graph =
             model.graph
     in
-    { model | graph = { graph | data = graph.data |> Listx.moveHeadwardsBy Tuple.first dataSetId } }
+    ( { model | graph = { graph | data = graph.data |> Listx.moveHeadwardsBy Tuple.first dataSetId } }, Cmd.none )
 
 
-moveDataSetForward : DataSetId -> Model -> Model
+moveDataSetForward : DataSetId -> Model -> ( Model, Cmd Msg )
 moveDataSetForward dataSetId model =
     let
         graph =
             model.graph
     in
-    { model | graph = { graph | data = graph.data |> Listx.moveTailwardsBy Tuple.first dataSetId } }
+    ( { model | graph = { graph | data = graph.data |> Listx.moveTailwardsBy Tuple.first dataSetId } }, Cmd.none )
 
 
 subscriptions : Model -> Sub Msg

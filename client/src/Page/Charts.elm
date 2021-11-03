@@ -1,9 +1,7 @@
 module Page.Charts exposing (Model, Msg(..), init, subscriptions, update, urlChanged, view)
 
 import Array
-import Browser.Dom as Dom
 import Browser.Navigation as Nav
-import Chart.Chartable
 import Chart.LineChart as Chart
 import Controls
 import Date exposing (Date, Unit(..))
@@ -22,7 +20,6 @@ import UserData.ChartableId exposing (ChartableId)
 import UserData.LineChart exposing (LineChart)
 import UserData.LineChartId as LineChartId exposing (LineChartId)
 import UserData.Trackable exposing (TrackableData(..))
-import UserData.TrackableId as TrackableId exposing (TrackableId)
 
 
 type alias Model =

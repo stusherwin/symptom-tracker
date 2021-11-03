@@ -63,17 +63,24 @@ getChartable id (UserData data) =
     IdDict.get id data.chartables
 
 
-getChartableColour : UserData -> Chartable -> Colour
-getChartableColour userData chartable =
-    (if List.length chartable.sum == 1 || chartable.colour == Nothing then
-        List.head chartable.sum
-            |> Maybe.andThen ((\tId -> getTrackable tId userData) << Tuple.first)
-            |> Maybe.map .colour
+getChartableColour : UserData -> ChartableId -> Colour
+getChartableColour userData chartableId =
+    let
+        colourM =
+            case getChartable chartableId userData of
+                Just chartable ->
+                    if List.length chartable.sum == 1 || chartable.colour == Nothing then
+                        List.head chartable.sum
+                            |> Maybe.andThen ((\tId -> getTrackable tId userData) << Tuple.first)
+                            |> Maybe.map .colour
 
-     else
-        chartable.colour
-    )
-        |> Maybe.withDefault Colour.Gray
+                    else
+                        chartable.colour
+
+                _ ->
+                    Nothing
+    in
+    colourM |> Maybe.withDefault Colour.Gray
 
 
 getChartableDataPoints : UserData -> Chartable -> Dict Int Float

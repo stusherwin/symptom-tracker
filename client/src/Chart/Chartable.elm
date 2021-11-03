@@ -1,5 +1,6 @@
-module Chart.Chartable exposing (Model, Msg(..), buildTrackableOptions, init, toTrackableModel, view)
+module Chart.Chartable exposing (Model, Msg(..), buildTrackableOptions, init, toTrackableModel, update, view)
 
+import Browser.Dom as Dom
 import Chart.LineChart as Chart exposing (DataSetId(..))
 import Colour exposing (Colour)
 import Controls
@@ -8,20 +9,22 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onCheck, onMouseEnter, onMouseLeave)
 import Htmlx
+import Listx
 import Maybe exposing (Maybe)
 import Stringx
 import Svg.Icon exposing (IconType(..), icon)
+import Task
 import Time exposing (Month(..))
 import UserData exposing (UserData)
 import UserData.Chartable as Chartable exposing (Chartable)
 import UserData.ChartableId as ChartableId exposing (ChartableId)
-import UserData.LineChartId as LineChartId exposing (LineChartId)
 import UserData.Trackable as Trackable exposing (Trackable, TrackableData(..))
 import UserData.TrackableId as TrackableId exposing (TrackableId)
 
 
 type alias Model =
-    { name : String
+    { chartableId : ChartableId
+    , name : String
     , colour : Colour
     , visible : Bool
     , inverted : Bool
@@ -41,8 +44,9 @@ type alias TrackableModel =
 
 init : UserData -> Bool -> ChartableId -> ( Chartable, Bool ) -> Model
 init userData canDelete chartableId ( chartable, visible ) =
-    { name = chartable.name
-    , colour = UserData.getChartableColour userData chartable
+    { chartableId = chartableId
+    , name = chartable.name
+    , colour = UserData.getChartableColour userData chartableId
     , inverted = chartable.inverted
     , canDelete = canDelete
     , trackables = chartable.sum |> List.filterMap (toTrackableModel userData)
@@ -104,37 +108,125 @@ toTrackableModel userData ( trackableId, multiplier ) =
 
 type Msg
     = NoOp
-    | ChartableHovered (Maybe ChartableId)
-    | ChartableEditClicked ChartableId
+    | ChartableHovered Bool
+    | ChartableEditClicked
     | ChartableCloseClicked
-    | ChartableVisibleClicked ChartableId
-    | ChartableUpClicked ChartableId
-    | ChartableDownClicked ChartableId
-    | ChartableChanged ChartableId (Maybe ChartableId)
-    | ChartableNameUpdated ChartableId String
-    | ChartableColourUpdated ChartableId (Maybe Colour)
-    | ChartableInvertedChanged ChartableId Bool
-    | ChartableAddClicked
-    | ChartableToAddChanged (Maybe ChartableId)
-    | ChartableAddConfirmClicked
-    | ChartableAddCancelClicked
-    | ChartableDeleteClicked ChartableId
-    | TrackableChanged ChartableId TrackableId (Maybe TrackableId)
-    | TrackableMultiplierUpdated ChartableId TrackableId String
-    | TrackableAddClicked ChartableId
-    | TrackableDeleteClicked ChartableId TrackableId
-    | UserDataUpdated UserData
+    | ChartableVisibleClicked
+    | ChartableUpClicked
+    | ChartableDownClicked
+    | ChartableChanged (Maybe ChartableId)
+    | ChartableNameUpdated String
+    | ChartableColourUpdated (Maybe Colour)
+    | ChartableInvertedChanged Bool
+    | ChartableDeleteClicked
+    | TrackableChanged TrackableId (Maybe TrackableId)
+    | TrackableMultiplierUpdated TrackableId String
+    | TrackableAddClicked (Maybe TrackableId)
+    | TrackableDeleteClicked TrackableId
 
 
-view : Maybe DataSetId -> Maybe DataSetId -> Maybe DataSetId -> ( ChartableId, Model ) -> List (Html Msg)
-view first last selectedDataSet ( chartableId, model ) =
+update : UserData -> Msg -> Model -> ( Model, Cmd Msg )
+update userData msg model =
+    case msg of
+        ChartableEditClicked ->
+            ( model
+            , Dom.focus ("chartable" ++ ChartableId.toString model.chartableId ++ "-name")
+                |> Task.attempt (always NoOp)
+            )
+
+        ChartableVisibleClicked ->
+            ( { model | visible = not model.visible }
+            , Cmd.none
+            )
+
+        ChartableNameUpdated name ->
+            ( { model | name = name, nameIsPristine = False }
+            , Cmd.none
+            )
+
+        ChartableColourUpdated _ ->
+            ( { model | colour = UserData.getChartableColour userData model.chartableId }
+            , Cmd.none
+            )
+
+        ChartableInvertedChanged inverted ->
+            ( { model | inverted = inverted }
+            , Cmd.none
+            )
+
+        TrackableChanged trackableId (Just newTrackableId) ->
+            let
+                trackableOptions =
+                    buildTrackableOptions userData model.chartableId
+            in
+            case trackableOptions |> Listx.lookup newTrackableId |> Maybe.map Tuple.first of
+                Just question ->
+                    ( { model
+                        | trackables = model.trackables |> Listx.updateLookupWithKey trackableId (\( _, t ) -> ( newTrackableId, { t | question = question } ))
+                        , colour = UserData.getChartableColour userData model.chartableId
+                        , trackableOptions = trackableOptions
+                      }
+                    , Cmd.none
+                    )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        TrackableMultiplierUpdated trackableId stringValue ->
+            let
+                multiplierM =
+                    String.toFloat stringValue
+                        |> Maybe.andThen
+                            (\v ->
+                                if v > 0 then
+                                    Just v
+
+                                else
+                                    Nothing
+                            )
+            in
+            ( { model
+                | trackables =
+                    model.trackables
+                        |> Listx.updateLookup trackableId (\t -> { t | multiplier = stringValue, isValid = multiplierM /= Nothing })
+              }
+            , Cmd.none
+            )
+
+        TrackableAddClicked (Just trackableId) ->
+            case toTrackableModel userData ( trackableId, 1.0 ) of
+                Just ( _, trackableModel ) ->
+                    ( { model
+                        | trackables = model.trackables |> Listx.insertLookup trackableId trackableModel
+                        , colour = UserData.getChartableColour userData model.chartableId
+                        , trackableOptions = buildTrackableOptions userData model.chartableId
+                      }
+                    , Cmd.none
+                    )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        TrackableDeleteClicked trackableId ->
+            ( { model
+                | trackables = model.trackables |> (List.filter <| \( tId, _ ) -> tId /= trackableId)
+                , colour = UserData.getChartableColour userData model.chartableId
+                , trackableOptions = buildTrackableOptions userData model.chartableId
+              }
+            , Cmd.none
+            )
+
+        _ ->
+            ( model, Cmd.none )
+
+
+view : { canMoveUp : Bool, canMoveDown : Bool, isSelected : Bool, isAnySelected : Bool } -> Model -> List (Html Msg)
+view { canMoveUp, canMoveDown, isSelected, isAnySelected } model =
     let
-        canMoveUp =
-            first /= Just (ChartableId chartableId)
-
-        canMoveDown =
-            last /= Just (ChartableId chartableId)
-
+        -- canMoveUp =
+        --     first /= Just (ChartableId model.chartableId)
+        -- canMoveDown =
+        --     last /= Just (ChartableId model.chartableId)
         canEditColour =
             List.length model.trackables > 1
 
@@ -144,21 +236,27 @@ view first last selectedDataSet ( chartableId, model ) =
 
             else
                 model.colour
+
+        newTrackableId =
+            model.trackableOptions
+                |> List.filter (Tuple.second >> Tuple.second)
+                |> List.map Tuple.first
+                |> List.head
     in
     [ div
         [ class "border-t-4"
         , Colour.class "bg" colour
         , Colour.classUp "border" colour
-        , onMouseEnter <| ChartableHovered (Just chartableId)
-        , onMouseLeave <| ChartableHovered Nothing
+        , onMouseEnter <| ChartableHovered True
+        , onMouseLeave <| ChartableHovered False
         ]
-        [ if selectedDataSet /= Just (ChartableId chartableId) then
+        [ if not isSelected {- selectedDataSet /= Just (ChartableId chartableId) -} then
             div
                 [ class "p-4 flex items-center"
                 ]
                 [ button
                     [ class "text-black focus:outline-none flex-grow-0 flex-shrink-0 text-opacity-70 hover:text-opacity-100 focus:text-opacity-100"
-                    , Htmlx.onClickStopPropagation <| ChartableVisibleClicked chartableId
+                    , Htmlx.onClickStopPropagation <| ChartableVisibleClicked
                     ]
                     [ icon "w-5 h-5" <|
                         if model.visible then
@@ -169,8 +267,8 @@ view first last selectedDataSet ( chartableId, model ) =
                     ]
                 , if model.visible then
                     span [ class "ml-4 w-full", Htmlx.onClickStopPropagation NoOp ]
-                        [ a [ class "block w-full font-bold flex items-center relative text-opacity-70 hover:text-opacity-100 text-black pr-8", href "#", target "_self", Htmlx.onClickPreventDefault (ChartableEditClicked chartableId) ]
-                            [ if selectedDataSet == Just (ChartableId chartableId) then
+                        [ a [ class "block w-full font-bold flex items-center relative text-opacity-70 hover:text-opacity-100 text-black pr-8", href "#", target "_self", Htmlx.onClickPreventDefault ChartableEditClicked ]
+                            [ if isSelected {- selectedDataSet == Just (ChartableId chartableId) -} then
                                 icon "w-5 h-5 relative -ml-1 mr-0.5" SolidCaretRight
 
                               else
@@ -197,7 +295,7 @@ view first last selectedDataSet ( chartableId, model ) =
                         [ ( "text-opacity-30 cursor-default", not model.canDelete )
                         , ( "text-opacity-70 hover:text-opacity-100 focus:text-opacity-100", model.canDelete )
                         ]
-                    , Htmlx.onClickStopPropagation <| ChartableDeleteClicked chartableId
+                    , Htmlx.onClickStopPropagation <| ChartableDeleteClicked
                     , disabled (not model.canDelete)
                     ]
                     [ icon "w-5 h-5" <| SolidTrashAlt
@@ -208,7 +306,7 @@ view first last selectedDataSet ( chartableId, model ) =
                         [ ( "text-opacity-30 cursor-default", not canMoveUp )
                         , ( "text-opacity-70 hover:text-opacity-100 focus:text-opacity-100", canMoveUp )
                         ]
-                    , Htmlx.onClickStopPropagation <| ChartableUpClicked chartableId
+                    , Htmlx.onClickStopPropagation <| ChartableUpClicked
                     , disabled (not canMoveUp)
                     ]
                     [ icon "w-5 h-5" <| SolidArrowUp
@@ -219,7 +317,7 @@ view first last selectedDataSet ( chartableId, model ) =
                         [ ( "text-opacity-30 cursor-default", not canMoveDown )
                         , ( "text-opacity-70 hover:text-opacity-100 focus:text-opacity-100", canMoveDown )
                         ]
-                    , Htmlx.onClickStopPropagation <| ChartableDownClicked chartableId
+                    , Htmlx.onClickStopPropagation <| ChartableDownClicked
                     , disabled (not canMoveDown)
                     ]
                     [ icon "w-5 h-5" <| SolidArrowDown
@@ -236,7 +334,7 @@ view first last selectedDataSet ( chartableId, model ) =
                 ]
                 [ button
                     [ class "text-black focus:outline-none flex-grow-0 flex-shrink-0 text-opacity-70 hover:text-opacity-100 focus:text-opacity-100"
-                    , Htmlx.onClickStopPropagation <| ChartableVisibleClicked chartableId
+                    , Htmlx.onClickStopPropagation <| ChartableVisibleClicked
                     ]
                     [ icon "w-5 h-5" <|
                         if model.visible then
@@ -246,23 +344,23 @@ view first last selectedDataSet ( chartableId, model ) =
                             SolidEyeSlash
                     ]
                 , Controls.textbox [ class "ml-4 w-72" ]
-                    [ id <| "chartable" ++ ChartableId.toString chartableId ++ "-name"
+                    [ id <| "chartable" ++ ChartableId.toString model.chartableId ++ "-name"
                     , placeholder "Name"
                     ]
                     model.name
                     { isValid = True, isRequired = True, isPristine = model.nameIsPristine }
-                    (ChartableNameUpdated chartableId)
+                    ChartableNameUpdated
                 , label [ class "ml-12 flex-shrink-0 flex-grow-0 font-bold text-right whitespace-nowrap", for "inverted" ] [ text "Invert data" ]
                 , input
                     [ type_ "checkbox"
                     , id "inverted"
                     , class "ml-2 flex-shrink-0 flex-grow-0"
-                    , onCheck (ChartableInvertedChanged chartableId)
+                    , onCheck ChartableInvertedChanged
                     , checked model.inverted
                     ]
                     []
                 , if canEditColour then
-                    Controls.colourDropdown "ml-4 flex-shrink-0 flex-grow-0" (ChartableColourUpdated chartableId) (Just model.colour) { showFilled = False }
+                    Controls.colourDropdown "ml-4 flex-shrink-0 flex-grow-0" ChartableColourUpdated (Just model.colour) { showFilled = False }
 
                   else
                     span [ class "ml-4" ] []
@@ -273,7 +371,7 @@ view first last selectedDataSet ( chartableId, model ) =
                     [ icon "w-5 h-5" <| SolidTimes ]
                 ]
         ]
-    , if selectedDataSet == Just (ChartableId chartableId) then
+    , if isSelected {- selectedDataSet == Just (ChartableId chartableId) -} then
         div
             [ class "p-4"
             , Colour.classDown "bg" colour
@@ -290,7 +388,7 @@ view first last selectedDataSet ( chartableId, model ) =
                                 else
                                     SolidPlus
                             , Controls.textDropdown "ml-4 w-full h-10"
-                                (TrackableChanged chartableId trackableId)
+                                (TrackableChanged trackableId)
                                 TrackableId.toString
                                 TrackableId.fromString
                                 (model.trackableOptions |> List.map (\( tId, ( q, visible ) ) -> ( ( tId, visible || tId == trackableId ), q )))
@@ -298,17 +396,17 @@ view first last selectedDataSet ( chartableId, model ) =
                                 (Just trackableId)
                                 { showFilled = False }
                             , icon "mt-3 ml-4 w-4 h-4 flex-grow-0 flex-shrink-0" SolidTimes
-                            , Controls.textbox [ class "ml-4 w-20 flex-grow-0 flex-shrink-0" ] [] t.multiplier { isValid = t.isValid, isRequired = True, isPristine = False } (TrackableMultiplierUpdated chartableId trackableId)
+                            , Controls.textbox [ class "ml-4 w-20 flex-grow-0 flex-shrink-0" ] [] t.multiplier { isValid = t.isValid, isRequired = True, isPristine = False } (TrackableMultiplierUpdated trackableId)
                             , button
                                 [ class "ml-4 rounded text-black text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
-                                , Htmlx.onClickStopPropagation (TrackableDeleteClicked chartableId trackableId)
+                                , Htmlx.onClickStopPropagation (TrackableDeleteClicked trackableId)
                                 ]
                                 [ icon "w-5 h-5" <| SolidTrashAlt ]
                             ]
                     )
             )
                 ++ [ div [ class "mt-4 first:mt-0 flex" ]
-                        [ Controls.button "ml-9 flex-grow-0 flex-shrink-0 whitespace-nowrap" Controls.ButtonGrey (TrackableAddClicked chartableId) SolidPlusCircle "Add trackable" (model.trackableOptions |> List.any (Tuple.second << Tuple.second)) ]
+                        [ Controls.button "ml-9 flex-grow-0 flex-shrink-0 whitespace-nowrap" Controls.ButtonGrey (TrackableAddClicked newTrackableId) SolidPlusCircle "Add trackable" (model.trackableOptions |> List.any (Tuple.second << Tuple.second)) ]
                    ]
 
       else

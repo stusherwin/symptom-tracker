@@ -1,5 +1,6 @@
-module Chart.Trackable exposing (Model, Msg(..), init, view)
+module Chart.Trackable exposing (Model, Msg(..), init, update, view)
 
+import Browser.Dom as Dom
 import Chart.LineChart as Chart exposing (DataSetId(..))
 import Colour exposing (Colour)
 import Controls
@@ -11,6 +12,7 @@ import Htmlx
 import Maybe exposing (Maybe)
 import Stringx
 import Svg.Icon exposing (IconType(..), icon)
+import Task
 import Time exposing (Month(..))
 import UserData exposing (UserData)
 import UserData.Chartable as Chartable exposing (Chartable)
@@ -21,7 +23,8 @@ import UserData.TrackableId as TrackableId exposing (TrackableId)
 
 
 type alias Model =
-    { question : String
+    { trackableId : TrackableId
+    , question : String
     , colour : Colour
     , visible : Bool
     , inverted : Bool
@@ -32,14 +35,15 @@ type alias Model =
     }
 
 
-init : List ( TrackableId, ( String, Bool ) ) -> Bool -> Trackable -> Float -> Bool -> Bool -> Model
-init options canDelete trackable multiplier inverted visible =
-    { question = trackable.question
+init : List ( TrackableId, ( String, Bool ) ) -> Bool -> TrackableId -> Trackable -> String -> Bool -> Bool -> Model
+init options canDelete trackableId trackable multiplier inverted visible =
+    { trackableId = trackableId
+    , question = trackable.question
     , colour = trackable.colour
     , visible = visible
     , inverted = inverted
     , canDelete = canDelete
-    , multiplier = String.fromFloat multiplier
+    , multiplier = multiplier
     , isValid = True
     , options = options
     }
@@ -47,28 +51,74 @@ init options canDelete trackable multiplier inverted visible =
 
 type Msg
     = NoOp
-    | TrackableHovered (Maybe TrackableId)
-    | TrackableEditClicked TrackableId
+    | TrackableHovered Bool
+    | TrackableEditClicked
     | TrackableChanged (Maybe TrackableId)
     | TrackableCloseClicked
-    | TrackableVisibleClicked TrackableId
-    | TrackableUpClicked TrackableId
-    | TrackableDownClicked TrackableId
-    | TrackableInvertedChanged TrackableId Bool
-    | TrackableDeleteClicked TrackableId
-    | TrackableMultiplierUpdated TrackableId String
-    | TrackableAddClicked TrackableId
+    | TrackableVisibleClicked
+    | TrackableUpClicked
+    | TrackableDownClicked
+    | TrackableInvertedChanged Bool
+    | TrackableDeleteClicked
+    | TrackableMultiplierUpdated String
+    | TrackableAddClicked
 
 
-view : Maybe DataSetId -> Maybe DataSetId -> Maybe DataSetId -> ( TrackableId, Model ) -> List (Html Msg)
-view first last selectedDataSet ( trackableId, model ) =
+update : UserData -> Maybe (List ( TrackableId, ( String, Bool ) )) -> Msg -> Model -> ( Model, Cmd Msg )
+update userData optionsM msg model =
     let
-        canMoveUp =
-            first /= Just (TrackableId trackableId)
+        options =
+            optionsM |> Maybe.withDefault model.options
+    in
+    case msg of
+        TrackableVisibleClicked ->
+            ( { model | visible = not model.visible }
+            , Cmd.none
+            )
 
-        canMoveDown =
-            last /= Just (TrackableId trackableId)
+        TrackableInvertedChanged inverted ->
+            ( { model | inverted = inverted }
+            , Cmd.none
+            )
 
+        TrackableMultiplierUpdated stringValue ->
+            let
+                multiplierM =
+                    String.toFloat stringValue
+                        |> Maybe.andThen
+                            (\v ->
+                                if v > 0 then
+                                    Just v
+
+                                else
+                                    Nothing
+                            )
+            in
+            ( { model | multiplier = stringValue, isValid = multiplierM /= Nothing }
+            , Cmd.none
+            )
+
+        TrackableChanged (Just newTrackableId) ->
+            case userData |> UserData.getTrackable newTrackableId of
+                Just trackable ->
+                    ( init options True newTrackableId trackable model.multiplier model.inverted model.visible
+                    , Cmd.none
+                    )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        _ ->
+            ( model, Cmd.none )
+
+
+view : { canMoveUp : Bool, canMoveDown : Bool, isSelected : Bool, isAnySelected : Bool } -> ( TrackableId, Model ) -> List (Html Msg)
+view { canMoveUp, canMoveDown, isSelected, isAnySelected } ( trackableId, model ) =
+    let
+        -- canMoveUp =
+        --     first /= Just (TrackableId trackableId)
+        -- canMoveDown =
+        --     last /= Just (TrackableId trackableId)
         colour =
             if not model.visible then
                 Colour.Gray
@@ -80,16 +130,16 @@ view first last selectedDataSet ( trackableId, model ) =
         [ class "border-t-4"
         , Colour.class "bg" colour
         , Colour.classUp "border" colour
-        , onMouseEnter <| TrackableHovered (Just trackableId)
-        , onMouseLeave <| TrackableHovered Nothing
+        , onMouseEnter <| TrackableHovered True
+        , onMouseLeave <| TrackableHovered False
         ]
-        [ if selectedDataSet /= Just (TrackableId trackableId) then
+        [ if not isSelected {- selectedDataSet /= Just (TrackableId trackableId) -} then
             div
                 [ class "p-4 flex items-center"
                 ]
                 [ button
                     [ class "text-black focus:outline-none flex-grow-0 flex-shrink-0 text-opacity-70 hover:text-opacity-100 focus:text-opacity-100"
-                    , Htmlx.onClickStopPropagation <| TrackableVisibleClicked trackableId
+                    , Htmlx.onClickStopPropagation TrackableVisibleClicked
                     ]
                     [ icon "w-5 h-5" <|
                         if model.visible then
@@ -100,8 +150,8 @@ view first last selectedDataSet ( trackableId, model ) =
                     ]
                 , if model.visible then
                     span [ class "ml-4 w-full", Htmlx.onClickStopPropagation NoOp ]
-                        [ a [ class "block w-full font-bold flex items-center relative text-opacity-70 hover:text-opacity-100 text-black pr-8", href "#", target "_self", Htmlx.onClickPreventDefault (TrackableEditClicked trackableId) ]
-                            [ if selectedDataSet == Just (TrackableId trackableId) then
+                        [ a [ class "block w-full font-bold flex items-center relative text-opacity-70 hover:text-opacity-100 text-black pr-8", href "#", target "_self", Htmlx.onClickPreventDefault TrackableEditClicked ]
+                            [ if isSelected {- selectedDataSet == Just (TrackableId trackableId) -} then
                                 icon "w-5 h-5 relative -ml-1 mr-0.5" SolidCaretRight
 
                               else
@@ -123,7 +173,7 @@ view first last selectedDataSet ( trackableId, model ) =
                         [ ( "text-opacity-30 cursor-default", not model.canDelete )
                         , ( "text-opacity-70 hover:text-opacity-100 focus:text-opacity-100", model.canDelete )
                         ]
-                    , Htmlx.onClickStopPropagation <| TrackableDeleteClicked trackableId
+                    , Htmlx.onClickStopPropagation TrackableDeleteClicked
                     , disabled (not model.canDelete)
                     ]
                     [ icon "w-5 h-5" <| SolidTrashAlt
@@ -134,7 +184,7 @@ view first last selectedDataSet ( trackableId, model ) =
                         [ ( "text-opacity-30 cursor-default", not canMoveUp )
                         , ( "text-opacity-70 hover:text-opacity-100 focus:text-opacity-100", canMoveUp )
                         ]
-                    , Htmlx.onClickStopPropagation <| TrackableUpClicked trackableId
+                    , Htmlx.onClickStopPropagation TrackableUpClicked
                     , disabled (not canMoveUp)
                     ]
                     [ icon "w-5 h-5" <| SolidArrowUp
@@ -145,7 +195,7 @@ view first last selectedDataSet ( trackableId, model ) =
                         [ ( "text-opacity-30 cursor-default", not canMoveDown )
                         , ( "text-opacity-70 hover:text-opacity-100 focus:text-opacity-100", canMoveDown )
                         ]
-                    , Htmlx.onClickStopPropagation <| TrackableDownClicked trackableId
+                    , Htmlx.onClickStopPropagation TrackableDownClicked
                     , disabled (not canMoveDown)
                     ]
                     [ icon "w-5 h-5" <| SolidArrowDown
@@ -158,7 +208,7 @@ view first last selectedDataSet ( trackableId, model ) =
                 ]
                 [ button
                     [ class "text-black focus:outline-none flex-grow-0 flex-shrink-0 text-opacity-70 hover:text-opacity-100 focus:text-opacity-100"
-                    , Htmlx.onClickStopPropagation <| TrackableVisibleClicked trackableId
+                    , Htmlx.onClickStopPropagation TrackableVisibleClicked
                     ]
                     [ icon "w-5 h-5" <|
                         if model.visible then
@@ -175,7 +225,7 @@ view first last selectedDataSet ( trackableId, model ) =
                     [ type_ "checkbox"
                     , id "inverted"
                     , class "ml-2 flex-shrink-0 flex-grow-0"
-                    , onCheck (TrackableInvertedChanged trackableId)
+                    , onCheck TrackableInvertedChanged
                     , checked model.inverted
                     ]
                     []
@@ -187,7 +237,7 @@ view first last selectedDataSet ( trackableId, model ) =
                     [ icon "w-5 h-5" <| SolidTimes ]
                 ]
         ]
-    , if selectedDataSet == Just (TrackableId trackableId) then
+    , if isSelected {- selectedDataSet == Just (TrackableId trackableId) -} then
         div
             [ class "p-4"
             , Colour.classDown "bg" colour
@@ -208,10 +258,10 @@ view first last selectedDataSet ( trackableId, model ) =
                 --     [ text <| Stringx.withDefault "[no question]" model.question
                 --     ]
                 , icon "mt-3 ml-4 w-4 h-4 flex-grow-0 flex-shrink-0" SolidTimes
-                , Controls.textbox [ class "ml-4 w-20 flex-grow-0 flex-shrink-0" ] [] model.multiplier { isValid = model.isValid, isRequired = True, isPristine = False } (TrackableMultiplierUpdated trackableId)
+                , Controls.textbox [ class "ml-4 w-20 flex-grow-0 flex-shrink-0" ] [] model.multiplier { isValid = model.isValid, isRequired = True, isPristine = False } TrackableMultiplierUpdated
                 ]
             , div [ class "mt-4 first:mt-0 flex" ]
-                [ Controls.button "ml-9 flex-grow-0 flex-shrink-0 whitespace-nowrap" Controls.ButtonGrey (TrackableAddClicked trackableId) SolidPlusCircle "Add trackable" True ]
+                [ Controls.button "ml-9 flex-grow-0 flex-shrink-0 whitespace-nowrap" Controls.ButtonGrey TrackableAddClicked SolidPlusCircle "Add trackable" True ]
             ]
 
       else
