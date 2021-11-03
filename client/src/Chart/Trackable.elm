@@ -196,10 +196,10 @@ view { canMoveUp, canMoveDown, isSelected } model =
                         else
                             SolidEyeSlash
                     ]
-                , span [ class "ml-4 w-full font-bold" ]
+                , span [ class "ml-4 mr-4 w-full font-bold" ]
                     [ text <| Stringx.withDefault "[no question]" model.question
                     ]
-                , label [ class "ml-12 flex-shrink-0 flex-grow-0 font-bold text-right whitespace-nowrap", for "inverted" ] [ text "Invert data" ]
+                , label [ class "ml-auto flex-shrink-0 flex-grow-0 font-bold text-right whitespace-nowrap", for "inverted" ] [ text "Invert data" ]
                 , input
                     [ type_ "checkbox"
                     , id "inverted"

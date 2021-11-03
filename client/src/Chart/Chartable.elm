@@ -332,14 +332,14 @@ view { canMoveUp, canMoveDown, isSelected } model =
                         else
                             SolidEyeSlash
                     ]
-                , Controls.textbox [ class "ml-4 w-72" ]
+                , Controls.textbox [ class "ml-4 mr-4 w-72" ]
                     [ id <| "chartable" ++ CId.toString model.chartableId ++ "-name"
                     , placeholder "Name"
                     ]
                     model.name
                     { isValid = True, isRequired = True, isPristine = model.nameIsPristine }
                     ChartableNameUpdated
-                , label [ class "ml-12 flex-shrink-0 flex-grow-0 font-bold text-right whitespace-nowrap", for "inverted" ] [ text "Invert data" ]
+                , label [ class "ml-auto flex-shrink-0 flex-grow-0 font-bold text-right whitespace-nowrap", for "inverted" ] [ text "Invert data" ]
                 , input
                     [ type_ "checkbox"
                     , id "inverted"
@@ -354,7 +354,7 @@ view { canMoveUp, canMoveDown, isSelected } model =
                   else
                     span [ class "ml-4" ] []
                 , button
-                    [ class "ml-auto rounded text-black text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
+                    [ class "ml-4 rounded text-black text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
                     , onClickStopPropagation ChartableCloseClicked
                     ]
                     [ icon "w-5 h-5" <| SolidTimes ]
