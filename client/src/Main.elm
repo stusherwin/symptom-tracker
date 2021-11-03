@@ -220,7 +220,7 @@ update msg model =
                 _ ->
                     ( model, Cmd.none )
 
-        DayPageMsg (DayPage.UpdateUserData userData) ->
+        DayPageMsg (DayPage.UserDataUpdated userData) ->
             case model.pageState of
                 Loaded _ _ _ ->
                     updateUserData userData
@@ -239,6 +239,22 @@ update msg model =
 
                 _ ->
                     ( model, Cmd.none )
+
+        ChartsPageMsg (ChartsPage.UserDataUpdated userData) ->
+            let
+                ( model_, cmd1 ) =
+                    updateUserData (Ok userData)
+            in
+            case model_.pageState of
+                Loaded today _ (ChartsPage pageModel) ->
+                    let
+                        ( page, cmd2 ) =
+                            ChartsPage.update (ChartsPage.UserDataUpdated userData) pageModel
+                    in
+                    ( { model | pageState = Loaded today userData (ChartsPage page) }, Cmd.batch [ cmd1, Cmd.map ChartsPageMsg cmd2 ] )
+
+                _ ->
+                    ( model_, cmd1 )
 
         ChartsPageMsg chartsPageMsg ->
             case model.pageState of

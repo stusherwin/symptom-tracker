@@ -57,7 +57,7 @@ type Msg
     | IntAnswerUpdated TrackableId String
     | FloatAnswerUpdated TrackableId String
     | TextAnswerUpdated TrackableId String
-    | UpdateUserData (Result String UserData)
+    | UserDataUpdated (Result String UserData)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -69,7 +69,7 @@ update msg model =
                     model.userData |> UserData.tryUpdateTrackable id (Trackable.updateYesNoData model.currentDay answer)
             in
             ( { model | userData = Result.withDefault model.userData userData }
-            , Task.perform UpdateUserData <| Task.succeed userData
+            , Task.perform UserDataUpdated <| Task.succeed userData
             )
 
         IconAnswerClicked id answer ->
@@ -78,7 +78,7 @@ update msg model =
                     model.userData |> UserData.tryUpdateTrackable id (Trackable.updateIconData model.currentDay answer)
             in
             ( { model | userData = Result.withDefault model.userData userData }
-            , Task.perform UpdateUserData <| Task.succeed userData
+            , Task.perform UserDataUpdated <| Task.succeed userData
             )
 
         ScaleAnswerClicked id answer ->
@@ -87,7 +87,7 @@ update msg model =
                     model.userData |> UserData.tryUpdateTrackable id (Trackable.updateScaleData model.currentDay answer)
             in
             ( { model | userData = Result.withDefault model.userData userData }
-            , Task.perform UpdateUserData <| Task.succeed userData
+            , Task.perform UserDataUpdated <| Task.succeed userData
             )
 
         IntAnswerUpdated id stringValue ->
@@ -112,7 +112,7 @@ update msg model =
                         model.userData |> UserData.tryUpdateTrackable id (Trackable.updateIntData model.currentDay answer)
                 in
                 ( { model | textInputs = textInputs, userData = Result.withDefault model.userData userData }
-                , Task.perform UpdateUserData <| Task.succeed userData
+                , Task.perform UserDataUpdated <| Task.succeed userData
                 )
 
             else
@@ -140,7 +140,7 @@ update msg model =
                         model.userData |> UserData.tryUpdateTrackable id (Trackable.updateFloatData model.currentDay answer)
                 in
                 ( { model | textInputs = textInputs, userData = Result.withDefault model.userData userData }
-                , Task.perform UpdateUserData <| Task.succeed userData
+                , Task.perform UserDataUpdated <| Task.succeed userData
                 )
 
             else
@@ -155,7 +155,7 @@ update msg model =
                 | textInputs = IdDict.insert id ( answer, True ) model.textInputs
                 , userData = Result.withDefault model.userData userData
               }
-            , Task.perform UpdateUserData <| Task.succeed userData
+            , Task.perform UserDataUpdated <| Task.succeed userData
             )
 
         _ ->

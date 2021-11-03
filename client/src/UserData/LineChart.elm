@@ -1,9 +1,9 @@
-module UserData.LineChart exposing (LineChart, LineChartDict, decode, encode)
+module UserData.LineChart exposing (LineChart, LineChartDict, addChartable, decode, deleteChartable, encode, moveChartableDown, moveChartableUp, setFillLines, setName, setShowPoints, toggleChartableVisible)
 
-import Dict
 import IdDict exposing (IdDict(..), IdDictProps)
 import Json.Decode as D
 import Json.Encode as E
+import Listx
 import UserData.Chartable
 import UserData.ChartableId as ChartableId exposing (ChartableId)
 import UserData.LineChartId as LineChartId exposing (LineChartId)
@@ -19,6 +19,46 @@ type alias LineChart =
 
 type alias LineChartDict =
     IdDict LineChartId LineChart
+
+
+setName : String -> LineChart -> LineChart
+setName name c =
+    { c | name = name }
+
+
+setShowPoints : Bool -> LineChart -> LineChart
+setShowPoints sp c =
+    { c | showPoints = sp }
+
+
+setFillLines : Bool -> LineChart -> LineChart
+setFillLines fl c =
+    { c | fillLines = fl }
+
+
+addChartable : ChartableId -> LineChart -> LineChart
+addChartable chartableId c =
+    { c | chartables = ( chartableId, True ) :: c.chartables }
+
+
+deleteChartable : ChartableId -> LineChart -> LineChart
+deleteChartable chartableId c =
+    { c | chartables = c.chartables |> List.filter (\( cId, _ ) -> cId /= chartableId) }
+
+
+toggleChartableVisible : ChartableId -> LineChart -> LineChart
+toggleChartableVisible chartableId c =
+    { c | chartables = c.chartables |> Listx.updateLookup chartableId not }
+
+
+moveChartableUp : ChartableId -> LineChart -> LineChart
+moveChartableUp chartableId c =
+    { c | chartables = c.chartables |> Listx.moveHeadwardsBy Tuple.first chartableId }
+
+
+moveChartableDown : ChartableId -> LineChart -> LineChart
+moveChartableDown chartableId c =
+    { c | chartables = c.chartables |> Listx.moveTailwardsBy Tuple.first chartableId }
 
 
 decode : D.Decoder LineChart
