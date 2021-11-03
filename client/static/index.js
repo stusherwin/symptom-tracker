@@ -65,7 +65,7 @@ class DropdownList extends HTMLElement {
     this.filterOptions();
     this.selectedOptionDisplay.innerHTML = option.innerHTML;
     this.selectedOptionDisplay.classList.remove("hidden-all");
-    this.optionsParent.classList.add("hidden-visually");
+    this.hideOptionsParent();
 
     if (this.selectedOptionClasses && this.unselectedOptionClasses) {
       var options = Array.from(this.querySelectorAll('ul.options-parent > li.options-selectable'));
@@ -134,7 +134,7 @@ class DropdownList extends HTMLElement {
 
     this.input.addEventListener("focus", e => {
       this.selectedOptionDisplay.classList.add("hidden-all");
-      this.optionsParent.classList.remove("hidden-visually");
+      this.showOptionsParent();
     });
 
     this.addEventListener('keydown', e => {
@@ -142,7 +142,7 @@ class DropdownList extends HTMLElement {
         case 'ArrowDown':
           e.preventDefault();
 
-          this.optionsParent.classList.remove("hidden-visually");
+          this.showOptionsParent();
           this.selectedOptionDisplay.classList.add("hidden-all");
 
           var filteredOptions = Array.from(this.querySelectorAll('ul.options-parent > li.options-selectable:not(.hidden-all)'));
@@ -171,7 +171,7 @@ class DropdownList extends HTMLElement {
         case 'ArrowUp':
           e.preventDefault();
 
-          this.optionsParent.classList.remove("hidden-visually");
+          this.showOptionsParent();
           this.selectedOptionDisplay.classList.add("hidden-all");
 
           var filteredOptions = Array.from(this.querySelectorAll('ul.options-parent > li.options-selectable:not(.hidden-all)'));
@@ -201,7 +201,7 @@ class DropdownList extends HTMLElement {
           break;
 
         case 'Escape':
-          this.optionsParent.classList.add("hidden-visually");
+          this.hideOptionsParent();
           this.selectedOptionDisplay.classList.remove("hidden-all");
 
           if (this.selectedOptionClasses && this.unselectedOptionClasses) {
@@ -235,7 +235,7 @@ class DropdownList extends HTMLElement {
             this.input.focus();
           }
 
-          this.optionsParent.classList.remove("hidden-visually");
+          this.showOptionsParent();
       }
     })
 
@@ -265,7 +265,7 @@ class DropdownList extends HTMLElement {
       var eventListener = e => {
         e.stopPropagation();
         this.selectOption(o);
-        this.optionsParent.classList.add("hidden-visually");
+        this.hideOptionsParent();
       };
       o.addEventListener("click", eventListener);
       this.optionsRemoveListeners.push(() => o.removeEventListener("click", eventListener));
@@ -308,7 +308,7 @@ class DropdownList extends HTMLElement {
         if (document.activeElement !== this.input && !options.some(o => document.activeElement === o)) {
           this.classList.remove("z-10");
           this.classList.add("z-0");
-          this.optionsParent.classList.add("hidden-visually");
+          this.hideOptionsParent();
           this.selectedOptionDisplay.classList.remove("hidden-all");
           if (this.selectedOptionClasses && this.unselectedOptionClasses) {
             var options = Array.from(this.querySelectorAll('ul.options-parent > li.options-selectable'));
@@ -334,6 +334,27 @@ class DropdownList extends HTMLElement {
     this.addEventListener("mouseup", e => {
       this.clicking = false;
     });
+  }
+
+  showOptionsParent() {
+    this.optionsParent.classList.remove("hidden-visually");
+    var size = this.optionsParent.getBoundingClientRect();
+    if (window.innerHeight > size.y + size.height) {
+      return;
+    }
+
+    if (size.y - 18 > window.innerHeight / 2) {
+      this.optionsParent.style.height = Math.min(size.height, size.y - 36) + 'px';
+      this.optionsParent.style.bottom = '36px';
+    } else {
+      this.optionsParent.style.height = Math.min(size.height, window.innerHeight - size.y) + 'px';
+    }
+  }
+
+  hideOptionsParent() {
+    this.optionsParent.classList.add("hidden-visually");
+    this.optionsParent.style.bottom = null;
+    this.optionsParent.style.height = null;
   }
 
   attributeChangedCallback(name, oldValue, newValue) {
@@ -367,7 +388,7 @@ class DropdownList extends HTMLElement {
         var eventListener = e => {
           e.stopPropagation();
           this.selectOption(o);
-          this.optionsParent.classList.add("hidden-visually");
+          this.hideOptionsParent();
         };
         o.addEventListener("click", eventListener);
         this.optionsRemoveListeners.push(() => o.removeEventListener("click", eventListener));
