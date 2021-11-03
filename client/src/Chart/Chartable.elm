@@ -138,24 +138,6 @@ view first last selectedDataSet ( chartableId, model ) =
         canEditColour =
             List.length model.trackables > 1
 
-        options =
-            model.trackableOptions
-                |> List.sortBy (String.toUpper << Tuple.first << Tuple.second)
-                |> List.map
-                    (\( tId, ( question, visible ) ) ->
-                        ( ( tId
-                          , visible
-                                && (not <|
-                                        List.member tId <|
-                                            (model.trackables
-                                                |> List.map Tuple.first
-                                            )
-                                   )
-                          )
-                        , question
-                        )
-                    )
-
         colour =
             if not model.visible then
                 Colour.Gray
@@ -311,7 +293,7 @@ view first last selectedDataSet ( chartableId, model ) =
                                 (TrackableChanged chartableId trackableId)
                                 TrackableId.toString
                                 TrackableId.fromString
-                                (options |> List.map (\( ( tId, visible ), q ) -> ( ( tId, visible || tId == trackableId ), q )))
+                                (model.trackableOptions |> List.map (\( tId, ( q, visible ) ) -> ( ( tId, visible || tId == trackableId ), q )))
                                 Nothing
                                 (Just trackableId)
                                 { showFilled = False }
@@ -326,7 +308,7 @@ view first last selectedDataSet ( chartableId, model ) =
                     )
             )
                 ++ [ div [ class "mt-4 first:mt-0 flex" ]
-                        [ Controls.button "ml-9 flex-grow-0 flex-shrink-0 whitespace-nowrap" Controls.ButtonGrey (TrackableAddClicked chartableId) SolidPlusCircle "Add trackable" (options |> List.any (Tuple.second << Tuple.first)) ]
+                        [ Controls.button "ml-9 flex-grow-0 flex-shrink-0 whitespace-nowrap" Controls.ButtonGrey (TrackableAddClicked chartableId) SolidPlusCircle "Add trackable" (model.trackableOptions |> List.any (Tuple.second << Tuple.second)) ]
                    ]
 
       else

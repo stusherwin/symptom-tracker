@@ -371,6 +371,7 @@ update msg model =
                                             , addState = NotAdding
                                         }
                                    )
+                                |> updateChartableOptions userData_ model.chartId
 
                         ( model__, cmd ) =
                             model_
@@ -987,7 +988,7 @@ view model =
 
                             _ ->
                                 div [ class "px-4 py-2 bg-gray-300 border-t-4 border-gray-400 flex" ]
-                                    [ Controls.button "" Controls.ButtonGrey ChartableAddClicked SolidPlusCircle "Add data" True
+                                    [ Controls.button "" Controls.ButtonGrey ChartableAddClicked SolidPlusCircle "Add data" (model.chartableOptions |> List.any (Tuple.second << Tuple.first))
 
                                     -- , Controls.button "ml-4" Controls.ButtonGrey MoveDataClicked SolidPlusCircle "Move data" True
                                     ]
