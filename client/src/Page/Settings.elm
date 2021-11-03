@@ -3,12 +3,10 @@ module Page.Settings exposing (Model, Msg(..), init, update, view)
 import Array exposing (Array)
 import Browser.Dom as Dom
 import Colour exposing (Colour(..))
-import Control.Button as Button
-import Control.Dropdown as Dropdown
-import Control.Textbox as Textbox
+import Controls
 import Dict
 import Html exposing (..)
-import Html.Attributes exposing (..)
+import Html.Attributes as A exposing (..)
 import Html.Events exposing (onClick, onInput)
 import IdDict exposing (IdDict)
 import Listx
@@ -405,14 +403,14 @@ view { questions, selectedValue } =
                     IdDict.map viewQuestion questions
                )
             ++ [ div [ class "bg-gray-200 border-t-4 border-gray-300 flex" ]
-                    [ Button.view "m-4" Button.Grey QuestionAddClicked SolidPlusCircle "Add a question" True
+                    [ Controls.button "m-4" Controls.ButtonGrey QuestionAddClicked SolidPlusCircle "Add a question" True
                     ]
                ]
 
 
 viewTest : Int -> Html Msg
 viewTest selectedValue =
-    Dropdown.viewText
+    Controls.textDropdown
         "m-4"
         ValueUpdated
         String.fromInt
@@ -466,7 +464,7 @@ viewQuestion id q =
                 AScale ->
                     [ div [ class "mt-6 flex" ]
                         [ span [ class "mr-2 py-1 border-4 border-transparent text-lg font-bold" ] [ text "From" ]
-                        , Dropdown.viewText
+                        , Controls.textDropdown
                             "mr-2 w-20"
                             (ScaleFromUpdated id)
                             String.fromInt
@@ -480,7 +478,7 @@ viewQuestion id q =
                             (Just q.scaleOptions.from)
                             { showFilled = False }
                         , span [ class "mr-2 py-1 border-4 border-transparent text-lg font-bold" ] [ text "to" ]
-                        , Dropdown.viewText
+                        , Controls.textDropdown
                             "w-20"
                             (ScaleToUpdated id)
                             String.fromInt
@@ -509,7 +507,7 @@ viewQuestion id q =
                                 (\i { iconType, canDelete } ->
                                     li [ class "mt-4 mr-2 w-32 flex items-start" ]
                                         [ div [ class "flex flex-col items-center" ] <|
-                                            [ Dropdown.viewIcon "flex-shrink-0 flex-grow-0" (IconUpdated id i) (Just iconType) { showFilled = False }
+                                            [ Controls.iconDropdown "flex-shrink-0 flex-grow-0" (IconUpdated id i) (Just iconType) { showFilled = False }
                                             , div []
                                                 [ span [ class "text-lg text-opacity-70" ] [ text "value " ]
                                                 , span [ class "text-lg text-opacity-70" ] [ text <| String.fromInt i ]
@@ -537,7 +535,7 @@ viewQuestion id q =
                                 Array.toList q.iconOptions
                             )
                                 ++ [ li [ class "mt-4 flex items-start" ]
-                                        [ Button.view "mt-1" Button.Grey (IconAddClicked id) SolidPlusCircle "Add" True
+                                        [ Controls.button "mt-1" Controls.ButtonGrey (IconAddClicked id) SolidPlusCircle "Add" True
                                         ]
                                    ]
                         ]
@@ -548,16 +546,16 @@ viewQuestion id q =
     in
     div [ class "py-6 px-4 border-t-4", Colour.class "bg" q.colour, Colour.classUp "border" q.colour ] <|
         [ div [ class "flex justify-between items-end" ]
-            [ Textbox.view ("q-" ++ Trackable.idToString id) "w-full" q.question (QuestionTextUpdated id) True { showFilled = False }
+            [ Controls.textbox [ class "w-full" ] [ A.id <| "q-" ++ Trackable.idToString id ] q.question True (QuestionTextUpdated id)
             ]
         , div [ class "flex justify-start items-end" ]
-            [ Dropdown.viewText "mt-4 w-48 flex-shrink-0 flex-grow-0" (QuestionAnswerTypeUpdated id) answerTypeToString answerTypeFromString answerTypes (Just q.answerType) { showFilled = False }
-            , Dropdown.viewColour "ml-auto flex-shrink-0 flex-grow-0" (QuestionColourUpdated id) (Just q.colour) { showFilled = False }
+            [ Controls.textDropdown "mt-4 w-48 flex-shrink-0 flex-grow-0" (QuestionAnswerTypeUpdated id) answerTypeToString answerTypeFromString answerTypes (Just q.answerType) { showFilled = False }
+            , Controls.colourDropdown "ml-auto flex-shrink-0 flex-grow-0" (QuestionColourUpdated id) (Just q.colour) { showFilled = False }
             ]
         ]
             ++ viewScaleOptions
             ++ viewIconOptions
-            ++ [ Button.view "mt-6 w-24" Button.Grey (QuestionDeleteClicked id) SolidTrash "Delete" q.canDelete
+            ++ [ Controls.button "mt-6 w-24" Controls.ButtonGrey (QuestionDeleteClicked id) SolidTrash "Delete" q.canDelete
                ]
 
 

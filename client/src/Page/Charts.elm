@@ -2,7 +2,7 @@ module Page.Charts exposing (Model, Msg(..), init, update, view)
 
 import Browser.Dom as Dom
 import Colour
-import Control.Textbox as Textbox
+import Controls
 import Date exposing (Date, Unit(..))
 import Dict exposing (Dict)
 import Dictx
@@ -275,15 +275,15 @@ viewLineChart chartId model =
                                 div [ class "mt-4" ] <|
                                     List.indexedMap
                                         (\i t ->
-                                            div [ class "ml-2 flex" ]
+                                            div [ class "ml-2 mt-2 flex" ]
                                                 [ if i == 0 then
                                                     span [ class "ml-4" ] []
 
                                                   else
                                                     icon "mt-3 w-4 h-4" SolidPlus
                                                 , span [ class "ml-4 py-1 border-t-4 border-b-4 border-transparent text-lg font-bold" ] [ text t.question ]
-                                                , icon "ml-4 mt-3 w-4 h-4" SolidTimes
-                                                , Textbox.textbox [ class "ml-4 w-32" ] [] (String.fromFloat t.multiplier) True (always NoOp)
+                                                , icon "ml-auto mt-4 w-4 h-4" SolidTimes
+                                                , Controls.textbox [ class "ml-4 w-32" ] [] (String.fromFloat t.multiplier) True (always NoOp)
                                                 ]
                                         )
                                     <|

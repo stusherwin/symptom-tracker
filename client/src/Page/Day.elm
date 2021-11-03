@@ -2,10 +2,7 @@ module Page.Day exposing (Model, Msg(..), init, update, view)
 
 import Array exposing (Array)
 import Colour
-import Control.Button as Button
-import Control.Dropdown as Dropdown
-import Control.Textarea as Textarea
-import Control.Textbox as Textbox
+import Controls
 import Date exposing (Date, Unit(..))
 import Dict
 import Html exposing (..)
@@ -341,7 +338,7 @@ viewIconAnswer id options answer =
     let
         iconButton : Int -> IconType -> Html Msg
         iconButton value iconType =
-            Button.viewIcon
+            Controls.iconButton
                 ("mt-4 mr-4 last:mr-0 "
                     ++ (if answer == Just value then
                             "btn-blue"
@@ -381,13 +378,13 @@ viewYesNoAnswer id answer =
 
         yesNoButton : Bool -> Html Msg
         yesNoButton value =
-            Button.view
+            Controls.button
                 "mt-4 mr-2 last:mr-0"
                 (if answer == Just value then
-                    Button.Blue
+                    Controls.ButtonBlue
 
                  else
-                    Button.Grey
+                    Controls.ButtonGrey
                 )
                 (YesNoAnswerClicked id <|
                     if answer == Just value then
@@ -410,7 +407,7 @@ viewScaleAnswerButtons min max id answer =
     let
         scaleButton : Int -> Html Msg
         scaleButton level =
-            Button.viewCircle
+            Controls.circleButton
                 ("mt-4 mr-4 last:mr-0 "
                     ++ (if answer == Just level then
                             "btn-blue"
@@ -434,7 +431,7 @@ viewScaleAnswerButtons min max id answer =
 
 viewScaleAnswerSelect : Int -> Int -> TrackableId -> Maybe Int -> List (Html Msg)
 viewScaleAnswerSelect min max id answer =
-    [ Dropdown.viewText
+    [ Controls.textDropdown
         "mt-4 w-20"
         (ScaleAnswerClicked id)
         String.fromInt
@@ -447,17 +444,17 @@ viewScaleAnswerSelect min max id answer =
 
 viewIntAnswer : TrackableId -> String -> Bool -> List (Html Msg)
 viewIntAnswer id answer isValid =
-    [ Textbox.view "" "mt-4 w-20" answer (IntAnswerUpdated id) isValid { showFilled = True }
+    [ Controls.textbox [ class "mt-4 w-20" ] [] answer isValid (IntAnswerUpdated id)
     ]
 
 
 viewFloatAnswer : TrackableId -> String -> Bool -> List (Html Msg)
 viewFloatAnswer id answer isValid =
-    [ Textbox.view "" "mt-4 w-20" answer (FloatAnswerUpdated id) isValid { showFilled = True }
+    [ Controls.textbox [ class "mt-4 w-20" ] [] answer isValid (FloatAnswerUpdated id)
     ]
 
 
 viewTextAnswer : TrackableId -> String -> List (Html Msg)
 viewTextAnswer id answer =
-    [ Textarea.view "" "mt-4 w-96 h-36" answer (TextAnswerUpdated id) True { showFilled = True }
+    [ Controls.textarea "" "mt-4 w-96 h-36" answer (TextAnswerUpdated id) True { showFilled = True }
     ]
