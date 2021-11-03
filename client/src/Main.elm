@@ -1,17 +1,18 @@
-port module Main exposing (main)
+module Main exposing (main)
 
 import Browser
 import Browser.Navigation as Nav
 import Date exposing (Date, Unit(..))
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import IdDict
 import Json.Decode as Decode
 import Json.Encode as Encode
 import Maybe exposing (Maybe)
+import Page.Chart as ChartPage
 import Page.Charts as ChartsPage
 import Page.Day as DayPage
 import Page.Settings as SettingsPage
+import Ports exposing (setUserData)
 import Svg.Icon exposing (IconType(..), icon, iconSymbols, logo)
 import Task
 import Throttle exposing (Throttle)
@@ -19,6 +20,7 @@ import Time exposing (Month(..))
 import Url exposing (Url)
 import Url.Parser as Parser exposing ((</>), Parser, oneOf, s, top)
 import UserData exposing (UserData)
+import UserData.LineChartId exposing (LineChartId(..))
 
 
 
@@ -45,7 +47,8 @@ type Route
     = Today
     | Day Date
     | Settings
-    | Graph
+    | Charts
+    | Chart LineChartId
 
 
 monthParser : Parser (Month -> a) a
@@ -59,7 +62,8 @@ routeParser =
         [ Parser.map Today top
         , Parser.map Day (Parser.map Date.fromCalendarDate (Parser.s "day" </> Parser.int </> monthParser </> Parser.int))
         , Parser.map Settings (Parser.s "settings")
-        , Parser.map Graph (Parser.s "graph")
+        , Parser.map Charts (Parser.s "charts")
+        , Parser.map Chart (Parser.s "charts" </> Parser.map LineChartId Parser.int)
         ]
 
 
@@ -75,12 +79,24 @@ routeToPage today userData route =
         Just Settings ->
             ( SettingsPage <| SettingsPage.init userData, Cmd.none )
 
-        Just Graph ->
+        Just Charts ->
             let
                 ( model, cmd ) =
                     ChartsPage.init today userData
             in
             ( ChartsPage model, Cmd.map ChartsPageMsg cmd )
+
+        Just (Chart chartId) ->
+            case userData |> UserData.getLineChart chartId of
+                Just chart ->
+                    let
+                        ( model, cmd ) =
+                            ChartPage.init today userData chartId chart
+                    in
+                    ( ChartPage model, Cmd.map ChartPageMsg cmd )
+
+                _ ->
+                    ( NotFoundPage, Cmd.none )
 
         _ ->
             ( NotFoundPage, Cmd.none )
@@ -107,6 +123,7 @@ type Page
     = DayPage DayPage.Model
     | SettingsPage SettingsPage.Model
     | ChartsPage ChartsPage.Model
+    | ChartPage ChartPage.Model
     | NotFoundPage
 
 
@@ -128,10 +145,7 @@ init flags url key =
 
 
 
--- PORTS
-
-
-port setUserData : Encode.Value -> Cmd msg
+-- SUBSCRIPTIONS
 
 
 subscriptions : Model -> Sub Msg
@@ -143,6 +157,9 @@ subscriptions model =
         , case model.pageState of
             Loaded _ _ (ChartsPage page) ->
                 Sub.map ChartsPageMsg (ChartsPage.subscriptions page)
+
+            Loaded _ _ (ChartPage page) ->
+                Sub.map ChartPageMsg (ChartPage.subscriptions page)
 
             _ ->
                 Sub.none
@@ -159,6 +176,7 @@ type Msg
     | LinkClicked Browser.UrlRequest
     | DayPageMsg DayPage.Msg
     | ChartsPageMsg ChartsPage.Msg
+    | ChartPageMsg ChartPage.Msg
     | SettingsPageMsg SettingsPage.Msg
     | UpdateThrottle
 
@@ -251,6 +269,21 @@ update msg model =
                 _ ->
                     ( model, Cmd.none )
 
+        ChartPageMsg (ChartPage.UserDataUpdated userData_) ->
+            updateUserData userData_
+
+        ChartPageMsg chartPageMsg ->
+            case model.pageState of
+                Loaded today userData (ChartPage chartPageModel) ->
+                    let
+                        ( newModel, cmd ) =
+                            ChartPage.update chartPageMsg chartPageModel
+                    in
+                    ( { model | pageState = Loaded today userData (ChartPage newModel) }, Cmd.map ChartPageMsg cmd )
+
+                _ ->
+                    ( model, Cmd.none )
+
         SettingsPageMsg (SettingsPage.UserDataUpdated userData_) ->
             updateUserData userData_
 
@@ -307,6 +340,9 @@ view model =
                                     ChartsPage graphModel ->
                                         Html.map ChartsPageMsg <| ChartsPage.view graphModel
 
+                                    ChartPage graphModel ->
+                                        Html.map ChartPageMsg <| ChartPage.view graphModel
+
                                     NotFoundPage ->
                                         viewNotFoundPage
                                 ]
@@ -324,7 +360,7 @@ viewMenu pageState =
         , h1 [ class "ml-2 text-xl font-bold text-center" ] [ text "Symptrack" ]
         , div [ class "mx-auto" ] []
         , a [ href "/", class "mr-2 rounded p-2 bg-gray-700 hover:bg-gray-600 text-white" ] [ icon "w-5 h-5" SolidCalendarAlt ]
-        , a [ href "/graph", class "mr-2 rounded p-2 bg-gray-700 hover:bg-gray-600 text-white" ] [ icon "w-5 h-5" SolidChartLine ]
+        , a [ href "/charts", class "mr-2 rounded p-2 bg-gray-700 hover:bg-gray-600 text-white" ] [ icon "w-5 h-5" SolidChartLine ]
         , a [ href "/settings", class "rounded p-2 bg-gray-700 hover:bg-gray-600 text-white" ] [ icon "w-5 h-5" SolidCog ]
         ]
 

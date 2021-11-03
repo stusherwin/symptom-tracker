@@ -424,11 +424,11 @@ viewLineGraph svgId class m =
                                 Date.add Days n startDate
                         in
                         if n == xSteps then
-                            [ axisLine [ f_ x1 <| minX + toFloat n * xStep + 1, fh_ y1 yDiv.min, f_ x2 <| minX + toFloat n * xStep + 1, fh_ y2 <| yDiv.min - v.longDash ] ]
+                            [ axisLine [ f_ x1 <| minX + toFloat n * xStep - 0.5, fh_ y1 yDiv.min, f_ x2 <| minX + toFloat n * xStep - 0.5, fh_ y2 <| yDiv.min - v.longDash ] ]
 
                         else if xStep < 0.65 then
                             if n == 0 then
-                                axisLine [ f_ x1 <| minX + toFloat n * xStep + 1, fh_ y1 yDiv.min, f_ x2 <| minX + toFloat n * xStep + 1, fh_ y2 <| yDiv.min - v.longDash ]
+                                axisLine [ f_ x1 <| minX + toFloat n * xStep + 0.5, fh_ y1 yDiv.min, f_ x2 <| minX + toFloat n * xStep + 0.5, fh_ y2 <| yDiv.min - v.longDash ]
                                     :: (if Date.day date > 24 then
                                             []
 
@@ -438,7 +438,7 @@ viewLineGraph svgId class m =
 
                             else if (xSteps <= 7 || modBy 7 n == 0) && Date.day date < 8 then
                                 if Date.month date == Jan then
-                                    axisLine [ f_ x1 <| minX + toFloat n * xStep + 1, fh_ y1 yDiv.min, f_ x2 <| minX + toFloat n * xStep + 1, fh_ y2 <| yDiv.min - v.longDash ]
+                                    axisLine [ f_ x1 <| minX + toFloat n * xStep, fh_ y1 yDiv.min, f_ x2 <| minX + toFloat n * xStep, fh_ y2 <| yDiv.min - v.longDash ]
                                         :: (if n > xSteps - 8 then
                                                 []
 
@@ -455,7 +455,7 @@ viewLineGraph svgId class m =
 
                         else if xStep < 2 then
                             if n == 0 then
-                                axisLine [ f_ x1 <| minX + toFloat n * xStep + 1, fh_ y1 yDiv.min, f_ x2 <| minX + toFloat n * xStep + 1, fh_ y2 <| yDiv.min - v.longDash ]
+                                axisLine [ f_ x1 <| minX + toFloat n * xStep + 0.5, fh_ y1 yDiv.min, f_ x2 <| minX + toFloat n * xStep + 0.5, fh_ y2 <| yDiv.min - v.longDash ]
                                     :: (if Date.day date > 24 then
                                             []
 
@@ -465,7 +465,7 @@ viewLineGraph svgId class m =
 
                             else if xSteps <= 7 || modBy 7 n == 0 then
                                 if Date.day date < 8 then
-                                    axisLine [ f_ x1 <| minX + toFloat n * xStep + 1, fh_ y1 yDiv.min, f_ x2 <| minX + toFloat n * xStep + 1, fh_ y2 <| yDiv.min - v.longDash ]
+                                    axisLine [ f_ x1 <| minX + toFloat n * xStep, fh_ y1 yDiv.min, f_ x2 <| minX + toFloat n * xStep, fh_ y2 <| yDiv.min - v.longDash ]
                                         :: (if n > xSteps - 8 then
                                                 []
 
@@ -492,7 +492,7 @@ viewLineGraph svgId class m =
 
                         else if xStep < 6 then
                             if n == 0 then
-                                axisLine [ f_ x1 <| minX + toFloat n * xStep + 1, fh_ y1 yDiv.min, f_ x2 <| minX + toFloat n * xStep + 1, fh_ y2 <| yDiv.min - v.longDash ]
+                                axisLine [ f_ x1 <| minX + toFloat n * xStep + 0.5, fh_ y1 yDiv.min, f_ x2 <| minX + toFloat n * xStep + 0.5, fh_ y2 <| yDiv.min - v.longDash ]
                                     :: (if xStep < 5 && Date.day date > 24 then
                                             []
 
@@ -502,7 +502,7 @@ viewLineGraph svgId class m =
 
                             else if xSteps <= 7 || modBy 7 n == 0 then
                                 if Date.day date < 8 then
-                                    axisLine [ f_ x1 <| minX + toFloat n * xStep + 1, fh_ y1 yDiv.min, f_ x2 <| minX + toFloat n * xStep + 1, fh_ y2 <| yDiv.min - v.longDash ]
+                                    axisLine [ f_ x1 <| minX + toFloat n * xStep, fh_ y1 yDiv.min, f_ x2 <| minX + toFloat n * xStep, fh_ y2 <| yDiv.min - v.longDash ]
                                         :: (if xStep < 5 && n > xSteps - 8 then
                                                 []
 
@@ -518,7 +518,7 @@ viewLineGraph svgId class m =
                                 []
 
                         else if n == 0 then
-                            [ axisLine [ f_ x1 <| minX + toFloat n * xStep + 1, fh_ y1 yDiv.min, f_ x2 <| minX + toFloat n * xStep + 1, fh_ y2 <| yDiv.min - v.longDash ]
+                            [ axisLine [ f_ x1 <| minX + toFloat n * xStep + 0.5, fh_ y1 yDiv.min, f_ x2 <| minX + toFloat n * xStep + 0.5, fh_ y2 <| yDiv.min - v.longDash ]
                             , text_ [ f_ x <| minX + toFloat n * xStep, fh_ y <| yDiv.min - v.longDash - 5.0, fontSize "10px", dominantBaseline "hanging", textAnchor "start" ] [ text <| Date.format "d MMM" date ]
                             ]
 
