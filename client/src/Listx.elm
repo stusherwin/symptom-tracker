@@ -49,3 +49,59 @@ concatMaybes list =
 
         _ ->
             []
+
+
+lookup : id -> List ( id, a ) -> Maybe a
+lookup id list =
+    case list of
+        [] ->
+            Nothing
+
+        ( xId, x ) :: xs ->
+            if xId == id then
+                Just x
+
+            else
+                lookup id xs
+
+
+updateLookup : id -> (a -> a) -> List ( id, a ) -> List ( id, a )
+updateLookup id fn list =
+    case list of
+        [] ->
+            []
+
+        ( xId, x ) :: xs ->
+            if xId == id then
+                ( xId, fn x ) :: xs
+
+            else
+                ( xId, x ) :: updateLookup id fn xs
+
+
+replaceLookup : id -> a -> List ( id, a ) -> List ( id, a )
+replaceLookup id newX list =
+    case list of
+        [] ->
+            []
+
+        ( xId, x ) :: xs ->
+            if xId == id then
+                ( xId, newX ) :: xs
+
+            else
+                ( xId, x ) :: replaceLookup id newX xs
+
+
+updateLookupWithKey : id -> (( id, a ) -> ( id, a )) -> List ( id, a ) -> List ( id, a )
+updateLookupWithKey id fn list =
+    case list of
+        [] ->
+            []
+
+        ( xId, x ) :: xs ->
+            if xId == id then
+                fn ( xId, x ) :: xs
+
+            else
+                ( xId, x ) :: updateLookupWithKey id fn xs

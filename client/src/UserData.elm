@@ -1,4 +1,4 @@
-module UserData exposing (UserData, chartables, decode, encode, init, lineCharts, trackables, tryAddTrackable, tryDeleteTrackable, tryUpdateTrackable, updateChartable, updateLineChart)
+module UserData exposing (UserData, chartables, decode, encode, init, insertChartable, lineCharts, trackables, tryAddTrackable, tryDeleteTrackable, tryUpdateTrackable, updateChartable, updateLineChart)
 
 import Array
 import Colour exposing (Colour(..))
@@ -209,6 +209,11 @@ tryDeleteTrackable id (UserData data) =
 updateChartable : ChartableId -> (Chartable -> Chartable) -> UserData -> UserData
 updateChartable id fn (UserData data) =
     UserData { data | chartables = data.chartables |> IdDict.update id fn }
+
+
+insertChartable : ChartableId -> Chartable -> UserData -> UserData
+insertChartable id chartable (UserData data) =
+    UserData { data | chartables = data.chartables |> IdDict.insert id chartable }
 
 
 updateLineChart : LineChartId -> (LineChart -> LineChart) -> UserData -> UserData
