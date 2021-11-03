@@ -499,30 +499,49 @@ viewLineGraph svgId class m =
                         in
                         if (xSteps <= 7 || modBy 7 n == 0) && Date.day date < 8 then
                             if Date.month date == Jan then
-                                [ graySolidLine [ f_ x1 <| minX + toFloat n * xStep, fh_ y1 minY, f_ x2 <| minX + toFloat n * xStep, fh_ y2 maxY ] ]
+                                [ grayDottedLine [ f_ x1 <| minX + toFloat n * xStep, fh_ y1 minY, f_ x2 <| minX + toFloat n * xStep, fh_ y2 maxY ] ]
 
                             else
-                                [ grayDottedLine [ f_ x1 <| minX + toFloat n * xStep, fh_ y1 minY, f_ x2 <| minX + toFloat n * xStep, fh_ y2 maxY ] ]
+                                []
+                            -- grayDottedLine [ f_ x1 <| minX + toFloat n * xStep, fh_ y1 minY, f_ x2 <| minX + toFloat n * xStep, fh_ y2 maxY ] ]
 
                         else
                             []
 
                     else if xStep < 6 then
-                        if xSteps <= 7 || modBy 7 n == 0 then
+                        if xSteps <= 7 then
+                            []
+
+                        else if modBy 7 n == 0 then
                             if Date.day (Date.add Days n startDate) < 8 then
-                                [ graySolidLine [ f_ x1 <| minX + toFloat n * xStep, fh_ y1 minY, f_ x2 <| minX + toFloat n * xStep, fh_ y2 maxY ] ]
+                                -- let daysTillNextMonth
+                                [ grayDottedLine [ f_ x1 <| minX + toFloat n * xStep, fh_ y1 minY, f_ x2 <| minX + toFloat n * xStep, fh_ y2 maxY ] ]
 
                             else
-                                [ grayDottedLine [ f_ x1 <| minX + toFloat n * xStep, fh_ y1 minY, f_ x2 <| minX + toFloat n * xStep, fh_ y2 maxY ] ]
+                                []
+                            -- grayDottedLine [ f_ x1 <| minX + toFloat n * xStep, fh_ y1 minY, f_ x2 <| minX + toFloat n * xStep, fh_ y2 maxY ] ]
 
                         else
                             []
 
-                    else if xSteps <= 7 || modBy 7 n == 0 then
-                        [ graySolidLine [ f_ x1 <| minX + toFloat n * xStep, fh_ y1 minY, f_ x2 <| minX + toFloat n * xStep, fh_ y2 maxY ] ]
+                    else if xSteps <= 7 then
+                        []
+
+                    else if modBy 14 n == 0 then
+                        [ rect
+                            [ fillColour_ LighterGray
+                            , f_ x <| minX + toFloat n * xStep
+                            , fh_ y maxY
+                            , f_ width <| 7 * xStep
+                            , f_ height (maxY - minY)
+                            ]
+                            []
+                        ]
+                        -- grayDottedLine [ f_ x1 <| minX + toFloat n * xStep, fh_ y1 minY, f_ x2 <| minX + toFloat n * xStep, fh_ y2 maxY ] ]
 
                     else
-                        [ grayDottedLine [ f_ x1 <| minX + toFloat n * xStep, fh_ y1 minY, f_ x2 <| minX + toFloat n * xStep, fh_ y2 maxY ] ]
+                        []
+                 -- grayDottedLine [ f_ x1 <| minX + toFloat n * xStep, fh_ y1 minY, f_ x2 <| minX + toFloat n * xStep, fh_ y2 maxY ] ]
                 )
                 (List.range 0 xSteps)
 
@@ -540,8 +559,9 @@ viewLineGraph svgId class m =
                 , f_ height (maxY - minY)
                 ]
                 []
-                :: xLines
-                ++ yLines
+                :: --xLines
+                   --++
+                   yLines
 
         axes =
             xAxis
@@ -821,12 +841,12 @@ highlightLine attrs =
 
 grayDottedLine : List (S.Attribute msg) -> S.Svg msg
 grayDottedLine attrs =
-    line ([ strokeColour_ LightGray, strokeWidth_ 1, strokeLinecap "square", strokeDasharray "4" ] ++ attrs) []
+    line ([ strokeColour_ LightGray, strokeWidth_ 1, strokeLinecap "square" ] ++ attrs) []
 
 
 graySolidLine : List (S.Attribute msg) -> S.Svg msg
 graySolidLine attrs =
-    line ([ strokeColour_ LightGray, strokeWidth_ 1, strokeLinecap "square" ] ++ attrs) []
+    line ([ strokeColour_ MidGray, strokeWidth_ 1, strokeLinecap "square" ] ++ attrs) []
 
 
 strokeColour_ : Colour -> S.Attribute msg

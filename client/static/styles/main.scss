@@ -1053,7 +1053,7 @@ body {
 }
 
 .stop-gray{
-  stop-color: #6b7280;
+  stop-color: #9ca3af;
 }
 
 .stop-lightGray{
@@ -1126,4 +1126,14 @@ body {
 
 .stop-rose{
   stop-color: #f43f5e;
+}
+
+.fill-icon path {
+  stroke-opacity: 0.7;
+  fill-opacity: 0.15;
+}
+
+.fill-icon:hover path {
+  stroke-opacity: 1;
+  fill-opacity: 0.2;
 }

@@ -10,8 +10,10 @@ type Colour
     = Black
     | White
     | Gray
+    | MidGray
     | LightGray
     | LighterGray
+    | LightestGray
     | Red
     | Orange
     | Amber
@@ -43,11 +45,17 @@ toString colour =
         Gray ->
             "gray"
 
+        MidGray ->
+            "midGray"
+
         LightGray ->
             "lightGray"
 
         LighterGray ->
             "lighterGray"
+
+        LightestGray ->
+            "lightestGray"
 
         Red ->
             "red"
@@ -142,11 +150,17 @@ fromString str =
         "gray" ->
             Just Gray
 
+        "midGray" ->
+            Just MidGray
+
         "lightGray" ->
             Just LightGray
 
         "lighterGray" ->
             Just LighterGray
+
+        "lightestGray" ->
+            Just LightestGray
 
         "red" ->
             Just Red
@@ -208,8 +222,10 @@ all =
     [ Black
     , White
     , Gray
+    , MidGray
     , LightGray
     , LighterGray
+    , LightestGray
     , Red
     , Orange
     , Amber
@@ -265,11 +281,17 @@ class prefix colour =
                     White ->
                         "white"
 
+                    MidGray ->
+                        "gray-300"
+
                     LightGray ->
                         "gray-200"
 
                     LighterGray ->
                         "gray-100"
+
+                    LightestGray ->
+                        "gray-50"
 
                     _ ->
                         toString colour ++ "-300"
@@ -288,11 +310,17 @@ classUp prefix colour =
                     White ->
                         "gray-50"
 
+                    MidGray ->
+                        "gray-400"
+
                     LightGray ->
                         "gray-300"
 
                     LighterGray ->
                         "gray-200"
+
+                    LightestGray ->
+                        "gray-100"
 
                     _ ->
                         toString colour ++ "-400"
@@ -311,11 +339,17 @@ classDown prefix colour =
                     White ->
                         "white"
 
+                    MidGray ->
+                        "gray-200"
+
                     LightGray ->
                         "gray-100"
 
                     LighterGray ->
                         "gray-50"
+
+                    LightestGray ->
+                        "white"
 
                     _ ->
                         toString colour ++ "-200"

@@ -15,7 +15,7 @@ import Listx
 import Maybe exposing (Maybe)
 import Stringx
 import Svg.Graph as Graph exposing (Msg, viewJustYAxis, viewLineGraph)
-import Svg.Icon exposing (IconType(..), icon)
+import Svg.Icon exposing (IconType(..), fillIcon, icon)
 import Task
 import Time exposing (Month(..))
 import UserData exposing (UserData)
@@ -1038,6 +1038,11 @@ viewLineChart fullScreen chartableOptions trackableOptions userData ( chartId, m
                         ]
                         [ icon "w-5 h-5" <| SolidMinus
                         ]
+                    , button
+                        [ class "mt-2 rounded bg-white bg-opacity-50 p-2 text-black text-opacity-70 focus:outline-none hover:bg-opacity-80 fill-icon"
+                        , Htmlx.onClickStopPropagation (ChartFillLinesChecked chartId <| not model.fillLines)
+                        ]
+                        [ fillIcon "w-5 h-5" model.fillLines ]
                     ]
                  ]
                     ++ (case model.selectedDataSet |> Maybe.andThen (\id -> Listx.findBy Tuple.first id chartableOptions) of
@@ -1193,18 +1198,7 @@ viewLineChart fullScreen chartableOptions trackableOptions userData ( chartId, m
                        )
                 )
             ]
-        , div [ class "m-4 mt-4 flex flex-wrap justify-end" ]
-            [ label [ class "text-right whitespace-nowrap", for "fill-lines" ] [ text "Colour under curves" ]
-            , input
-                [ type_ "checkbox"
-                , id "fill-lines"
-                , class "ml-2"
-                , onCheck (ChartFillLinesChecked chartId)
-                , checked model.fillLines
-                ]
-                []
-            ]
-        , div [ class "mt-4 bg-gray-200" ] <|
+        , div [ class "mt-8 bg-gray-200" ] <|
             (model.data |> List.concatMap viewChartable)
                 ++ [ case model.addState of
                         AddingChartable addingChartableId ->
