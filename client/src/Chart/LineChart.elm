@@ -105,7 +105,7 @@ init today userData chartId chart =
                 "chart" ++ LineChartId.toString chartId ++ "-scrollable"
           in
           Dom.getViewportOf elementId
-            |> Task.andThen (\info -> Dom.setViewportOf elementId (Debug.log "info" info).scene.width 0)
+            |> Task.andThen (\info -> Dom.setViewportOf elementId info.scene.width 0)
             |> Task.andThen (\_ -> Dom.getViewportOf elementId)
             |> Task.attempt ViewportUpdated
         ]
@@ -206,7 +206,7 @@ update msg model =
 
         ViewportUpdated (Ok scrollable) ->
             ( model
-                |> (\c -> { c | viewport = Just <| Debug.log "scrollable" scrollable })
+                |> (\c -> { c | viewport = Just scrollable })
             , Dom.getElement ("chart" ++ LineChartId.toString model.chartId ++ "-svg")
                 |> Task.attempt ElementUpdated
             )
@@ -352,7 +352,7 @@ updateDataSetColour userData chartableId model =
             model
 
 
-addDataSet : UserData -> ChartableId -> Model -> Model
+addDataSet : UserData -> ChartableId -> Model -> ( Model, Cmd Msg )
 addDataSet userData chartableId model =
     let
         graph =
@@ -360,7 +360,7 @@ addDataSet userData chartableId model =
     in
     case ( toDataSet userData chartableId True, userData |> UserData.getChartable chartableId ) of
         ( Just ( _, dataSet ), Just chartable ) ->
-            { model
+            ( { model
                 | graph = { graph | data = graph.data |> Listx.insertLookup chartableId dataSet }
                 , chartables =
                     model.chartables
@@ -374,22 +374,28 @@ addDataSet userData chartableId model =
                                             userData |> UserData.getTrackable tId |> Maybe.map (\t -> ( t.question, Trackable.onlyFloatData t, m ))
                                         )
                             }
-            }
+              }
+            , Dom.getViewportOf ("chart" ++ LineChartId.toString model.chartId ++ "-scrollable")
+                |> Task.attempt ViewportUpdated
+            )
 
         _ ->
-            model
+            ( model, Cmd.none )
 
 
-removeDataSet : ChartableId -> Model -> Model
+removeDataSet : ChartableId -> Model -> ( Model, Cmd Msg )
 removeDataSet chartableId model =
     let
         graph =
             model.graph
     in
-    { model
+    ( { model
         | graph = { graph | data = graph.data |> List.filter (\( cId, _ ) -> cId /= chartableId) }
         , chartables = model.chartables |> List.filter (\( cId, _ ) -> cId /= chartableId)
-    }
+      }
+    , Dom.getViewportOf ("chart" ++ LineChartId.toString model.chartId ++ "-scrollable")
+        |> Task.attempt ViewportUpdated
+    )
 
 
 moveDataSetBack : ChartableId -> Model -> Model
@@ -439,7 +445,7 @@ view model =
                     ]
                     [ Html.map GraphMsg <| viewLineGraph ("chart" ++ LineChartId.toString model.chartId ++ "-svg") "h-full" model.graph ]
                 , if List.isEmpty model.chartables then
-                    div [ class "absolute inset-0 flex justify-center items-center" ] [ span [ class "mb-6" ] [ text "No data to display" ] ]
+                    div [ class "absolute inset-0 flex justify-center items-center" ] [ span [ class "mb-6" ] [ text "No data added yet" ] ]
 
                   else
                     div [] []

@@ -103,6 +103,7 @@ view first last selectedChartable ( chartableId, model ) =
 
         options =
             model.trackableOptions
+                |> List.sortBy (String.toUpper << Tuple.first << Tuple.second)
                 |> List.map
                     (\( tId, ( question, visible ) ) ->
                         ( ( tId

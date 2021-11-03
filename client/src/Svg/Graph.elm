@@ -576,7 +576,7 @@ viewLineGraph svgId class m =
                  , strokeLinecap "round"
                  , strokeLinejoin "round"
                  , fillGradient_ <|
-                    case ( m.fillLines, (m.selectedDataSet == Nothing && m.hoveredDataSet == Nothing) || m.selectedDataSet == Just id || m.hoveredDataSet == Just id ) of
+                    case ( m.fillLines, featuredDataSet == Nothing || featuredDataSet == Just id ) of
                         ( True, True ) ->
                             Normal dataSet.colour
 
@@ -589,7 +589,7 @@ viewLineGraph svgId class m =
                         ( False, False ) ->
                             Transparent Colour.Gray
                  , filter_ <|
-                    if (m.selectedDataSet == Nothing && m.hoveredDataSet == Nothing) || m.selectedDataSet == Just id || m.hoveredDataSet == Just id then
+                    if featuredDataSet == Nothing || featuredDataSet == Just id then
                         NoFilter
 
                     else
@@ -613,7 +613,7 @@ viewLineGraph svgId class m =
         dataLineBacking ( id, dataSet ) =
             [ S.path
                 ([ strokeColour_ <|
-                    if (m.selectedDataSet == Nothing && m.hoveredDataSet == Nothing) || m.selectedDataSet == Just id || m.hoveredDataSet == Just id then
+                    if featuredDataSet == Nothing || featuredDataSet == Just id then
                         dataSet.colour
 
                     else
@@ -623,7 +623,7 @@ viewLineGraph svgId class m =
                  , strokeLinecap "round"
                  , strokeLinejoin "round"
                  , filter_ <|
-                    if (m.selectedDataSet == Nothing && m.hoveredDataSet == Nothing) || m.selectedDataSet == Just id || m.hoveredDataSet == Just id then
+                    if featuredDataSet == Nothing || featuredDataSet == Just id then
                         NoFilter
 
                     else
@@ -652,7 +652,7 @@ viewLineGraph svgId class m =
             in
             S.path
                 ([ strokeColour_ <|
-                    if (m.selectedDataSet == Nothing && m.hoveredDataSet == Nothing) || m.selectedDataSet == Just id || m.hoveredDataSet == Just id then
+                    if featuredDataSet == Nothing || featuredDataSet == Just id then
                         dataSet.colour
 
                     else
@@ -661,7 +661,7 @@ viewLineGraph svgId class m =
                  , strokeLinecap "round"
                  , strokeLinejoin "round"
                  , filter_ <|
-                    if (m.selectedDataSet == Nothing && m.hoveredDataSet == Nothing) || m.selectedDataSet == Just id || m.hoveredDataSet == Just id then
+                    if featuredDataSet == Nothing || featuredDataSet == Just id then
                         NoFilter
 
                     else
@@ -699,16 +699,23 @@ viewLineGraph svgId class m =
                         []
                    )
 
-        highlightedDataPoint =
-            let
-                featuredDataPoint =
-                    case m.selectedDataPoint of
-                        Just id ->
-                            Just id
+        featuredDataPoint =
+            case m.selectedDataPoint of
+                Just id ->
+                    Just id
 
-                        Nothing ->
-                            m.hoveredDataPoint
-            in
+                Nothing ->
+                    m.hoveredDataPoint
+
+        featuredDataSet =
+            case m.selectedDataSet of
+                Just id ->
+                    Just id
+
+                Nothing ->
+                    m.hoveredDataSet
+
+        highlightedDataPoint =
             case ( m.selectedDataSet, featuredDataPoint ) of
                 ( Just id, Just date ) ->
                     case m.data |> Listx.lookup id |> Maybe.andThen (.dataPoints >> Dict.get date) of

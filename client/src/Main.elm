@@ -47,8 +47,7 @@ type Route
     = Today
     | Day Date
     | Settings
-    | Charts
-    | Chart LineChartId
+    | Charts (Maybe LineChartId)
 
 
 monthParser : Parser (Month -> a) a
@@ -62,13 +61,13 @@ routeParser =
         [ Parser.map Today top
         , Parser.map Day (Parser.map Date.fromCalendarDate (Parser.s "day" </> Parser.int </> monthParser </> Parser.int))
         , Parser.map Settings (Parser.s "settings")
-        , Parser.map Charts (Parser.s "charts")
-        , Parser.map Chart (Parser.s "charts" </> Parser.map LineChartId Parser.int)
+        , Parser.map Charts (Parser.s "charts" </> Parser.map (Just << LineChartId) Parser.int)
+        , Parser.map (Charts Nothing) (Parser.s "charts")
         ]
 
 
-routeToPage : Date -> UserData -> Maybe Route -> ( Page, Cmd Msg )
-routeToPage today userData route =
+routeToPage : Date -> UserData -> Maybe Route -> Nav.Key -> ( Page, Cmd Msg )
+routeToPage today userData route navKey =
     case route of
         Just Today ->
             ( DayPage <| DayPage.init today today userData, Cmd.none )
@@ -79,25 +78,23 @@ routeToPage today userData route =
         Just Settings ->
             ( SettingsPage <| SettingsPage.init userData, Cmd.none )
 
-        Just Charts ->
+        Just (Charts chartId) ->
             let
                 ( model, cmd ) =
-                    ChartsPage.init today userData
+                    ChartsPage.init today userData navKey chartId
             in
             ( ChartsPage model, Cmd.map ChartsPageMsg cmd )
 
-        Just (Chart chartId) ->
-            case userData |> UserData.getLineChart chartId of
-                Just chart ->
-                    let
-                        ( model, cmd ) =
-                            ChartPage.init today userData chartId chart
-                    in
-                    ( ChartPage model, Cmd.map ChartPageMsg cmd )
-
-                _ ->
-                    ( NotFoundPage, Cmd.none )
-
+        -- Just (Chart chartId) ->
+        --     case userData |> UserData.getLineChart chartId of
+        --         Just chart ->
+        --             let
+        --                 ( model, cmd ) =
+        --                     ChartPage.init today userData chartId chart
+        --             in
+        --             ( ChartPage model, Cmd.map ChartPageMsg cmd )
+        --         _ ->
+        --             ( NotFoundPage, Cmd.none )
         _ ->
             ( NotFoundPage, Cmd.none )
 
@@ -123,7 +120,7 @@ type Page
     = DayPage DayPage.Model
     | SettingsPage SettingsPage.Model
     | ChartsPage ChartsPage.Model
-    | ChartPage ChartPage.Model
+      -- | ChartPage ChartPage.Model
     | NotFoundPage
 
 
@@ -158,9 +155,8 @@ subscriptions model =
             Loaded _ _ (ChartsPage page) ->
                 Sub.map ChartsPageMsg (ChartsPage.subscriptions page)
 
-            Loaded _ _ (ChartPage page) ->
-                Sub.map ChartPageMsg (ChartPage.subscriptions page)
-
+            -- Loaded _ _ (ChartPage page) ->
+            --     Sub.map ChartPageMsg (ChartPage.subscriptions page)
             _ ->
                 Sub.none
         ]
@@ -176,7 +172,7 @@ type Msg
     | LinkClicked Browser.UrlRequest
     | DayPageMsg DayPage.Msg
     | ChartsPageMsg ChartsPage.Msg
-    | ChartPageMsg ChartPage.Msg
+      -- | ChartPageMsg ChartPage.Msg
     | SettingsPageMsg SettingsPage.Msg
     | UpdateThrottle
 
@@ -217,12 +213,21 @@ update msg model =
                 Error err ->
                     ( { model | pageState = Error err }, Cmd.none )
 
-                Loaded today userData _ ->
-                    let
-                        ( page, cmd ) =
-                            routeToPage today userData route
-                    in
-                    ( { model | pageState = Loaded today userData page }, cmd )
+                Loaded today userData pageState ->
+                    case ( pageState, route ) of
+                        ( ChartsPage chartsPageModel, Just (Charts chartId) ) ->
+                            let
+                                ( page, cmd ) =
+                                    ChartsPage.urlChanged chartId chartsPageModel
+                            in
+                            ( { model | pageState = Loaded today userData (ChartsPage page) }, Cmd.map ChartsPageMsg cmd )
+
+                        _ ->
+                            let
+                                ( page, cmd ) =
+                                    routeToPage today userData route model.navKey
+                            in
+                            ( { model | pageState = Loaded today userData page }, cmd )
 
         GotCurrentDate today ->
             case model.pageState of
@@ -232,7 +237,7 @@ update msg model =
                 Loading route _ (Just userData) ->
                     let
                         ( page, cmd ) =
-                            routeToPage today userData route
+                            routeToPage today userData route model.navKey
                     in
                     ( { model | pageState = Loaded today userData page }, cmd )
 
@@ -269,21 +274,18 @@ update msg model =
                 _ ->
                     ( model, Cmd.none )
 
-        ChartPageMsg (ChartPage.UserDataUpdated userData_) ->
-            updateUserData userData_
-
-        ChartPageMsg chartPageMsg ->
-            case model.pageState of
-                Loaded today userData (ChartPage chartPageModel) ->
-                    let
-                        ( newModel, cmd ) =
-                            ChartPage.update chartPageMsg chartPageModel
-                    in
-                    ( { model | pageState = Loaded today userData (ChartPage newModel) }, Cmd.map ChartPageMsg cmd )
-
-                _ ->
-                    ( model, Cmd.none )
-
+        -- ChartPageMsg (ChartPage.UserDataUpdated userData_) ->
+        --     updateUserData userData_
+        -- ChartPageMsg chartPageMsg ->
+        --     case model.pageState of
+        --         Loaded today userData (ChartPage chartPageModel) ->
+        --             let
+        --                 ( newModel, cmd ) =
+        --                     ChartPage.update chartPageMsg chartPageModel
+        --             in
+        --             ( { model | pageState = Loaded today userData (ChartPage newModel) }, Cmd.map ChartPageMsg cmd )
+        --         _ ->
+        --             ( model, Cmd.none )
         SettingsPageMsg (SettingsPage.UserDataUpdated userData_) ->
             updateUserData userData_
 
@@ -340,9 +342,8 @@ view model =
                                     ChartsPage graphModel ->
                                         Html.map ChartsPageMsg <| ChartsPage.view graphModel
 
-                                    ChartPage graphModel ->
-                                        Html.map ChartPageMsg <| ChartPage.view graphModel
-
+                                    -- ChartPage graphModel ->
+                                    --     Html.map ChartPageMsg <| ChartPage.view graphModel
                                     NotFoundPage ->
                                         viewNotFoundPage
                                 ]
