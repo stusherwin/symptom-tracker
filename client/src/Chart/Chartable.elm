@@ -18,7 +18,7 @@ import Time exposing (Month(..))
 import UserData exposing (UserData)
 import UserData.Chartable as Chartable exposing (Chartable)
 import UserData.ChartableId as ChartableId exposing (ChartableId)
-import UserData.Trackable as Trackable exposing (Trackable, TrackableData(..))
+import UserData.Trackable as Trackable exposing (TrackableData(..))
 import UserData.TrackableId as TrackableId exposing (TrackableId)
 
 
@@ -173,22 +173,10 @@ update userData msg model =
                     ( model, Cmd.none )
 
         TrackableMultiplierUpdated trackableId stringValue ->
-            let
-                multiplierM =
-                    String.toFloat stringValue
-                        |> Maybe.andThen
-                            (\v ->
-                                if v > 0 then
-                                    Just v
-
-                                else
-                                    Nothing
-                            )
-            in
             ( { model
                 | trackables =
                     model.trackables
-                        |> Listx.updateLookup trackableId (\t -> { t | multiplier = stringValue, isValid = multiplierM /= Nothing })
+                        |> Listx.updateLookup trackableId (\t -> { t | multiplier = stringValue, isValid = Trackable.parseMultiplier stringValue /= Nothing })
               }
             , Cmd.none
             )
@@ -220,13 +208,9 @@ update userData msg model =
             ( model, Cmd.none )
 
 
-view : { canMoveUp : Bool, canMoveDown : Bool, isSelected : Bool, isAnySelected : Bool } -> Model -> List (Html Msg)
-view { canMoveUp, canMoveDown, isSelected, isAnySelected } model =
+view : { canMoveUp : Bool, canMoveDown : Bool, isSelected : Bool } -> Model -> List (Html Msg)
+view { canMoveUp, canMoveDown, isSelected } model =
     let
-        -- canMoveUp =
-        --     first /= Just (ChartableId model.chartableId)
-        -- canMoveDown =
-        --     last /= Just (ChartableId model.chartableId)
         canEditColour =
             List.length model.trackables > 1
 
@@ -250,7 +234,7 @@ view { canMoveUp, canMoveDown, isSelected, isAnySelected } model =
         , onMouseEnter <| ChartableHovered True
         , onMouseLeave <| ChartableHovered False
         ]
-        [ if not isSelected {- selectedDataSet /= Just (ChartableId chartableId) -} then
+        [ if not isSelected then
             div
                 [ class "p-4 flex items-center"
                 ]
@@ -371,7 +355,7 @@ view { canMoveUp, canMoveDown, isSelected, isAnySelected } model =
                     [ icon "w-5 h-5" <| SolidTimes ]
                 ]
         ]
-    , if isSelected {- selectedDataSet == Just (ChartableId chartableId) -} then
+    , if isSelected then
         div
             [ class "p-4"
             , Colour.classDown "bg" colour

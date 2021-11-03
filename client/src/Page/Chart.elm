@@ -21,7 +21,7 @@ import UserData.Chartable as Chartable exposing (Chartable)
 import UserData.ChartableId as ChartableId exposing (ChartableId)
 import UserData.LineChart as LineChart exposing (LineChart, LineChartData(..))
 import UserData.LineChartId as LineChartId exposing (LineChartId)
-import UserData.Trackable exposing (TrackableData(..))
+import UserData.Trackable as Trackable exposing (TrackableData(..))
 import UserData.TrackableId as TrackableId exposing (TrackableId)
 
 
@@ -398,19 +398,8 @@ update msg model =
 
                         Chart.Chartable.TrackableMultiplierUpdated trackableId stringValue ->
                             let
-                                multiplierM =
-                                    String.toFloat stringValue
-                                        |> Maybe.andThen
-                                            (\v ->
-                                                if v > 0 then
-                                                    Just v
-
-                                                else
-                                                    Nothing
-                                            )
-
                                 userData_ =
-                                    case multiplierM of
+                                    case Trackable.parseMultiplier stringValue of
                                         Just multiplier ->
                                             model.userData |> UserData.updateChartable chartableId (Chartable.setMultiplier trackableId multiplier)
 
@@ -532,15 +521,7 @@ update msg model =
                         Chart.Trackable.TrackableMultiplierUpdated stringValue ->
                             let
                                 multiplierM =
-                                    String.toFloat stringValue
-                                        |> Maybe.andThen
-                                            (\v ->
-                                                if v > 0 then
-                                                    Just v
-
-                                                else
-                                                    Nothing
-                                            )
+                                    Trackable.parseMultiplier stringValue
 
                                 userData_ =
                                     case multiplierM of
@@ -829,7 +810,6 @@ view model =
                                         { canMoveUp = i > 0
                                         , canMoveDown = i < dataCount - 1
                                         , isSelected = model.chart.graph.selectedDataSet == Just (ChartableId cId)
-                                        , isAnySelected = model.chart.graph.selectedDataSet /= Nothing
                                         }
                                         c
                                         |> List.map (Html.map (ChartableMsg i))
@@ -839,7 +819,6 @@ view model =
                                         { canMoveUp = i > 0
                                         , canMoveDown = i < dataCount - 1
                                         , isSelected = model.chart.graph.selectedDataSet == Just (TrackableId tId)
-                                        , isAnySelected = model.chart.graph.selectedDataSet /= Nothing
                                         }
                                         ( tId, t )
                                         |> List.map (Html.map (TrackableMsg i))

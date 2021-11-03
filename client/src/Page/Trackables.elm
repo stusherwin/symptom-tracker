@@ -675,11 +675,6 @@ viewTrackable editState first last ( id, q ) =
 
             else
                 q.colour
-
-        -- if not q.isVisible || editState /= NotEditing then
-        --     Colour.Gray
-        -- else
-        --     q.colour
     in
     if editState /= EditingTrackable id then
         div []

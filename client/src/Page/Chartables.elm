@@ -229,19 +229,8 @@ update msg model =
 
                         Chart.Chartable.TrackableMultiplierUpdated trackableId stringValue ->
                             let
-                                multiplierM =
-                                    String.toFloat stringValue
-                                        |> Maybe.andThen
-                                            (\v ->
-                                                if v > 0 then
-                                                    Just v
-
-                                                else
-                                                    Nothing
-                                            )
-
                                 userData_ =
-                                    case multiplierM of
+                                    case Trackable.parseMultiplier stringValue of
                                         Just multiplier ->
                                             model.userData |> UserData.updateChartable chartableId (Chartable.setMultiplier trackableId multiplier)
 
@@ -303,7 +292,7 @@ view { chartables, editState } =
             (chartables
                 |> List.indexedMap
                     (\i ( cId, c ) ->
-                        Chart.Chartable.view { canMoveUp = i > 0, canMoveDown = i < List.length chartables - 1, isSelected = editState == EditingChartable cId, isAnySelected = editState /= NotEditing } c
+                        Chart.Chartable.view { canMoveUp = i > 0, canMoveDown = i < List.length chartables - 1, isSelected = editState == EditingChartable cId } c
                             |> List.map (Html.map <| ChartableMsg i)
                     )
                 |> List.concat

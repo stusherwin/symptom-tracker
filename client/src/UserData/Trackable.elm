@@ -1,4 +1,4 @@
-module UserData.Trackable exposing (Trackable, TrackableData(..), TrackableDict, addIcon, convertToFloat, convertToIcon, convertToInt, convertToScale, convertToText, convertToYesNo, decode, deleteIcon, encode, hasData, maybeFloatData, onlyFloatData, setColour, setQuestion, textData, updateFloatData, updateIcon, updateIconData, updateIntData, updateScaleData, updateScaleFrom, updateScaleTo, updateTextData, updateYesNoData)
+module UserData.Trackable exposing (Trackable, TrackableData(..), TrackableDict, addIcon, convertToFloat, convertToIcon, convertToInt, convertToScale, convertToText, convertToYesNo, decode, deleteIcon, encode, hasData, maybeFloatData, onlyFloatData, parseMultiplier, setColour, setQuestion, textData, updateFloatData, updateIcon, updateIconData, updateIntData, updateScaleData, updateScaleFrom, updateScaleTo, updateTextData, updateYesNoData)
 
 import Array exposing (Array)
 import Colour exposing (Colour(..))
@@ -8,6 +8,7 @@ import Dictx
 import IdDict exposing (IdDict(..))
 import Json.Decode as D
 import Json.Encode as E
+import String
 import Svg.Icon as Icon exposing (IconType(..))
 import Time exposing (Month(..))
 import UserData.TrackableId exposing (TrackableId)
@@ -422,6 +423,19 @@ convertToFloat t =
 convertToText : Trackable -> Result String Trackable
 convertToText t =
     Ok { t | data = TText (textData t) }
+
+
+parseMultiplier : String -> Maybe Float
+parseMultiplier stringValue =
+    String.toFloat stringValue
+        |> Maybe.andThen
+            (\v ->
+                if v > 0 then
+                    Just v
+
+                else
+                    Nothing
+            )
 
 
 toString : TrackableData -> String

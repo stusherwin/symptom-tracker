@@ -1,6 +1,5 @@
 module Chart.Trackable exposing (Model, Msg(..), init, update, view)
 
-import Browser.Dom as Dom
 import Chart.LineChart as Chart exposing (DataSetId(..))
 import Colour exposing (Colour)
 import Controls
@@ -12,12 +11,8 @@ import Htmlx
 import Maybe exposing (Maybe)
 import Stringx
 import Svg.Icon exposing (IconType(..), icon)
-import Task
 import Time exposing (Month(..))
 import UserData exposing (UserData)
-import UserData.Chartable as Chartable exposing (Chartable)
-import UserData.ChartableId as ChartableId exposing (ChartableId)
-import UserData.LineChart as LineChart exposing (TrackableData)
 import UserData.Trackable as Trackable exposing (Trackable, TrackableData(..))
 import UserData.TrackableId as TrackableId exposing (TrackableId)
 
@@ -82,19 +77,7 @@ update userData optionsM msg model =
             )
 
         TrackableMultiplierUpdated stringValue ->
-            let
-                multiplierM =
-                    String.toFloat stringValue
-                        |> Maybe.andThen
-                            (\v ->
-                                if v > 0 then
-                                    Just v
-
-                                else
-                                    Nothing
-                            )
-            in
-            ( { model | multiplier = stringValue, isValid = multiplierM /= Nothing }
+            ( { model | multiplier = stringValue, isValid = Trackable.parseMultiplier stringValue /= Nothing }
             , Cmd.none
             )
 
@@ -112,13 +95,9 @@ update userData optionsM msg model =
             ( model, Cmd.none )
 
 
-view : { canMoveUp : Bool, canMoveDown : Bool, isSelected : Bool, isAnySelected : Bool } -> ( TrackableId, Model ) -> List (Html Msg)
-view { canMoveUp, canMoveDown, isSelected, isAnySelected } ( trackableId, model ) =
+view : { canMoveUp : Bool, canMoveDown : Bool, isSelected : Bool } -> ( TrackableId, Model ) -> List (Html Msg)
+view { canMoveUp, canMoveDown, isSelected } ( trackableId, model ) =
     let
-        -- canMoveUp =
-        --     first /= Just (TrackableId trackableId)
-        -- canMoveDown =
-        --     last /= Just (TrackableId trackableId)
         colour =
             if not model.visible then
                 Colour.Gray
@@ -133,7 +112,7 @@ view { canMoveUp, canMoveDown, isSelected, isAnySelected } ( trackableId, model 
         , onMouseEnter <| TrackableHovered True
         , onMouseLeave <| TrackableHovered False
         ]
-        [ if not isSelected {- selectedDataSet /= Just (TrackableId trackableId) -} then
+        [ if not isSelected then
             div
                 [ class "p-4 flex items-center"
                 ]
@@ -237,7 +216,7 @@ view { canMoveUp, canMoveDown, isSelected, isAnySelected } ( trackableId, model 
                     [ icon "w-5 h-5" <| SolidTimes ]
                 ]
         ]
-    , if isSelected {- selectedDataSet == Just (TrackableId trackableId) -} then
+    , if isSelected then
         div
             [ class "p-4"
             , Colour.classDown "bg" colour
@@ -253,10 +232,6 @@ view { canMoveUp, canMoveDown, isSelected, isAnySelected } ( trackableId, model 
                     Nothing
                     (Just trackableId)
                     { showFilled = False }
-
-                -- , span [ class "ml-4 mt-2 w-full font-bold" ]
-                --     [ text <| Stringx.withDefault "[no question]" model.question
-                --     ]
                 , icon "mt-3 ml-4 w-4 h-4 flex-grow-0 flex-shrink-0" SolidTimes
                 , Controls.textbox [ class "ml-4 w-20 flex-grow-0 flex-shrink-0" ] [] model.multiplier { isValid = model.isValid, isRequired = True, isPristine = False } TrackableMultiplierUpdated
                 ]
