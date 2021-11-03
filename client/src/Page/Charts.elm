@@ -18,7 +18,7 @@ import Svg.Graph as Graph exposing (Msg, viewJustYAxis, viewLineGraph)
 import Svg.Icon exposing (IconType(..), icon)
 import Task
 import Time exposing (Month(..))
-import UserData exposing (UserData, chartables)
+import UserData exposing (UserData)
 import UserData.Chartable as Chartable exposing (Chartable, ChartableDict, ChartableId)
 import UserData.LineChart as LineChart exposing (LineChart, LineChartId)
 import UserData.Trackable as Trackable exposing (TrackableData(..), TrackableDict, TrackableId)
@@ -26,9 +26,15 @@ import UserData.Trackable as Trackable exposing (TrackableData(..), TrackableDic
 
 type alias Model =
     { today : Date
-    , charts : List ( LineChartId, Graph.Model ChartableId ChartableModel )
+    , charts : List ( LineChartId, Graph.Model LineChartModel ChartableId ChartableModel )
     , userData : UserData
     , trackableOptions : List ( TrackableId, String )
+    , chartableOptions : List ( ChartableId, String )
+    }
+
+
+type alias LineChartModel =
+    { addingChartable : Maybe ChartableId
     }
 
 
@@ -56,6 +62,10 @@ init today userData =
             UserData.trackables userData
                 |> IdDict.toList
                 |> (List.map <| Tuple.mapSecond .question)
+      , chartableOptions =
+            UserData.chartables userData
+                |> IdDict.toList
+                |> (List.map <| Tuple.mapSecond .name)
       , userData = userData
       }
     , Cmd.batch <|
@@ -75,29 +85,37 @@ init today userData =
     )
 
 
-toChartModel : Date -> ChartableDict -> TrackableDict -> LineChart -> Graph.Model ChartableId ChartableModel
+toChartModel : Date -> ChartableDict -> TrackableDict -> LineChart -> Graph.Model LineChartModel ChartableId ChartableModel
 toChartModel today chartables trackables chart =
     { today = today
     , fillLines = chart.fillLines
     , showPoints = chart.showPoints
     , data =
-        chartables
-            |> IdDict.filter (\id _ -> List.member id <| IdDict.keys chart.chartables)
-            |> (IdDict.map <|
-                    \id chartable ->
-                        { name = chartable.name
-                        , colour = toColour trackables chartable
-                        , dataPoints = toDataPoints trackables chartable
-                        , inverted = chartable.inverted
-                        , trackables = chartable.sum |> List.filterMap (toTrackableModel trackables)
-                        , visible = Maybe.withDefault False <| Maybe.map .visible <| IdDict.get id chart.chartables
-                        }
-               )
+        chart.chartables
+            |> IdDict.map (toChartableModel chartables trackables)
+            |> IdDict.concatMaybes
     , dataOrder = chart.chartableOrder
     , selectedDataSet = Nothing
     , hoveredDataSet = Nothing
     , selectedDataPoint = Nothing
+    , addingChartable = Nothing
     }
+
+
+toChartableModel : ChartableDict -> TrackableDict -> ChartableId -> { visible : Bool } -> Maybe (Graph.DataSet ChartableModel)
+toChartableModel chartables trackables chartableId { visible } =
+    chartables
+        |> IdDict.get chartableId
+        |> Maybe.map
+            (\chartable ->
+                { name = chartable.name
+                , colour = toColour trackables chartable
+                , dataPoints = toDataPoints trackables chartable
+                , inverted = chartable.inverted
+                , trackables = chartable.sum |> List.filterMap (toTrackableModel trackables)
+                , visible = visible
+                }
+            )
 
 
 toTrackableModel : TrackableDict -> ( TrackableId, Float ) -> Maybe ( TrackableId, TrackableModel )
@@ -161,16 +179,20 @@ type Msg
     = NoOp
     | FillLinesChecked LineChartId Bool
     | ShowPointsChecked LineChartId Bool
-    | DataSetHovered LineChartId (Maybe ChartableId)
-    | DataSetClicked LineChartId ChartableId
-    | DataSetVisibleClicked LineChartId ChartableId
-    | DataSetBringForwardClicked LineChartId ChartableId
-    | DataSetPushBackClicked LineChartId ChartableId
-    | ChartableChanged LineChartId Int (Maybe ChartableId)
+    | ChartableHovered LineChartId (Maybe ChartableId)
+    | ChartableEditClicked LineChartId ChartableId
+    | ChartableCloseClicked LineChartId ChartableId
+    | ChartableVisibleClicked LineChartId ChartableId
+    | ChartableUpClicked LineChartId ChartableId
+    | ChartableDownClicked LineChartId ChartableId
+    | ChartableChanged LineChartId ChartableId (Maybe ChartableId)
     | ChartableNameUpdated LineChartId ChartableId String
-    | ChartableAddClicked LineChartId
-    | ChartableDeleteClicked LineChartId ChartableId
     | ChartableInvertedChanged LineChartId ChartableId Bool
+    | ChartableAddClicked LineChartId
+    | ChartableToAddChanged LineChartId (Maybe ChartableId)
+    | ChartableAddConfirmClicked LineChartId
+    | ChartableAddCancelClicked LineChartId
+    | ChartableDeleteClicked LineChartId ChartableId
     | TrackableChanged LineChartId ChartableId TrackableId (Maybe TrackableId)
     | TrackableMultiplierUpdated LineChartId ChartableId TrackableId String
     | TrackableAddClicked LineChartId ChartableId
@@ -184,14 +206,14 @@ update msg model =
         trackables =
             UserData.trackables model.userData
 
+        chartables =
+            UserData.chartables model.userData
+
         updateChartModel chartId fn m =
             { m | charts = m.charts |> Listx.updateLookup chartId fn }
 
         updateChartableModel chartableId fn c =
             { c | data = c.data |> IdDict.update chartableId fn }
-
-        updateTrackableModel i fn c =
-            { c | trackables = c.trackables |> Dict.update i (Maybe.map fn) }
 
         updateUserData fn m =
             { m | userData = m.userData |> fn }
@@ -203,20 +225,23 @@ update msg model =
         ShowPointsChecked chartId sp ->
             ( model |> (updateChartModel chartId <| \c -> { c | showPoints = sp }), Cmd.none )
 
-        DataSetHovered chartId chartableId ->
+        ChartableHovered chartId chartableId ->
             ( model |> (updateChartModel chartId <| Graph.hoverDataSet chartableId), Cmd.none )
 
-        DataSetClicked chartId chartableId ->
+        ChartableEditClicked chartId chartableId ->
             ( model |> (updateChartModel chartId <| Graph.toggleDataSetSelected chartableId), Cmd.none )
 
-        DataSetVisibleClicked chartId chartableId ->
+        ChartableCloseClicked chartId chartableId ->
+            ( model |> (updateChartModel chartId <| Graph.toggleDataSetSelected chartableId), Cmd.none )
+
+        ChartableVisibleClicked chartId chartableId ->
             ( model |> (updateChartModel chartId <| Graph.toggleDataSet chartableId), Cmd.none )
 
-        DataSetBringForwardClicked chartId chartableId ->
-            ( model |> (updateChartModel chartId <| \c -> { c | dataOrder = c.dataOrder |> Listx.moveTailwards chartableId }), Cmd.none )
-
-        DataSetPushBackClicked chartId chartableId ->
+        ChartableUpClicked chartId chartableId ->
             ( model |> (updateChartModel chartId <| \c -> { c | dataOrder = c.dataOrder |> Listx.moveHeadwards chartableId }), Cmd.none )
+
+        ChartableDownClicked chartId chartableId ->
+            ( model |> (updateChartModel chartId <| \c -> { c | dataOrder = c.dataOrder |> Listx.moveTailwards chartableId }), Cmd.none )
 
         ChartableNameUpdated chartId chartableId name ->
             ( model
@@ -260,6 +285,96 @@ update msg model =
 
                 _ ->
                     ( model, Cmd.none )
+
+        ChartableAddClicked chartId ->
+            ( model
+                |> (updateChartModel chartId <|
+                        \c ->
+                            { c
+                                | addingChartable =
+                                    model.chartableOptions
+                                        |> List.map Tuple.first
+                                        |> List.filter (\tId -> not (List.member tId <| IdDict.keys c.data))
+                                        |> List.head
+                            }
+                   )
+            , Cmd.none
+            )
+
+        ChartableToAddChanged chartId (Just chartableId) ->
+            ( model
+                |> (updateChartModel chartId <|
+                        \c ->
+                            { c
+                                | addingChartable = Just chartableId
+                            }
+                   )
+            , Cmd.none
+            )
+
+        ChartableAddConfirmClicked chartId ->
+            let
+                chartableIdM =
+                    model.charts |> Listx.lookup chartId |> Maybe.andThen .addingChartable
+
+                newChartableModelM =
+                    chartableIdM |> Maybe.andThen (\chartableId -> toChartableModel chartables trackables chartableId { visible = True })
+            in
+            case ( chartableIdM, newChartableModelM ) of
+                ( Just chartableId, Just newChartableModel ) ->
+                    ( model
+                        |> (updateUserData <|
+                                UserData.updateLineChart chartId <|
+                                    \c ->
+                                        { c
+                                            | chartables = c.chartables |> IdDict.insert chartableId { visible = True }
+                                            , chartableOrder = chartableId :: c.chartableOrder
+                                        }
+                           )
+                        |> (updateChartModel chartId <|
+                                \c ->
+                                    { c
+                                        | data = c.data |> IdDict.insert chartableId newChartableModel
+                                        , dataOrder = chartableId :: c.dataOrder
+                                        , addingChartable = Nothing
+                                    }
+                           )
+                    , Cmd.none
+                    )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        ChartableAddCancelClicked chartId ->
+            ( model
+                |> (updateChartModel chartId <|
+                        \c ->
+                            { c
+                                | addingChartable = Nothing
+                            }
+                   )
+            , Cmd.none
+            )
+
+        ChartableDeleteClicked chartId chartableId ->
+            ( model
+                |> (updateUserData <|
+                        UserData.updateLineChart chartId <|
+                            \c ->
+                                { c
+                                    | chartables = c.chartables |> IdDict.delete chartableId
+                                    , chartableOrder = c.chartableOrder |> List.filter (\cId -> cId /= chartableId)
+                                }
+                   )
+                |> (updateChartModel chartId <|
+                        \c ->
+                            { c
+                                | data = c.data |> IdDict.delete chartableId
+                                , dataOrder = c.dataOrder |> List.filter (\cId -> cId /= chartableId)
+                            }
+                   )
+            , Cmd.none
+            )
 
         TrackableChanged chartId chartableId trackableId (Just newTrackableId) ->
             let
@@ -408,26 +523,6 @@ update msg model =
                 _ ->
                     ( model, Cmd.none )
 
-        ChartableDeleteClicked chartId chartableId ->
-            ( model
-                |> (updateUserData <|
-                        UserData.updateLineChart chartId <|
-                            \c ->
-                                { c
-                                    | chartables = c.chartables |> IdDict.delete chartableId
-                                    , chartableOrder = c.chartableOrder |> List.filter (\cId -> cId /= chartableId)
-                                }
-                   )
-                |> (updateChartModel chartId <|
-                        \c ->
-                            { c
-                                | data = c.data |> IdDict.delete chartableId
-                                , dataOrder = c.dataOrder |> List.filter (\cId -> cId /= chartableId)
-                            }
-                   )
-            , Cmd.none
-            )
-
         GraphMsg chartId graphMsg ->
             ( model |> (updateChartModel chartId <| Graph.update graphMsg), Cmd.none )
 
@@ -446,12 +541,12 @@ view model =
             [ text "Charts" ]
         ]
             ++ (model.charts
-                    |> List.map (viewLineChart model.trackableOptions)
+                    |> List.map (viewLineChart model.chartableOptions model.trackableOptions)
                )
 
 
-viewLineChart : List ( TrackableId, String ) -> ( LineChartId, Graph.Model ChartableId ChartableModel ) -> Html Msg
-viewLineChart trackableOptions ( chartId, model ) =
+viewLineChart : List ( ChartableId, String ) -> List ( TrackableId, String ) -> ( LineChartId, Graph.Model LineChartModel ChartableId ChartableModel ) -> Html Msg
+viewLineChart chartableOptions trackableOptions ( chartId, model ) =
     let
         viewChartables =
             model.dataOrder
@@ -462,10 +557,10 @@ viewLineChart trackableOptions ( chartId, model ) =
                 |> List.map
                     (\( chartableId, dataSet ) ->
                         let
-                            canPushBack =
+                            canMoveUp =
                                 List.head model.dataOrder /= Just chartableId
 
-                            canBringForward =
+                            canMoveDown =
                                 (List.head << List.reverse) model.dataOrder /= Just chartableId
                         in
                         [ div
@@ -475,8 +570,8 @@ viewLineChart trackableOptions ( chartId, model ) =
                             , classList
                                 [ ( "bg-opacity-50", not dataSet.visible )
                                 ]
-                            , onMouseEnter <| DataSetHovered chartId (Just chartableId)
-                            , onMouseLeave <| DataSetHovered chartId Nothing
+                            , onMouseEnter <| ChartableHovered chartId (Just chartableId)
+                            , onMouseLeave <| ChartableHovered chartId Nothing
                             ]
                             [ if model.selectedDataSet /= Just chartableId then
                                 div
@@ -488,7 +583,7 @@ viewLineChart trackableOptions ( chartId, model ) =
                                             [ ( "text-opacity-30 hover:text-opacity-50 focus:text-opacity-50", not dataSet.visible )
                                             , ( "text-opacity-70 hover:text-opacity-100 focus:text-opacity-100", dataSet.visible )
                                             ]
-                                        , Htmlx.onClickStopPropagation <| DataSetVisibleClicked chartId chartableId
+                                        , Htmlx.onClickStopPropagation <| ChartableVisibleClicked chartId chartableId
                                         ]
                                         [ icon "w-5 h-5" <|
                                             if dataSet.visible then
@@ -508,22 +603,22 @@ viewLineChart trackableOptions ( chartId, model ) =
                                     , button
                                         [ class "ml-auto flex-grow-0 flex-shrink-0 text-black focus:outline-none"
                                         , classList
-                                            [ ( "text-opacity-0 cursor-default", not canPushBack )
-                                            , ( "text-opacity-70 hover:text-opacity-100 focus:text-opacity-100", canPushBack )
+                                            [ ( "text-opacity-0 cursor-default", not canMoveUp )
+                                            , ( "text-opacity-70 hover:text-opacity-100 focus:text-opacity-100", canMoveUp )
                                             ]
-                                        , Htmlx.onClickStopPropagation <| DataSetPushBackClicked chartId chartableId
-                                        , disabled (not canPushBack)
+                                        , Htmlx.onClickStopPropagation <| ChartableUpClicked chartId chartableId
+                                        , disabled (not canMoveUp)
                                         ]
                                         [ icon "w-5 h-5" <| SolidArrowUp
                                         ]
                                     , button
                                         [ class "ml-1 flex-grow-0 flex-shrink-0 text-black focus:outline-none"
                                         , classList
-                                            [ ( "text-opacity-0 cursor-default", not canBringForward )
-                                            , ( "text-opacity-70 hover:text-opacity-100 focus:text-opacity-100", canBringForward )
+                                            [ ( "text-opacity-0 cursor-default", not canMoveDown )
+                                            , ( "text-opacity-70 hover:text-opacity-100 focus:text-opacity-100", canMoveDown )
                                             ]
-                                        , Htmlx.onClickStopPropagation <| DataSetBringForwardClicked chartId chartableId
-                                        , disabled (not canBringForward)
+                                        , Htmlx.onClickStopPropagation <| ChartableDownClicked chartId chartableId
+                                        , disabled (not canMoveDown)
                                         ]
                                         [ icon "w-5 h-5" <| SolidArrowDown
                                         ]
@@ -534,7 +629,7 @@ viewLineChart trackableOptions ( chartId, model ) =
                                         [ icon "w-5 h-5" <| SolidTrashAlt ]
                                     , button
                                         [ class "ml-4 rounded text-black text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
-                                        , onClick (DataSetClicked chartId chartableId)
+                                        , onClick (ChartableEditClicked chartId chartableId)
                                         ]
                                         [ icon "w-5 h-5" <| SolidPencilAlt ]
                                     ]
@@ -549,7 +644,7 @@ viewLineChart trackableOptions ( chartId, model ) =
                                             [ ( "text-opacity-30 hover:text-opacity-50 focus:text-opacity-50", not dataSet.visible )
                                             , ( "text-opacity-70 hover:text-opacity-100 focus:text-opacity-100", dataSet.visible )
                                             ]
-                                        , Htmlx.onClickStopPropagation <| DataSetVisibleClicked chartId chartableId
+                                        , Htmlx.onClickStopPropagation <| ChartableVisibleClicked chartId chartableId
                                         ]
                                         [ icon "w-5 h-5" <|
                                             if dataSet.visible then
@@ -570,7 +665,7 @@ viewLineChart trackableOptions ( chartId, model ) =
                                         []
                                     , button
                                         [ class "ml-4 rounded text-black text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
-                                        , onClick (DataSetClicked chartId chartableId)
+                                        , onClick (ChartableCloseClicked chartId chartableId)
                                         ]
                                         [ icon "w-5 h-5" <| SolidTimes ]
                                     ]
@@ -663,9 +758,33 @@ viewLineChart trackableOptions ( chartId, model ) =
             ]
         , div [ class "mt-4 bg-gray-200" ] <|
             List.concat viewChartables
-                ++ [ div [ class "bg-gray-300 border-t-4 border-gray-400 flex" ]
-                        [ Controls.button "m-4" Controls.ButtonGrey (ChartableAddClicked chartId) SolidPlusCircle "Add chartable" True
-                        ]
+                ++ [ div [ class "p-4 bg-gray-300 border-t-4 border-gray-400 flex" ] <|
+                        if model.addingChartable == Nothing then
+                            [ Controls.button "" Controls.ButtonGrey (ChartableAddClicked chartId) SolidPlusCircle "Add chartable" True
+                            ]
+
+                        else
+                            [ Controls.textDropdown "w-full h-10"
+                                (ChartableToAddChanged chartId)
+                                Chartable.idToString
+                                Chartable.idFromString
+                                (chartableOptions
+                                    |> List.map
+                                        (\( cId, name ) ->
+                                            ( ( cId
+                                              , not <|
+                                                    List.member cId <|
+                                                        model.dataOrder
+                                              )
+                                            , name
+                                            )
+                                        )
+                                )
+                                model.addingChartable
+                                { showFilled = False }
+                            , Controls.button "ml-4" Controls.ButtonGrey (ChartableAddConfirmClicked chartId) SolidPlusCircle "Add" True
+                            , Controls.button "ml-2" Controls.ButtonGrey (ChartableAddCancelClicked chartId) SolidTimesCircle "Cancel" True
+                            ]
                    ]
         ]
 

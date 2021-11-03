@@ -17,20 +17,21 @@ type Msg dataSetId
     | DataLineClicked dataSetId
 
 
-type alias Model dataSetId a =
-    { today : Date
-    , data : IdDict dataSetId (DataSet a)
-    , selectedDataPoint : Maybe ( dataSetId, Int )
-    , fillLines : Bool
-    , showPoints : Bool
-    , selectedDataSet : Maybe dataSetId
-    , hoveredDataSet : Maybe dataSetId
-    , dataOrder : List dataSetId
+type alias Model m dataSetId dataSet =
+    { m
+        | today : Date
+        , data : IdDict dataSetId (DataSet dataSet)
+        , selectedDataPoint : Maybe ( dataSetId, Int )
+        , fillLines : Bool
+        , showPoints : Bool
+        , selectedDataSet : Maybe dataSetId
+        , hoveredDataSet : Maybe dataSetId
+        , dataOrder : List dataSetId
     }
 
 
-type alias DataSet a =
-    { a
+type alias DataSet dataSet =
+    { dataSet
         | name : String
         , colour : Colour
         , dataPoints : Dict Int Float
@@ -42,7 +43,7 @@ type alias DataSet a =
 -- UPDATE
 
 
-update : Msg dataSetId -> Model dataSetId a -> Model dataSetId a
+update : Msg dataSetId -> Model m dataSetId dataSet -> Model m dataSetId dataSet
 update msg model =
     case msg of
         DataPointHovered (Just ( id, d )) ->
@@ -61,7 +62,7 @@ update msg model =
             toggleDataSetSelected id model
 
 
-toggleDataSetSelected : dataSetId -> Model dataSetId a -> Model dataSetId a
+toggleDataSetSelected : dataSetId -> Model m dataSetId dataSet -> Model m dataSetId dataSet
 toggleDataSetSelected targetId model =
     let
         newSelectedDataSet =
@@ -82,22 +83,22 @@ toggleDataSetSelected targetId model =
     }
 
 
-selectDataPoint : Maybe ( dataSetId, Int ) -> Model dataSetId a -> Model dataSetId a
+selectDataPoint : Maybe ( dataSetId, Int ) -> Model m dataSetId dataSet -> Model m dataSetId dataSet
 selectDataPoint p model =
     { model | selectedDataPoint = p }
 
 
-selectDataSet : Maybe dataSetId -> Model dataSetId a -> Model dataSetId a
+selectDataSet : Maybe dataSetId -> Model m dataSetId dataSet -> Model m dataSetId dataSet
 selectDataSet id model =
     { model | selectedDataSet = id }
 
 
-hoverDataSet : Maybe dataSetId -> Model dataSetId a -> Model dataSetId a
+hoverDataSet : Maybe dataSetId -> Model m dataSetId dataSet -> Model m dataSetId dataSet
 hoverDataSet id model =
     { model | hoveredDataSet = id }
 
 
-toggleDataSet : dataSetId -> Model dataSetId a -> Model dataSetId a
+toggleDataSet : dataSetId -> Model m dataSetId dataSet -> Model m dataSetId dataSet
 toggleDataSet id model =
     case IdDict.get id model.data of
         Just ds ->
@@ -146,7 +147,7 @@ v =
     }
 
 
-viewJustYAxis : String -> Model dataSetId a -> Svg msg
+viewJustYAxis : String -> Model m dataSetId dataSet -> Svg msg
 viewJustYAxis class { data } =
     let
         maxValue =
@@ -174,7 +175,7 @@ viewJustYAxis class { data } =
                 (List.range 0 5)
 
 
-viewLineGraph : String -> Model dataSetId a -> Svg (Msg dataSetId)
+viewLineGraph : String -> Model m dataSetId dataSet -> Svg (Msg dataSetId)
 viewLineGraph class { data, today, selectedDataPoint, selectedDataSet, hoveredDataSet, fillLines, showPoints, dataOrder } =
     let
         startDate =
@@ -246,7 +247,7 @@ viewLineGraph class { data, today, selectedDataPoint, selectedDataSet, hoveredDa
                 :: xAxis
                 ++ yAxis
 
-        dataLine : dataSetId -> DataSet a -> List (Svg (Msg dataSetId))
+        dataLine : dataSetId -> DataSet dataSet -> List (Svg (Msg dataSetId))
         dataLine id dataSet =
             let
                 plotPoints : List PlotPoint
@@ -367,7 +368,7 @@ viewKey class colour =
         ]
 
 
-findStartDate : Date -> IdDict dataSetId (DataSet a) -> Date
+findStartDate : Date -> IdDict dataSetId (DataSet dataSet) -> Date
 findStartDate today data =
     let
         minDate =
@@ -385,7 +386,7 @@ findStartDate today data =
     Date.add Weeks -fullWeeks today
 
 
-findMaxValue : IdDict dataSetId (DataSet a) -> Float
+findMaxValue : IdDict dataSetId (DataSet dataSet) -> Float
 findMaxValue =
     Maybe.withDefault 0
         << List.maximum
@@ -393,7 +394,7 @@ findMaxValue =
         << IdDict.values
 
 
-concatMaybes : List (Maybe a) -> List a
+concatMaybes : List (Maybe dataSet) -> List dataSet
 concatMaybes maybeXs =
     case maybeXs of
         (Just x) :: xs ->

@@ -1,4 +1,4 @@
-module UserData.Chartable exposing (Chartable, ChartableDict, ChartableId(..), decode, decodeDict, decodeId, decodeIdDict, encode, encodeDict, encodeId, encodeIdDict, fromList, idFromString, idToString, toDict)
+module UserData.Chartable exposing (Chartable, ChartableDict, ChartableId(..), decode, decodeDict, decodeId, decodeIdDict, decodeList, encode, encodeDict, encodeId, encodeIdDict, encodeList, fromList, idFromString, idToString, toDict)
 
 import Colour exposing (Colour)
 import Dict
@@ -67,9 +67,28 @@ decodeDict =
     IdDict.decode dictProps decode
 
 
+decodeList : D.Decoder (List ( ChartableId, Chartable ))
+decodeList =
+    D.list <|
+        D.map2 Tuple.pair
+            (D.field "id" decodeId)
+            (D.field "value" decode)
+
+
 encodeDict : ChartableDict -> E.Value
 encodeDict =
     IdDict.encode encode
+
+
+encodeList : List ( ChartableId, Chartable ) -> E.Value
+encodeList =
+    E.list
+        (\( id, entity ) ->
+            E.object
+                [ ( "id", encodeId id )
+                , ( "value", encode entity )
+                ]
+        )
 
 
 decodeIdDict : D.Decoder a -> D.Decoder (IdDict ChartableId a)
