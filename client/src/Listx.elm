@@ -102,6 +102,20 @@ lookup id list =
                 lookup id xs
 
 
+findBy : (a -> b) -> b -> List a -> Maybe a
+findBy fn id list =
+    case list of
+        [] ->
+            Nothing
+
+        x :: xs ->
+            if fn x == id then
+                Just x
+
+            else
+                findBy fn id xs
+
+
 deleteLookup : id -> List ( id, a ) -> List ( id, a )
 deleteLookup id list =
     List.filter (\( i, _ ) -> i /= id) list

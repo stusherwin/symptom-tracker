@@ -40,6 +40,8 @@ type alias Model =
 
 type alias LineChartModel =
     { addState : EditState
+    , viewport : Maybe Dom.Viewport
+    , expandedValue : Bool
     }
 
 
@@ -99,6 +101,18 @@ init today userData =
                         |> Task.attempt (always NoOp)
                 )
         )
+            ++ (UserData.lineCharts userData
+                    |> IdDict.keys
+                    |> List.map
+                        (\id ->
+                            let
+                                chartId =
+                                    "chart" ++ LineChartId.toString id ++ "-scrollable"
+                            in
+                            Dom.getViewportOf chartId
+                                |> Task.attempt (ViewportUpdated id)
+                        )
+               )
     )
 
 
@@ -112,7 +126,8 @@ toChartModel today userData chart =
     in
     { today = today
     , fillLines = chart.fillLines
-    , showPoints = chart.showPoints
+
+    -- , showPoints = chart.showPoints
     , data =
         chart.chartables
             |> List.filterMap toChartableModel_
@@ -122,6 +137,9 @@ toChartModel today userData chart =
     , selectedDataPoint = Nothing
     , hoveredDataPoint = Nothing
     , addState = NotAdding
+    , point = Nothing
+    , viewport = Nothing
+    , expandedValue = False
     }
 
 
@@ -249,8 +267,10 @@ type Msg
     | TrackableAddClicked LineChartId ChartableId
     | TrackableDeleteClicked LineChartId ChartableId TrackableId
     | UserDataUpdated UserData
+    | ExpandValueClicked LineChartId
     | GraphMsg LineChartId (Graph.Msg ChartableId)
     | FullScreenChanged Bool
+    | ViewportUpdated LineChartId (Result Dom.Error Dom.Viewport)
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -295,17 +315,16 @@ update msg model =
             , Task.perform UserDataUpdated <| Task.succeed userData_
             )
 
-        ChartShowPointsChecked chartId sp ->
-            let
-                userData_ =
-                    model.userData |> UserData.updateLineChart chartId (LineChart.setShowPoints sp)
-            in
-            ( model
-                |> setUserData userData_
-                |> (updateChartModel chartId <| \c -> { c | showPoints = sp })
-            , Task.perform UserDataUpdated <| Task.succeed userData_
-            )
-
+        -- ChartShowPointsChecked chartId sp ->
+        --     let
+        --         userData_ =
+        --             model.userData |> UserData.updateLineChart chartId (LineChart.setShowPoints sp)
+        --     in
+        --     ( model
+        --         |> setUserData userData_
+        --         |> (updateChartModel chartId <| \c -> { c | showPoints = sp })
+        --     , Task.perform UserDataUpdated <| Task.succeed userData_
+        --     )
         ChartFullScreenClicked chartId ->
             ( model, toggleElementFullScreen ("chart" ++ LineChartId.toString chartId) )
 
@@ -324,7 +343,7 @@ update msg model =
             )
 
         ChartableCloseClicked chartId ->
-            ( model |> (updateChartModel chartId <| Graph.selectDataSet Nothing {- << (\c -> { c | editState = NotEditing }) -}), Cmd.none )
+            ( model |> (updateChartModel chartId <| Graph.selectDataSet Nothing << (\c -> { c | expandedValue = False })), Cmd.none )
 
         ChartableVisibleClicked chartId chartableId ->
             let
@@ -705,11 +724,64 @@ update msg model =
                 _ ->
                     ( model, Cmd.none )
 
+        ExpandValueClicked chartId ->
+            ( model
+                |> (updateChartModel chartId <| \c -> { c | expandedValue = not c.expandedValue })
+            , Cmd.none
+            )
+
+        GraphMsg chartId (Graph.MouseDown ( x, y )) ->
+            ( model
+                |> (updateChartModel chartId <|
+                        \c ->
+                            case c.viewport of
+                                Just { scene } ->
+                                    let
+                                        xPerc =
+                                            x / scene.width
+
+                                        yPerc =
+                                            y / scene.height
+                                    in
+                                    c |> Graph.selectNearestDataPoint ( xPerc, yPerc )
+
+                                -- { c | point = Just ( xPerc, yPerc ) }
+                                _ ->
+                                    c
+                   )
+            , Cmd.none
+            )
+
+        GraphMsg chartId (Graph.MouseMove ( x, y )) ->
+            ( model
+                |> (updateChartModel chartId <|
+                        \c ->
+                            case c.viewport of
+                                Just { scene } ->
+                                    let
+                                        xPerc =
+                                            x / scene.width
+
+                                        yPerc =
+                                            y / scene.height
+                                    in
+                                    c |> Graph.hoverNearestDataPoint ( xPerc, yPerc )
+
+                                -- { c | point = Just ( xPerc, yPerc ) }
+                                _ ->
+                                    c
+                   )
+            , Cmd.none
+            )
+
         GraphMsg chartId graphMsg ->
             ( model |> (updateChartModel chartId <| Graph.update graphMsg), Cmd.none )
 
         FullScreenChanged fullScreen ->
             ( { model | fullScreen = fullScreen }, Cmd.none )
+
+        ViewportUpdated chartId (Ok viewport) ->
+            ( model |> (updateChartModel chartId <| \c -> { c | viewport = Just viewport }), Cmd.none )
 
         _ ->
             ( model, Cmd.none )
@@ -728,12 +800,12 @@ view model =
         h2 [ class "py-4 pb-0 font-bold text-2xl text-center" ]
             [ text "Charts" ]
             :: (model.charts
-                    |> List.map (viewLineChart model.fullScreen model.chartableOptions model.trackableOptions)
+                    |> List.map (viewLineChart model.fullScreen model.chartableOptions model.trackableOptions model.userData)
                )
 
 
-viewLineChart : Bool -> List ( ChartableId, String ) -> List ( TrackableId, ( String, Bool ) ) -> ( LineChartId, Graph.Model LineChartModel ChartableId ChartableModel ) -> Html Msg
-viewLineChart fullScreen chartableOptions trackableOptions ( chartId, model ) =
+viewLineChart : Bool -> List ( ChartableId, String ) -> List ( TrackableId, ( String, Bool ) ) -> UserData -> ( LineChartId, Graph.Model LineChartModel ChartableId ChartableModel ) -> Html Msg
+viewLineChart fullScreen chartableOptions trackableOptions userData ( chartId, model ) =
     let
         viewChartable ( chartableId, dataSet ) =
             let
@@ -762,14 +834,18 @@ viewLineChart fullScreen chartableOptions trackableOptions ( chartId, model ) =
                                 , question
                                 )
                             )
+
+                colour =
+                    if not dataSet.visible || not ((model.selectedDataSet == Nothing && model.hoveredDataSet == Nothing) || model.selectedDataSet == Just chartableId || model.hoveredDataSet == Just chartableId) then
+                        Colour.Gray
+
+                    else
+                        dataSet.colour
             in
             [ div
                 [ class "border-t-4"
-                , Colour.class "bg" dataSet.colour
-                , Colour.classUp "border" dataSet.colour
-                , classList
-                    [ ( "grayscale", not dataSet.visible || not ((model.selectedDataSet == Nothing && model.hoveredDataSet == Nothing) || model.selectedDataSet == Just chartableId || model.hoveredDataSet == Just chartableId) )
-                    ]
+                , Colour.class "bg" colour
+                , Colour.classUp "border" colour
                 , onMouseEnter <| ChartableHovered chartId (Just chartableId)
                 , onMouseLeave <| ChartableHovered chartId Nothing
                 ]
@@ -902,10 +978,7 @@ viewLineChart fullScreen chartableOptions trackableOptions ( chartId, model ) =
             , if model.selectedDataSet == Just chartableId then
                 div
                     [ class "p-4"
-                    , Colour.classDown "bg" dataSet.colour
-                    , classList
-                        [ ( "grayscale", not dataSet.visible )
-                        ]
+                    , Colour.classDown "bg" colour
                     ]
                 <|
                     (dataSet.trackables
@@ -956,11 +1029,12 @@ viewLineChart fullScreen chartableOptions trackableOptions ( chartId, model ) =
             [ div
                 [ class "mx-4 my-0 flex scrollable-parent relative"
                 , style "height" "300px"
-                , onClick (ChartClicked chartId)
+
+                -- , onClick (ChartClicked chartId)
                 ]
-                [ viewJustYAxis "flex-grow-0 flex-shrink-0" model
-                , viewScrollableContainer ("chart" ++ LineChartId.toString chartId ++ "-scrollable") [ Html.map (GraphMsg chartId) <| viewLineGraph "h-full" model ]
-                , div [ class "absolute right-2 top-6 flex flex-col" ]
+                ([ viewJustYAxis "flex-grow-0 flex-shrink-0" model
+                 , viewScrollableContainer ("chart" ++ LineChartId.toString chartId ++ "-scrollable") [ Html.map (GraphMsg chartId) <| viewLineGraph "h-full" model ]
+                 , div [ class "absolute right-2 top-6 flex flex-col" ]
                     [ button
                         [ class "rounded bg-white bg-opacity-50 hover:bg-opacity-80 p-2 text-black text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
                         , Htmlx.onClickStopPropagation (ChartFullScreenClicked chartId)
@@ -985,7 +1059,105 @@ viewLineChart fullScreen chartableOptions trackableOptions ( chartId, model ) =
                         [ icon "w-5 h-5" SolidMinus
                         ]
                     ]
-                ]
+                 ]
+                    ++ (case model.selectedDataSet |> Maybe.andThen (\id -> Listx.findBy Tuple.first id chartableOptions) of
+                            Just ( id, name ) ->
+                                [ div
+                                    [ class "absolute left-10 top-6 rounded bg-white bg-opacity-80 p-2 min-w-44 max-w-xs" ]
+                                    ([ button
+                                        [ class "absolute right-2 top-2 text-black text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
+                                        , Htmlx.onClickStopPropagation (ChartableCloseClicked chartId)
+                                        ]
+                                        [ icon "w-4 h-4" SolidTimes
+                                        ]
+                                     , h4 [ class "font-bold pr-5" ] [ text name ]
+                                     ]
+                                        ++ (let
+                                                featuredDataPoint =
+                                                    case model.selectedDataPoint of
+                                                        Just p ->
+                                                            Just p
+
+                                                        _ ->
+                                                            model.hoveredDataPoint
+                                            in
+                                            case featuredDataPoint of
+                                                Just date ->
+                                                    let
+                                                        data =
+                                                            userData
+                                                                |> UserData.getChartable id
+                                                                |> Maybe.map
+                                                                    (.sum
+                                                                        >> List.filterMap
+                                                                            (\( tId, m ) ->
+                                                                                userData |> UserData.getTrackable tId |> Maybe.map (\t -> ( t.question, Maybe.withDefault 0 <| Dict.get date <| Trackable.onlyFloatData t, m ))
+                                                                            )
+                                                                    )
+                                                                |> Maybe.withDefault []
+
+                                                        total =
+                                                            List.sum <| List.map (\( _, v, m ) -> v * m) <| data
+                                                    in
+                                                    [ p [ class "" ] [ text <| Date.format "EEE d MMM y" <| Date.fromRataDie date ]
+                                                    , p [ class "flex justify-between items-baseline" ]
+                                                        [ span []
+                                                            [ text "Value"
+                                                            , span [ class "ml-1 font-bold" ] [ text <| String.fromFloat total ]
+                                                            ]
+                                                        , a
+                                                            [ href "#"
+                                                            , target "_self"
+                                                            , class "ml-2 text-sm text-blue-600 hover:text-blue-800 underline"
+                                                            , Htmlx.onClickPreventDefault (ExpandValueClicked chartId)
+                                                            ]
+                                                          <|
+                                                            if model.expandedValue then
+                                                                [ text "less", icon "ml-1 w-3 h-3 inline" SolidAngleUp ]
+
+                                                            else
+                                                                [ text "more", icon "ml-1 w-3 h-3 inline" SolidAngleDown ]
+                                                        ]
+                                                    , if model.expandedValue then
+                                                        div [ class "mt-2 pr-2 max-h-24 overflow-y-auto text-sm" ]
+                                                            [ table [ class "w-full" ] <|
+                                                                (data
+                                                                    |> List.indexedMap
+                                                                        (\i ( question, value, multiplier ) ->
+                                                                            tr []
+                                                                                [ td [ class "align-baseline" ]
+                                                                                    [ icon "w-2 h-2" <|
+                                                                                        if i == 0 then
+                                                                                            SolidEquals
+
+                                                                                        else
+                                                                                            SolidPlus
+                                                                                    ]
+                                                                                , td [ class "pl-2 align-baseline" ] [ text question ]
+                                                                                , td [ class "pl-2 align-baseline text-right" ] [ text <| String.fromFloat value ]
+                                                                                , td [ class "pl-1 align-baseline" ] [ icon "w-2 h-2" SolidTimes ]
+                                                                                , td [ class "pl-1 align-baseline text-right" ] [ text <| String.fromFloat multiplier ]
+                                                                                , td [ class "pl-1 align-baseline " ] [ icon "w-2 h-2" SolidEquals ]
+                                                                                , td [ class "pl-1 align-baseline text-right" ] [ text <| String.fromFloat (value * multiplier) ]
+                                                                                ]
+                                                                        )
+                                                                )
+                                                            ]
+
+                                                      else
+                                                        div [] []
+                                                    ]
+
+                                                _ ->
+                                                    [ p [ class "mt-2 text-sm" ] [ text "Hover over or click on ", br [] [], text "a point to see its value" ] ]
+                                           )
+                                    )
+                                ]
+
+                            _ ->
+                                []
+                       )
+                )
             ]
         , div [ class "m-4 mt-4 flex flex-wrap justify-end" ]
             [ label [ class "text-right whitespace-nowrap", for "fill-lines" ] [ text "Colour under curves" ]
@@ -997,15 +1169,16 @@ viewLineChart fullScreen chartableOptions trackableOptions ( chartId, model ) =
                 , checked model.fillLines
                 ]
                 []
-            , label [ class "ml-8 text-right whitespace-nowrap", for "show-points" ] [ text "Show data points" ]
-            , input
-                [ type_ "checkbox"
-                , id "show-points"
-                , class "ml-2"
-                , onCheck (ChartShowPointsChecked chartId)
-                , checked model.showPoints
-                ]
-                []
+
+            -- , label [ class "ml-8 text-right whitespace-nowrap", for "show-points" ] [ text "Show data points" ]
+            -- , input
+            --     [ type_ "checkbox"
+            --     , id "show-points"
+            --     , class "ml-2"
+            --     , onCheck (ChartShowPointsChecked chartId)
+            --     , checked model.showPoints
+            --     ]
+            --     []
             ]
         , div [ class "mt-4 bg-gray-200" ] <|
             (model.data |> List.concatMap viewChartable)

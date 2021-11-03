@@ -118,6 +118,11 @@ module.exports = {
       '4xl': '2.25rem',
       '5xl': '3rem',
       '6xl': '4rem'
+    },
+    minWidth: {
+      '0': '0',
+      '44': '11rem',
+      'full': '100%',
     }
   },
   variants: {
