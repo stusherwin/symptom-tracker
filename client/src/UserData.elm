@@ -1,8 +1,8 @@
-module UserData exposing (UserData, activeChartables, activeLineCharts, activeTrackables, addChartable, addLineChart, addTrackable, chartables, decode, deleteChartable, deleteLineChart, deleteTrackable, encode, getChartable, getChartableColour, getChartableDataPoints, getLineChart, getTrackable, init, lineCharts, moveChartableDown, moveChartableUp, moveLineChartDown, moveLineChartUp, moveTrackableDown, moveTrackableUp, toggleChartableVisible, toggleTrackableVisible, trackables, updateChartable, updateLineChart, updateTrackable)
+module UserData exposing (UserData, activeChartables, activeLineCharts, activeTrackables, addChartable, addLineChart, addTrackable, chartables, decode, deleteChartable, deleteLineChart, deleteTrackable, encode, getChartable, getChartableColour, getChartableDataPoints, getLineChart, getTrackable, init, lineCharts, moveChartableDown, moveChartableUp, moveData, moveLineChartDown, moveLineChartUp, moveTrackableDown, moveTrackableUp, toggleChartableVisible, toggleTrackableVisible, trackables, updateChartable, updateLineChart, updateTrackable)
 
 import Array
 import Colour exposing (Colour(..))
-import Date exposing (Unit(..))
+import Date exposing (Date, Unit(..))
 import Dict exposing (Dict)
 import Dictx
 import IdDict
@@ -447,6 +447,55 @@ deleteLineChart id (UserData data) =
 
         Err err ->
             UserData { data | errors = err :: data.errors }
+
+
+moveData : Date -> UserData -> UserData
+moveData today (UserData data) =
+    let
+        maxDate =
+            Date.fromRataDie
+                << Maybe.withDefault (Date.toRataDie today)
+                << List.maximum
+                << List.filterMap (List.head << Dict.keys << Trackable.onlyFloatData)
+                << List.map Tuple.second
+                << IdDict.toList
+            <|
+                data.trackables
+
+        days =
+            4
+
+        --Date.diff Days maxDate today - 1
+    in
+    UserData
+        { data
+            | trackables =
+                data.trackables
+                    |> IdDict.map
+                        (\_ t ->
+                            { t
+                                | data =
+                                    case t.data of
+                                        TYesNo dict ->
+                                            TYesNo (dict |> Dict.toList |> List.map (\( d, v ) -> ( d |> Date.fromRataDie |> Date.add Days days |> Date.toRataDie, v )) |> Dict.fromList)
+
+                                        TIcon icons dict ->
+                                            TIcon icons (dict |> Dict.toList |> List.map (\( d, v ) -> ( d |> Date.fromRataDie |> Date.add Days days |> Date.toRataDie, v )) |> Dict.fromList)
+
+                                        TScale min max dict ->
+                                            TScale min max (dict |> Dict.toList |> List.map (\( d, v ) -> ( d |> Date.fromRataDie |> Date.add Days days |> Date.toRataDie, v )) |> Dict.fromList)
+
+                                        TInt dict ->
+                                            TInt (dict |> Dict.toList |> List.map (\( d, v ) -> ( d |> Date.fromRataDie |> Date.add Days days |> Date.toRataDie, v )) |> Dict.fromList)
+
+                                        TFloat dict ->
+                                            TFloat (dict |> Dict.toList |> List.map (\( d, v ) -> ( d |> Date.fromRataDie |> Date.add Days days |> Date.toRataDie, v )) |> Dict.fromList)
+
+                                        TText dict ->
+                                            TText (dict |> Dict.toList |> List.map (\( d, v ) -> ( d |> Date.fromRataDie |> Date.add Days days |> Date.toRataDie, v )) |> Dict.fromList)
+                            }
+                        )
+        }
 
 
 decode : D.Decoder UserData

@@ -96,27 +96,12 @@ type Msg
     | ChartMsg Chart.Msg
     | ChartableMsg Chart.Chartable.Msg
     | ChartNameUpdated String
-      -- | ChartableHovered (Maybe ChartableId)
-      -- | ChartableClicked ChartableId
-      -- | ChartableEditClicked ChartableId
-      -- | ChartableCloseClicked
-      -- | ChartableVisibleClicked ChartableId
-      -- | ChartableUpClicked ChartableId
-      -- | ChartableDownClicked ChartableId
-      -- | ChartableChanged ChartableId (Maybe ChartableId)
-      -- | ChartableNameUpdated ChartableId String
-      -- | ChartableColourUpdated ChartableId (Maybe Colour)
-      -- | ChartableInvertedChanged ChartableId Bool
     | ChartableAddClicked
     | ChartableToAddChanged (Maybe ChartableId)
     | ChartableAddConfirmClicked
     | ChartableAddCancelClicked
-      -- | ChartableDeleteClicked ChartableId
-      -- | TrackableChanged ChartableId TrackableId (Maybe TrackableId)
-      -- | TrackableMultiplierUpdated ChartableId TrackableId String
-      -- | TrackableAddClicked ChartableId
-      -- | TrackableDeleteClicked ChartableId TrackableId
     | UserDataUpdated UserData
+    | MoveDataClicked
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -504,7 +489,7 @@ update msg model =
                     , Cmd.batch
                         [ Task.perform UserDataUpdated <| Task.succeed userData__
                         , if isNew then
-                            Task.attempt (always NoOp) <| Dom.focus <| "chart" ++ LineChartId.toString model.chartId ++ "-chartable" ++ ChartableId.toString chartableId ++ "-name"
+                            Task.attempt (always NoOp) <| Dom.focus <| "chartable" ++ ChartableId.toString chartableId ++ "-name"
 
                           else
                             Cmd.none
@@ -527,6 +512,15 @@ update msg model =
                     Chart.update chartMsg model.chart
             in
             ( model |> updateChart (always chart_), Cmd.map ChartMsg cmd )
+
+        MoveDataClicked ->
+            let
+                userData_ =
+                    model.userData |> UserData.moveData model.chart.graph.today
+            in
+            ( model |> setUserData userData_
+            , Task.perform UserDataUpdated <| Task.succeed userData_
+            )
 
         _ ->
             ( model, Cmd.none )
@@ -595,6 +589,8 @@ view model =
                             _ ->
                                 div [ class "px-4 py-2 bg-gray-300 border-t-4 border-gray-400 flex" ]
                                     [ Controls.button "" Controls.ButtonGrey ChartableAddClicked SolidPlusCircle "Add chartable" True
+
+                                    -- , Controls.button "ml-4" Controls.ButtonGrey MoveDataClicked SolidPlusCircle "Move data" True
                                     ]
                        ]
             ]

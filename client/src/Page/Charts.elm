@@ -1,5 +1,6 @@
 module Page.Charts exposing (Model, Msg(..), init, subscriptions, update, view)
 
+import Browser.Navigation
 import Chart.LineChart as Chart
 import Controls
 import Date exposing (Date, Unit(..))
@@ -126,6 +127,8 @@ update msg model =
                         |> addChart id newChartModel
                     , Cmd.batch
                         [ Task.perform UserDataUpdated <| Task.succeed userData_
+
+                        -- , Browser.Navigation.load ("/charts/" ++ LineChartId.toString id)
                         , Cmd.map (ChartMsg id) cmd
                         ]
                     )

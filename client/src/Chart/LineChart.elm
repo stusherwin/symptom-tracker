@@ -105,9 +105,8 @@ init today userData chartId chart =
                 "chart" ++ LineChartId.toString chartId ++ "-scrollable"
           in
           Dom.getViewportOf elementId
-            |> Task.andThen (\info -> Dom.setViewportOf elementId info.scene.width 0)
-            |> Task.attempt (always NoOp)
-        , Dom.getViewportOf ("chart" ++ LineChartId.toString chartId ++ "-scrollable")
+            |> Task.andThen (\info -> Dom.setViewportOf elementId (Debug.log "info" info).scene.width 0)
+            |> Task.andThen (\_ -> Dom.getViewportOf elementId)
             |> Task.attempt ViewportUpdated
         ]
     )
@@ -207,7 +206,7 @@ update msg model =
 
         ViewportUpdated (Ok scrollable) ->
             ( model
-                |> (\c -> { c | viewport = Just scrollable })
+                |> (\c -> { c | viewport = Just <| Debug.log "scrollable" scrollable })
             , Dom.getElement ("chart" ++ LineChartId.toString model.chartId ++ "-svg")
                 |> Task.attempt ElementUpdated
             )
@@ -531,7 +530,13 @@ view model =
                                                         else
                                                             Nothing
                                                 in
-                                                [ p [ class "mt-2 text-sm" ] [ text <| Date.format "EEE d MMM y" <| Date.fromRataDie date ]
+                                                [ p [ class "mt-2 text-sm" ]
+                                                    [ a
+                                                        [ href <| "/day/" ++ (Date.format "y/M/d" <| Date.fromRataDie date)
+                                                        , class "text-sm text-blue-600 hover:text-blue-800 underline"
+                                                        ]
+                                                        [ text <| Date.format "EEE d MMM y" <| Date.fromRataDie date ]
+                                                    ]
                                                 , p [ class "text-sm flex justify-between items-baseline" ]
                                                     [ span [] <|
                                                         [ text "Value"
