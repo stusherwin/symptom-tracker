@@ -644,23 +644,25 @@ fillIcon iconClass filled =
                 []
             ]
             -- v4
-            :: [ path
-                    [ id "backstroke2"
-                    , style "fill:#000000;fill-opacity:1;fill-rule:evenodd;font-family:sans-serif;font-feature-settings:normal;font-size:medium;font-stretch:normal;font-style:normal;font-variant:normal;font-variant-alternates:normal;font-variant-caps:normal;font-variant-east-asian:normal;font-variant-ligatures:normal;font-variant-numeric:normal;font-variant-position:normal;font-variation-settings:normal;font-weight:normal;image-rendering:auto;inline-size:0;isolation:auto;letter-spacing:normal;line-height:normal;mix-blend-mode:normal;opacity:1;overflow:visible;shape-margin:0;shape-padding:0;shape-rendering:auto;solid-color:#000000;solid-opacity:1;stop-color:#000000;stop-opacity:1;stroke:none;stroke-dasharray:none;stroke-dashoffset:0;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-width:0.9085629290399999;text-align:start;text-anchor:start;text-decoration:none;text-decoration-color:#000000;text-decoration-line:none;text-decoration-style:solid;text-indent:0;text-orientation:mixed;text-rendering:auto;text-transform:none;vector-effect:none;visibility:visible;white-space:normal;word-spacing:normal;writing-mode:lr-tb"
-                    , d "M 261.806 144.778 C 261.055 145.758 260.301 146.754 259.536 147.781 C 247.638 163.772 235.858 184.795 223.747 208.425 C 232.943 226.238 242.32 245.623 252.083 265.542 C 274.137 310.543 298.382 358.421 331.874 398.429 C 361.968 434.377 401.113 464.196 450.576 475.113 L 453.168 475.113 L 453.168 409.037 C 424.564 400.28 401.633 382.066 380.089 356.331 C 353.228 324.243 330.475 280.761 308.806 236.546 C 293.405 205.121 278.666 173.422 261.806 144.778 Z"
-                    ]
-                    []
-               ]
-            ++ (if filled then
+            :: path
+                [ id "backstroke2" -- fill:#000000;fill-opacity:1;
+                , style "fill:#000000; stroke: none"
+                , class "stroke-back"
+                , d "M 261.806 144.778 C 261.055 145.758 260.301 146.754 259.536 147.781 C 247.638 163.772 235.858 184.795 223.747 208.425 C 232.943 226.238 242.32 245.623 252.083 265.542 C 274.137 310.543 298.382 358.421 331.874 398.429 C 361.968 434.377 401.113 464.196 450.576 475.113 L 453.168 475.113 L 453.168 409.037 C 424.564 400.28 401.633 382.066 380.089 356.331 C 353.228 324.243 330.475 280.761 308.806 236.546 C 293.405 205.121 278.666 173.422 261.806 144.778 Z"
+                ]
+                []
+            :: (if filled then
                     [ path
-                        [ id "backfill"
-                        , style "fill:#000000;fill-opacity:0.15;stroke-linecap:square;stroke-linejoin:round;stroke-opacity:0.698529;stroke-width:70.5555"
+                        [ id "backfill" --fill:#000000;fill-opacity:0.15;
+                        , style "fill:#000000; stroke: none"
+                        , class "fill-back"
                         , d "M 122.205 114.066 C 101.645 114.01 86.8659 124.968 67.6881 150.742 C 47.2318 178.234 27.1353 220.542 5.0811 265.542 C 3.40309 268.966 1.70648 272.411 0 275.863 L 0 478.074 L 453.168 478.074 L 453.168 475.665 C 402.478 465.232 362.491 435.003 331.874 398.429 C 298.382 358.421 274.137 310.543 252.083 265.542 C 230.028 220.542 209.933 178.234 189.477 150.742 C 169.02 123.249 153.568 112.615 130.767 114.223 L 128.582 114.377 L 126.398 114.223 C 124.973 114.122 123.576 114.07 122.205 114.066 Z"
                         ]
                         []
                     , path
-                        [ id "frontfill"
-                        , style "fill:#000000;fill-opacity:0.3;stroke-linecap:square;stroke-linejoin:round;stroke-opacity:0.698529;stroke-width:70.5555"
+                        [ id "frontfill" --fill:#000000;fill-opacity:0.3
+                        , style "fill:#000000; stroke: none"
+                        , class "fill-front"
                         , d "M 326.806 111.104 C 325.436 111.108 324.04 111.161 322.615 111.262 L 320.43 111.416 L 318.246 111.262 C 316.821 111.161 315.424 111.109 314.054 111.105 C 293.493 111.049 278.714 122.007 259.536 147.781 C 239.08 175.273 218.983 217.581 196.929 262.581 C 174.875 307.582 150.63 355.46 117.138 395.468 C 87.362 431.037 48.7259 460.606 0 471.801 L 0 475.113 L 453.168 475.113 L 453.168 281.265 C 450.037 275.002 446.961 268.764 443.931 262.581 C 421.877 217.581 401.781 175.273 381.325 147.781 C 362.147 122.007 347.367 111.048 326.806 111.104 Z"
                         ]
                         []
@@ -670,14 +672,16 @@ fillIcon iconClass filled =
                     []
                )
             ++ [ path
-                    [ id "backstroke1"
-                    , style "fill:#000000;fill-opacity:1;fill-rule:evenodd;font-family:sans-serif;font-feature-settings:normal;font-size:medium;font-stretch:normal;font-style:normal;font-variant:normal;font-variant-alternates:normal;font-variant-caps:normal;font-variant-east-asian:normal;font-variant-ligatures:normal;font-variant-numeric:normal;font-variant-position:normal;font-variation-settings:normal;font-weight:normal;image-rendering:auto;inline-size:0;isolation:auto;letter-spacing:normal;line-height:normal;mix-blend-mode:normal;opacity:1;overflow:visible;shape-margin:0;shape-padding:0;shape-rendering:auto;solid-color:#000000;solid-opacity:1;stop-color:#000000;stop-opacity:1;stroke:none;stroke-dasharray:none;stroke-dashoffset:0;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-width:0.9085629290399999;text-align:start;text-anchor:start;text-decoration:none;text-decoration-color:#000000;text-decoration-line:none;text-decoration-style:solid;text-indent:0;text-orientation:mixed;text-rendering:auto;text-transform:none;vector-effect:none;visibility:visible;white-space:normal;word-spacing:normal;writing-mode:lr-tb"
+                    [ id "backstroke1" -- fill:#000000;fill-opacity:1;
+                    , style "fill:#000000; stroke: none"
+                    , class "stroke-back"
                     , d "M 121.849 49.3349 C 77.8247 49.8899 42.3117 77.7749 17.1836 111.546 C 11.1585 119.644 5.46146 128.186 0 137.061 L 0 275.863 C 1.70648 272.411 3.40309 268.966 5.0811 265.542 C 27.1353 220.542 47.2317 178.234 67.6881 150.742 C 88.1444 123.249 103.597 112.615 126.398 114.223 L 128.582 114.377 L 130.767 114.223 C 151.964 112.728 166.812 121.822 185.231 145.197 C 192.682 132.312 200.531 120.007 209.031 108.584 C 213.408 102.701 218.107 97.0041 223.104 91.5922 C 198.342 65.9293 166.456 47.6317 128.582 49.5312 C 126.323 49.4179 124.065 49.307 121.849 49.3349 Z M 450.576 475.113 C 451.435 475.303 452.303 475.476 453.168 475.654 L 453.168 475.113 Z"
                     ]
                     []
                , path
-                    [ id "frontstroke"
-                    , style "fill:#000000;fill-opacity:1;fill-rule:evenodd;font-family:sans-serif;font-feature-settings:normal;font-size:medium;font-stretch:normal;font-style:normal;font-variant:normal;font-variant-alternates:normal;font-variant-caps:normal;font-variant-east-asian:normal;font-variant-ligatures:normal;font-variant-numeric:normal;font-variant-position:normal;font-variation-settings:normal;font-weight:normal;image-rendering:auto;inline-size:0;isolation:auto;letter-spacing:normal;line-height:normal;mix-blend-mode:normal;opacity:1;overflow:visible;shape-margin:0;shape-padding:0;shape-rendering:auto;solid-color:#000000;solid-opacity:1;stop-color:#000000;stop-opacity:1;stroke:none;stroke-dasharray:none;stroke-dashoffset:0;stroke-linecap:butt;stroke-linejoin:miter;stroke-miterlimit:4;stroke-opacity:1;stroke-width:0.9085629290399999;text-align:start;text-anchor:start;text-decoration:none;text-decoration-color:#000000;text-decoration-line:none;text-decoration-style:solid;text-indent:0;text-orientation:mixed;text-rendering:auto;text-transform:none;vector-effect:none;visibility:visible;white-space:normal;word-spacing:normal;writing-mode:lr-tb"
+                    [ id "frontstroke" --fill:#000000;fill-opacity:1
+                    , style "fill:#000000; stroke: none"
+                    , class "stroke-front"
                     , d "M 313.697 46.3738 C 269.673 46.9288 234.159 74.8127 209.031 108.584 C 182.227 144.607 161.874 189.369 140.205 233.584 C 118.536 277.799 95.7843 321.282 68.9228 353.37 C 48.4326 377.846 26.6872 395.519 0 404.723 L 0 471.801 C 48.7259 460.606 87.362 431.037 117.138 395.468 C 150.63 355.46 174.875 307.581 196.929 262.58 C 218.983 217.58 239.079 175.273 259.535 147.781 C 279.991 120.288 295.444 109.654 318.245 111.262 L 320.43 111.416 L 322.614 111.262 C 345.415 109.654 360.867 120.288 381.324 147.781 C 401.78 175.273 421.875 217.58 443.93 262.58 C 446.959 268.762 450.037 275.001 453.168 281.264 L 453.168 140.987 C 446.452 129.628 439.398 118.757 431.828 108.584 C 405.435 73.1128 367.566 44.205 320.43 46.5689 C 318.171 46.4556 315.913 46.3459 313.697 46.3738 Z"
                     ]
                     []

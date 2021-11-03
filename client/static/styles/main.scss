@@ -1128,12 +1128,34 @@ body {
   stop-color: #f43f5e;
 }
 
-.fill-icon path {
-  stroke-opacity: 0.7;
+.fill-icon path.stroke-back {
+  fill-opacity: 0.5;
+}
+
+.fill-icon path.stroke-front {
+  fill-opacity: 0.7;
+}
+
+.fill-icon path.fill-back {
   fill-opacity: 0.15;
 }
 
-.fill-icon:hover path {
-  stroke-opacity: 1;
-  fill-opacity: 0.2;
+.fill-icon path.fill-front {
+  fill-opacity: 0.3;
+}
+
+.fill-icon:hover path.stroke-back {
+  fill-opacity: 0.7;
+}
+
+.fill-icon:hover path.stroke-front {
+  fill-opacity: 1;
+}
+
+.fill-icon:hover path.fill-back {
+  fill-opacity: 0.3;
+}
+
+.fill-icon:hover path.fill-front {
+  fill-opacity: 0.4;
 }

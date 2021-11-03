@@ -566,8 +566,8 @@ viewLineGraph svgId class m =
         axes =
             xAxis
 
-        dataLine : ( dataSetId, DataSet dataSet ) -> List (Svg (Msg dataSetId))
-        dataLine ( id, dataSet ) =
+        dataFill : ( dataSetId, DataSet dataSet ) -> List (Svg (Msg dataSetId))
+        dataFill ( id, dataSet ) =
             let
                 plotPoints : List PlotPoint
                 plotPoints =
@@ -582,7 +582,7 @@ viewLineGraph svgId class m =
                             )
                             dataSet.dataPoints
             in
-            S.path
+            [ S.path
                 ([ strokeColour_ dataSet.colour
                  , strokeWidth_ 0
                  , strokeLinecap "round"
@@ -619,36 +619,103 @@ viewLineGraph svgId class m =
                        )
                 )
                 []
-                :: S.path
-                    ([ strokeColour_ <|
-                        if (m.selectedDataSet == Nothing && m.hoveredDataSet == Nothing) || m.selectedDataSet == Just id || m.hoveredDataSet == Just id then
-                            dataSet.colour
+            ]
+
+        dataLineBacking : ( dataSetId, DataSet dataSet ) -> List (Svg (Msg dataSetId))
+        dataLineBacking ( id, dataSet ) =
+            let
+                plotPoints : List PlotPoint
+                plotPoints =
+                    Dict.values <|
+                        Dict.map
+                            (\date value ->
+                                { date = date
+                                , value = value
+                                , x = minX + toFloat (date - startDateRD) * xStep
+                                , y = minY + ((value / toFloat valueStep) * v.yStep)
+                                }
+                            )
+                            dataSet.dataPoints
+            in
+            [ S.path
+                ([ strokeColour_ <|
+                    if (m.selectedDataSet == Nothing && m.hoveredDataSet == Nothing) || m.selectedDataSet == Just id || m.hoveredDataSet == Just id then
+                        dataSet.colour
+
+                    else
+                        Colour.Gray
+                 , strokeWidth_ 10
+                 , strokeOpacity_ 1
+                 , strokeLinecap "round"
+                 , strokeLinejoin "round"
+                 , filter_ <|
+                    if (m.selectedDataSet == Nothing && m.hoveredDataSet == Nothing) || m.selectedDataSet == Just id || m.hoveredDataSet == Just id then
+                        NoFilter
+
+                    else
+                        Brighten
+                 , fill "none"
+                 , dSmoothLine h Open <| List.map (\{ x, y } -> ( x, y )) plotPoints
+                 ]
+                    ++ (if m.selectedDataSet == Nothing then
+                            [ Htmlx.onClickStopPropagation <| DataLineClicked id
+                            , onMouseOver <| DataLineHovered <| Just id
+                            , onMouseOut <| DataLineHovered Nothing
+                            ]
 
                         else
-                            Colour.Gray
-                     , strokeWidth_ 2
-                     , strokeLinecap "round"
-                     , strokeLinejoin "round"
-                     , filter_ <|
-                        if (m.selectedDataSet == Nothing && m.hoveredDataSet == Nothing) || m.selectedDataSet == Just id || m.hoveredDataSet == Just id then
-                            NoFilter
+                            []
+                       )
+                )
+                []
+            ]
+
+        dataLine : ( dataSetId, DataSet dataSet ) -> List (Svg (Msg dataSetId))
+        dataLine ( id, dataSet ) =
+            let
+                plotPoints : List PlotPoint
+                plotPoints =
+                    Dict.values <|
+                        Dict.map
+                            (\date value ->
+                                { date = date
+                                , value = value
+                                , x = minX + toFloat (date - startDateRD) * xStep
+                                , y = minY + ((value / toFloat valueStep) * v.yStep)
+                                }
+                            )
+                            dataSet.dataPoints
+            in
+            S.path
+                ([ strokeColour_ <|
+                    if (m.selectedDataSet == Nothing && m.hoveredDataSet == Nothing) || m.selectedDataSet == Just id || m.hoveredDataSet == Just id then
+                        dataSet.colour
+
+                    else
+                        Colour.Gray
+                 , strokeWidth_ 2
+                 , strokeLinecap "round"
+                 , strokeLinejoin "round"
+                 , filter_ <|
+                    if (m.selectedDataSet == Nothing && m.hoveredDataSet == Nothing) || m.selectedDataSet == Just id || m.hoveredDataSet == Just id then
+                        NoFilter
+
+                    else
+                        Brighten
+                 , fill "none"
+                 , dSmoothLine h Open <| List.map (\{ x, y } -> ( x, y )) plotPoints
+                 ]
+                    ++ (if m.selectedDataSet == Nothing then
+                            [ Htmlx.onClickStopPropagation <| DataLineClicked id
+                            , onMouseOver <| DataLineHovered <| Just id
+                            , onMouseOut <| DataLineHovered Nothing
+                            ]
 
                         else
-                            Brighten
-                     , fill "none"
-                     , dSmoothLine h Open <| List.map (\{ x, y } -> ( x, y )) plotPoints
-                     ]
-                        ++ (if m.selectedDataSet == Nothing then
-                                [ Htmlx.onClickStopPropagation <| DataLineClicked id
-                                , onMouseOver <| DataLineHovered <| Just id
-                                , onMouseOut <| DataLineHovered Nothing
-                                ]
-
-                            else
-                                []
-                           )
-                    )
-                    []
+                            []
+                       )
+                )
+                []
                 :: (if m.selectedDataSet == Just id then
                         List.map
                             (\{ x, y } ->
@@ -783,10 +850,28 @@ viewLineGraph svgId class m =
                     _ ->
                         []
                )
-            ++ (m.data
-                    |> List.filter (.visible << Tuple.second)
-                    |> List.filter ((\id -> m.selectedDataSet /= Just id) << Tuple.first)
-                    |> List.concatMap dataLine
+            ++ (if m.fillLines then
+                    m.data
+                        |> List.filter (.visible << Tuple.second)
+                        |> List.filter ((\id -> m.selectedDataSet /= Just id) << Tuple.first)
+                        |> List.concatMap (\l -> dataFill l ++ dataLine l)
+
+                else
+                    (m.data
+                        |> List.filter (.visible << Tuple.second)
+                        |> List.filter ((\id -> m.selectedDataSet /= Just id) << Tuple.first)
+                        |> List.concatMap dataFill
+                    )
+                        ++ (m.data
+                                |> List.filter (.visible << Tuple.second)
+                                |> List.filter ((\id -> m.selectedDataSet /= Just id) << Tuple.first)
+                                |> List.concatMap dataLineBacking
+                           )
+                        ++ (m.data
+                                |> List.filter (.visible << Tuple.second)
+                                |> List.filter ((\id -> m.selectedDataSet /= Just id) << Tuple.first)
+                                |> List.concatMap dataLine
+                           )
                )
             ++ (case m.selectedDataSet of
                     Just _ ->
@@ -795,10 +880,23 @@ viewLineGraph svgId class m =
                     _ ->
                         []
                )
-            ++ (m.data
-                    |> List.filter (.visible << Tuple.second)
-                    |> List.filter ((\id -> m.selectedDataSet == Just id) << Tuple.first)
-                    |> List.concatMap dataLine
+            ++ (if m.fillLines then
+                    m.data
+                        |> List.filter (.visible << Tuple.second)
+                        |> List.filter ((\id -> m.selectedDataSet == Just id) << Tuple.first)
+                        |> List.concatMap (\l -> dataFill l ++ dataLine l)
+
+                else
+                    (m.data
+                        |> List.filter (.visible << Tuple.second)
+                        |> List.filter ((\id -> m.selectedDataSet == Just id) << Tuple.first)
+                        |> List.concatMap dataFill
+                    )
+                        ++ (m.data
+                                |> List.filter (.visible << Tuple.second)
+                                |> List.filter ((\id -> m.selectedDataSet == Just id) << Tuple.first)
+                                |> List.concatMap dataLine
+                           )
                )
             ++ highlightedDataPoint
 
