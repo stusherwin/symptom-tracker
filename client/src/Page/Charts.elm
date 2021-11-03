@@ -1,6 +1,5 @@
 port module Page.Charts exposing (Model, Msg(..), init, subscriptions, update, view)
 
-import Array
 import Browser.Dom as Dom
 import Colour exposing (Colour)
 import Controls
@@ -100,13 +99,11 @@ init today userData =
             ++ (UserData.lineCharts userData
                     |> IdDict.keys
                     |> List.map
-                        (\id ->
-                            let
-                                chartId =
-                                    "chart" ++ LineChartId.toString id ++ "-scrollable"
-                            in
-                            Dom.getViewportOf chartId
-                                |> Task.attempt (ViewportUpdated id)
+                        (\chartId ->
+                            Task.map2 Tuple.pair
+                                (Dom.getViewportOf <| "chart" ++ LineChartId.toString chartId ++ "-scrollable")
+                                (Dom.getElement <| "chart" ++ LineChartId.toString chartId ++ "-svg")
+                                |> Task.attempt (ViewportUpdated chartId)
                         )
                )
     )
@@ -134,6 +131,8 @@ toChartModel today userData chart =
     , viewport = Nothing
     , expandedValue = False
     , xScale = 1
+    , minWidth = 0
+    , currentWidth = 0
     }
 
 
@@ -264,7 +263,7 @@ type Msg
     | ExpandValueClicked LineChartId
     | GraphMsg LineChartId (Graph.Msg ChartableId)
     | FullScreenChanged Bool
-    | ViewportUpdated LineChartId (Result Dom.Error Dom.Viewport)
+    | ViewportUpdated LineChartId (Result Dom.Error ( Dom.Viewport, Dom.Element ))
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -302,13 +301,17 @@ update msg model =
 
         ChartZoomOutClicked chartId ->
             ( model |> updateChartModel chartId (\c -> { c | xScale = c.xScale * 3 / 4 })
-            , Dom.getViewportOf ("chart" ++ LineChartId.toString chartId ++ "-scrollable")
+            , Task.map2 Tuple.pair
+                (Dom.getViewportOf <| "chart" ++ LineChartId.toString chartId ++ "-scrollable")
+                (Dom.getElement <| "chart" ++ LineChartId.toString chartId ++ "-svg")
                 |> Task.attempt (ViewportUpdated chartId)
             )
 
         ChartZoomInClicked chartId ->
             ( model |> updateChartModel chartId (\c -> { c | xScale = c.xScale * 4 / 3 })
-            , Dom.getViewportOf ("chart" ++ LineChartId.toString chartId ++ "-scrollable")
+            , Task.map2 Tuple.pair
+                (Dom.getViewportOf <| "chart" ++ LineChartId.toString chartId ++ "-scrollable")
+                (Dom.getElement <| "chart" ++ LineChartId.toString chartId ++ "-svg")
                 |> Task.attempt (ViewportUpdated chartId)
             )
 
@@ -760,8 +763,8 @@ update msg model =
         FullScreenChanged fullScreen ->
             ( { model | fullScreen = fullScreen }, Cmd.none )
 
-        ViewportUpdated chartId (Ok viewport) ->
-            ( model |> (updateChartModel chartId <| \c -> { c | viewport = Just viewport }), Cmd.none )
+        ViewportUpdated chartId (Ok ( scrollable, svg )) ->
+            ( model |> (updateChartModel chartId <| \c -> { c | viewport = Just scrollable, currentWidth = svg.element.width, minWidth = scrollable.viewport.width }), Cmd.none )
 
         _ ->
             ( model, Cmd.none )
@@ -1005,7 +1008,7 @@ viewLineChart fullScreen chartableOptions trackableOptions userData ( chartId, m
                 , style "height" "300px"
                 ]
                 ([ viewJustYAxis "flex-grow-0 flex-shrink-0" model
-                 , viewScrollableContainer ("chart" ++ LineChartId.toString chartId ++ "-scrollable") [ Html.map (GraphMsg chartId) <| viewLineGraph "h-full" model ]
+                 , viewScrollableContainer ("chart" ++ LineChartId.toString chartId ++ "-scrollable") [ Html.map (GraphMsg chartId) <| viewLineGraph ("chart" ++ LineChartId.toString chartId ++ "-svg") "h-full" model ]
                  , div [ class "absolute right-2 top-6 flex flex-col" ]
                     [ button
                         [ class "rounded bg-white bg-opacity-50 hover:bg-opacity-80 p-2 text-black text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
@@ -1025,10 +1028,15 @@ viewLineChart fullScreen chartableOptions trackableOptions userData ( chartId, m
                         [ icon "w-5 h-5" SolidPlus
                         ]
                     , button
-                        [ class "mt-2 rounded bg-white bg-opacity-50 hover:bg-opacity-80 p-2 text-black text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
+                        [ class "mt-2 rounded bg-white bg-opacity-50 p-2 text-black text-opacity-70 focus:outline-none"
+                        , classList
+                            [ ( "text-opacity-50 cursor-default", model.currentWidth <= model.minWidth )
+                            , ( "text-opacity-70 hover:text-opacity-100 hover:bg-opacity-80 focus:text-opacity-100 focus:bg-opacity-80", model.currentWidth > model.minWidth )
+                            ]
                         , Htmlx.onClickStopPropagation (ChartZoomOutClicked chartId)
+                        , disabled (model.currentWidth <= model.minWidth)
                         ]
-                        [ icon "w-5 h-5" SolidMinus
+                        [ icon "w-5 h-5" <| SolidMinus
                         ]
                     ]
                  ]

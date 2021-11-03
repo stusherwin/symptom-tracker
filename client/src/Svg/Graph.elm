@@ -31,6 +31,8 @@ type alias Model m dataSetId dataSet =
         , selectedDataPoint : Maybe Int
         , hoveredDataPoint : Maybe Int
         , fillLines : Bool
+        , currentWidth : Float
+        , minWidth : Float
     }
 
 
@@ -326,8 +328,8 @@ viewJustYAxis class { data } =
                 (List.range 0 5)
 
 
-viewLineGraph : String -> Model m dataSetId dataSet -> Svg (Msg dataSetId)
-viewLineGraph class m =
+viewLineGraph : String -> String -> Model m dataSetId dataSet -> Svg (Msg dataSetId)
+viewLineGraph svgId class m =
     let
         startDate =
             findStartDate m.today m.data
@@ -344,11 +346,15 @@ viewLineGraph class m =
         dayLength =
             Date.toRataDie (Date.add Days 1 startDate) - startDateRD
 
-        xStep =
-            v.xStep * m.xScale
-
         xSteps =
             floor (toFloat (Date.toRataDie m.today - startDateRD) / toFloat dayLength)
+
+        xStep =
+            if m.currentWidth >= m.minWidth then
+                v.xStep * m.xScale
+
+            else
+                v.xStep * m.xScale * m.minWidth / m.currentWidth
 
         ( w, h ) =
             ( xStep * toFloat xSteps, v.mb + v.mt + v.yStep * 5 )
@@ -606,6 +612,7 @@ viewLineGraph class m =
     svg
         ([ viewBox w h
          , A.class class
+         , A.id svgId
          ]
             ++ (case m.selectedDataSet of
                     Just _ ->
