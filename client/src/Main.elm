@@ -357,7 +357,7 @@ viewMenu : PageState -> Html Msg
 viewMenu pageState =
     div [ class "px-4 bg-gray-800 text-white flex items-center h-16" ]
         [ logo "w-8 h-8"
-        , h1 [ class "ml-2 text-xl font-bold text-center" ] [ text "Symptrack" ]
+        , h1 [ class "ml-2 text-xl font-bold text-center" ] [ text "Symptom Tracker" ]
         , div [ class "mx-auto" ] []
         , a [ href "/", class "mr-2 rounded p-2 bg-gray-700 hover:bg-gray-600 text-white" ] [ icon "w-5 h-5" SolidCalendarAlt ]
         , a [ href "/charts", class "mr-2 rounded p-2 bg-gray-700 hover:bg-gray-600 text-white" ] [ icon "w-5 h-5" SolidChartArea ]
