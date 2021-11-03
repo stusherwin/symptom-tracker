@@ -1,4 +1,4 @@
-module Chart.LineChart exposing (DataSetId(..), Model, Msg, addChartableDataSet, addTrackableDataSet, hoverDataSet, init, moveDataSetBack, moveDataSetForward, removeDataSet, selectDataSet, subscriptions, toggleDataSetSelected, toggleDataSetVisible, update, updateChartableData, updateDataSetColour, updateDataSetName, updateName, updateTrackableData, view)
+module Chart.LineChart exposing (DataSetId(..), Model, Msg, addChartableDataSet, addTrackableDataSet, hoverDataSet, init, moveDataSetBack, moveDataSetForward, removeDataSet, selectDataSet, subscriptions, toggleDataSetSelected, toggleDataSetVisible, update, updateChartableData, updateDataSetColour, updateDataSetName, updateName, updateTrackableData, view, replaceTrackableWithChartableDataSet)
 
 import Array
 import Browser.Dom as Dom
@@ -462,6 +462,35 @@ addChartableDataSet userData chartableId model =
                                             userData |> UserData.getTrackable tId |> Maybe.map (\t -> ( t.question, Trackable.onlyFloatData t, m ))
                                         )
                             }
+              }
+            , Dom.getViewportOf ("chart" ++ LineChartId.toString model.chartId ++ "-scrollable")
+                |> Task.attempt ViewportUpdated
+            )
+
+        _ ->
+            ( model, Cmd.none )
+
+replaceTrackableWithChartableDataSet : UserData -> Int -> ChartableId -> Model -> ( Model, Cmd Msg )
+replaceTrackableWithChartableDataSet userData i chartableId model =
+    let
+        graph =
+            model.graph
+    in
+    case ( chartableToDataSet userData chartableId True, userData |> UserData.getChartable chartableId ) of
+        ( Just ( _, dataSet ), Just chartable ) ->
+            ( { model
+                | graph = { graph | data = List.take i graph.data ++ (ChartableId chartableId, dataSet) :: List.drop (i + 1) graph.data }
+                , data =
+                    List.take i model.data ++ (ChartableId chartableId,
+                            { name = chartable.name
+                            , inverted = chartable.inverted
+                            , data =
+                                chartable.sum
+                                    |> List.filterMap
+                                        (\( tId, m ) ->
+                                            userData |> UserData.getTrackable tId |> Maybe.map (\t -> ( t.question, Trackable.onlyFloatData t, m ))
+                                        )
+                            }) :: List.drop (i + 1) model.data
               }
             , Dom.getViewportOf ("chart" ++ LineChartId.toString model.chartId ++ "-scrollable")
                 |> Task.attempt ViewportUpdated

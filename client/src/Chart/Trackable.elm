@@ -54,6 +54,7 @@ type Msg
     | TrackableInvertedChanged TrackableId Bool
     | TrackableDeleteClicked TrackableId
     | TrackableMultiplierUpdated TrackableId String
+    | TrackableAddClicked TrackableId
 
 
 view : Maybe DataSetId -> Maybe DataSetId -> Maybe DataSetId -> ( TrackableId, Model ) -> List (Html Msg)
@@ -197,6 +198,8 @@ view first last selectedDataSet ( trackableId, model ) =
                 , icon "mt-3 ml-4 w-4 h-4 flex-grow-0 flex-shrink-0" SolidTimes
                 , Controls.textbox [ class "ml-4 w-20 flex-grow-0 flex-shrink-0" ] [] model.multiplier { isValid = model.isValid, isRequired = True, isPristine = False } (TrackableMultiplierUpdated trackableId)
                 ]
+            , div [ class "mt-4 first:mt-0 flex" ]
+                [ Controls.button "ml-9 flex-grow-0 flex-shrink-0 whitespace-nowrap" Controls.ButtonGrey (TrackableAddClicked trackableId) SolidPlusCircle "Add trackable" True ]
             ]
 
       else

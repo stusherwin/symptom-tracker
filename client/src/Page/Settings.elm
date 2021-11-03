@@ -29,7 +29,8 @@ type alias Model =
     , chartables : List ( ChartableId, Chart.Chartable.Model )
     , userData : UserData
     , editState : EditState
-    , trackableOptions : List ( TrackableId, ( String, Bool ) )
+
+    -- , trackableOptions : List ( TrackableId, ( String, Bool ) )
     }
 
 
@@ -111,11 +112,12 @@ init userData =
                                     |> List.member id
                                     |> not
                         in
-                        ( id, Chart.Chartable.init userData trackableOptions canDelete ( c, v ) )
+                        ( id, Chart.Chartable.init userData canDelete id ( c, v ) )
                )
     , userData = userData
     , editState = NotEditing
-    , trackableOptions = trackableOptions
+
+    -- , trackableOptions = trackableOptions
     }
 
 
@@ -576,7 +578,7 @@ update msg model =
             case idM of
                 Just id ->
                     ( { model
-                        | chartables = model.chartables |> Listx.insertLookup id (Chart.Chartable.init userData_ model.trackableOptions True ( chartable, True ))
+                        | chartables = model.chartables |> Listx.insertLookup id (Chart.Chartable.init userData_ True id ( chartable, True ))
                         , editState = EditingChartable id
                       }
                     , Cmd.batch
@@ -711,7 +713,11 @@ update msg model =
                 Chart.Chartable.TrackableChanged chartableId trackableId (Just newTrackableId) ->
                     let
                         trackableOptionM =
-                            model.trackableOptions |> Listx.lookup newTrackableId
+                            model.chartables
+                                |> Listx.lookup chartableId
+                                |> Maybe.map .trackableOptions
+                                |> Maybe.withDefault []
+                                |> Listx.lookup newTrackableId
 
                         userData_ =
                             model.userData |> UserData.updateChartable chartableId (Chartable.replaceTrackable trackableId newTrackableId)
@@ -775,19 +781,22 @@ update msg model =
 
                 Chart.Chartable.TrackableAddClicked chartableId ->
                     let
-                        chartableM =
-                            UserData.getChartable chartableId model.userData
-
+                        -- chartableM =
+                        --     UserData.getChartable chartableId model.userData
                         trackableM =
-                            chartableM
-                                |> Maybe.map (List.map Tuple.first << .sum)
-                                |> Maybe.map
-                                    (\tIds ->
-                                        model.trackableOptions
-                                            |> List.filter (\( tId, ( _, visible ) ) -> visible && not (List.member tId tIds))
-                                            |> List.map Tuple.first
-                                    )
-                                |> Maybe.andThen List.head
+                            -- chartableM
+                            --     |> Maybe.map (List.map Tuple.first << .sum)
+                            --     |> Maybe.map
+                            --         (\tIds ->
+                            model.chartables
+                                |> Listx.lookup chartableId
+                                |> Maybe.map .trackableOptions
+                                |> Maybe.withDefault []
+                                |> List.filter (\( _, ( _, visible ) ) -> visible)
+                                -- && not (List.member tId tIds))
+                                |> List.map Tuple.first
+                                -- )
+                                |> List.head
                                 |> Maybe.map (\tId -> ( tId, 1.0 ))
 
                         trackableModelM =

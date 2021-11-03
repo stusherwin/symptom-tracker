@@ -32,12 +32,13 @@ import UserData.TrackableId as TrackableId exposing (TrackableId)
 type alias Model =
     { chartId : LineChartId
     , chart : Chart.Model
-    , chartableOptions : List ( DataOption, ( String, Bool ) )
+    , chartableOptions : List ( ( DataOption, Bool ), String )
     , addState : EditState
     , userData : UserData
     , data : List ( DataSetId, DataSet )
     , nameIsPristine : Bool
-    , trackableOptions : List ( TrackableId, ( String, Bool ) )
+
+    -- , trackableOptions : List ( TrackableId, ( String, Bool ) )
     }
 
 
@@ -66,42 +67,10 @@ init today userData chartId chart =
     let
         ( chartModel, chartCmd ) =
             Chart.init today userData chartId chart
-
-        trackableOptions =
-            UserData.activeTrackables userData
-                |> List.filter
-                    (\( _, ( t, _ ) ) ->
-                        case t.data of
-                            TText _ ->
-                                False
-
-                            _ ->
-                                True
-                    )
-                |> List.map (Tuple.mapSecond (Tuple.mapFirst .question))
     in
     ( { chartId = chartId
       , chart = chartModel
-      , chartableOptions =
-            (UserData.activeTrackables userData
-                |> List.filter
-                    (\( _, ( t, _ ) ) ->
-                        case t.data of
-                            TText _ ->
-                                False
-
-                            _ ->
-                                True
-                    )
-                |> (List.filter <| Tuple.second << Tuple.second)
-                |> (List.map <| Tuple.mapSecond (Stringx.withDefault "[no name]" << .question << Tuple.first))
-                |> (List.map <| Tuple.mapFirst TrackableOption << Tuple.mapSecond (\t -> ( t, True )))
-            )
-                ++ (UserData.activeChartables userData
-                        |> (List.filter <| Tuple.second << Tuple.second)
-                        |> (List.map <| Tuple.mapSecond (Stringx.withDefault "[no name]" << .name << Tuple.first))
-                        |> (List.map <| Tuple.mapFirst ChartableOption << Tuple.mapSecond (\t -> ( t, True )))
-                   )
+      , chartableOptions = buildChartableOptions userData chartId
       , addState = NotAdding
       , userData = userData
       , data =
@@ -113,7 +82,7 @@ init today userData chartId chart =
                             LineChart.Chartable chartableId ->
                                 userData
                                     |> UserData.getChartable chartableId
-                                    |> Maybe.map (\c -> ( ChartableId chartableId, Chartable <| Chart.Chartable.init userData trackableOptions True ( c, visible ) ))
+                                    |> Maybe.map (\c -> ( ChartableId chartableId, Chartable <| Chart.Chartable.init userData True chartableId ( c, visible ) ))
 
                             LineChart.Trackable { id, multiplier, inverted } ->
                                 userData
@@ -121,13 +90,70 @@ init today userData chartId chart =
                                     |> Maybe.map (\t -> ( TrackableId id, Trackable <| Chart.Trackable.init True t multiplier inverted visible ))
                     )
       , nameIsPristine = True
-      , trackableOptions = trackableOptions
+
+      --   , trackableOptions = trackableOptions
       }
     , Cmd.batch
         [ Task.attempt (always NoOp) <| Dom.focus <| "chart-name"
         , Cmd.map ChartMsg chartCmd
         ]
     )
+
+
+buildChartableOptions : UserData -> LineChartId -> List ( ( DataOption, Bool ), String )
+buildChartableOptions userData chartId =
+    let
+        trackablesInUse =
+            UserData.getLineChart chartId userData
+                |> Maybe.map (Array.toList << .data)
+                |> Maybe.withDefault []
+                |> List.map Tuple.first
+                |> List.filterMap
+                    (\dataSetId ->
+                        case dataSetId of
+                            LineChart.Trackable { id } ->
+                                Just id
+
+                            _ ->
+                                Nothing
+                    )
+
+        chartablesInUse =
+            UserData.getLineChart chartId userData
+                |> Maybe.map (Array.toList << .data)
+                |> Maybe.withDefault []
+                |> List.map Tuple.first
+                |> List.filterMap
+                    (\dataSetId ->
+                        case dataSetId of
+                            LineChart.Chartable id ->
+                                Just id
+
+                            _ ->
+                                Nothing
+                    )
+    in
+    (UserData.activeTrackables userData
+        |> List.filter
+            (\( _, ( t, _ ) ) ->
+                case t.data of
+                    TText _ ->
+                        False
+
+                    _ ->
+                        True
+            )
+        |> (List.filter <| Tuple.second << Tuple.second)
+        |> (List.map <| Tuple.mapSecond (Stringx.withDefault "[no name]" << .question << Tuple.first))
+        |> (List.map <| \( tId, name ) -> ( ( TrackableOption tId, not <| List.member tId trackablesInUse ), name ))
+        |> (List.sortBy <| String.toUpper << Tuple.second)
+    )
+        ++ (UserData.activeChartables userData
+                |> (List.filter <| Tuple.second << Tuple.second)
+                |> (List.map <| Tuple.mapSecond (Stringx.withDefault "[no name]" << .name << Tuple.first))
+                |> (List.map <| \( cId, name ) -> ( ( ChartableOption cId, not <| List.member cId chartablesInUse ), name ))
+                |> (List.sortBy <| String.toUpper << Tuple.second)
+           )
 
 
 subscriptions : Model -> Sub Msg
@@ -197,8 +223,8 @@ update msg model =
                             )
             }
 
-        updateChartableOptions fn m =
-            { m | chartableOptions = m.chartableOptions |> fn }
+        updateChartableOptions userData chartId m =
+            { m | chartableOptions = buildChartableOptions userData chartId }
 
         setUserData userData_ m =
             { m | userData = userData_ }
@@ -292,7 +318,7 @@ update msg model =
                     ( model
                         |> setUserData userData_
                         |> (updateChartable chartableId <| \c -> { c | name = name, nameIsPristine = False })
-                        |> (updateChartableOptions <| Listx.insertLookup (ChartableOption chartableId) ( Stringx.withDefault "[no name]" name, True ))
+                        |> updateChartableOptions userData_ model.chartId
                         |> (updateChart <| Chart.updateDataSetName (ChartableId chartableId) name)
                     , Task.perform UserDataUpdated <| Task.succeed userData_
                     )
@@ -360,7 +386,18 @@ update msg model =
                 Chart.Chartable.TrackableChanged chartableId trackableId (Just newTrackableId) ->
                     let
                         trackableOptionM =
-                            model.trackableOptions |> Listx.lookup newTrackableId
+                            model.data
+                                |> Listx.lookup (ChartableId chartableId)
+                                |> Maybe.andThen
+                                    (\d ->
+                                        case d of
+                                            Chartable c ->
+                                                Just c.trackableOptions
+
+                                            _ ->
+                                                Nothing
+                                    )
+                                |> Maybe.andThen (Listx.lookup newTrackableId)
 
                         userData_ =
                             model.userData |> UserData.updateChartable chartableId (Chartable.replaceTrackable trackableId newTrackableId)
@@ -377,6 +414,7 @@ update msg model =
                                             { c
                                                 | trackables = c.trackables |> Listx.updateLookupWithKey trackableId (\( _, t ) -> ( newTrackableId, { t | question = question } ))
                                                 , colour = UserData.getChartableColour userData_ chartable_
+                                                , trackableOptions = Chart.Chartable.buildTrackableOptions userData_ chartableId
                                             }
                                    )
                                 |> (updateChart <| Chart.updateChartableData userData_ chartableId)
@@ -435,7 +473,18 @@ update msg model =
                                 |> Maybe.map (List.map Tuple.first << .sum)
                                 |> Maybe.map
                                     (\tIds ->
-                                        model.trackableOptions
+                                        model.data
+                                            |> Listx.lookup (ChartableId chartableId)
+                                            |> Maybe.andThen
+                                                (\d ->
+                                                    case d of
+                                                        Chartable c ->
+                                                            Just c.trackableOptions
+
+                                                        _ ->
+                                                            Nothing
+                                                )
+                                            |> Maybe.withDefault []
                                             |> List.filter (\( tId, ( _, visible ) ) -> visible && not (List.member tId tIds))
                                             |> List.map Tuple.first
                                     )
@@ -460,6 +509,7 @@ update msg model =
                                             { c
                                                 | trackables = c.trackables |> Listx.insertLookup trackableId trackableModel
                                                 , colour = UserData.getChartableColour userData_ chartable_
+                                                , trackableOptions = Chart.Chartable.buildTrackableOptions userData_ chartableId
                                             }
                                    )
                                 |> (updateChart <| Chart.updateChartableData userData_ chartableId)
@@ -487,6 +537,7 @@ update msg model =
                                             { c
                                                 | trackables = c.trackables |> (List.filter <| \( tId, _ ) -> tId /= trackableId)
                                                 , colour = UserData.getChartableColour userData_ chartable_
+                                                , trackableOptions = Chart.Chartable.buildTrackableOptions userData_ chartableId
                                             }
                                    )
                                 |> (updateChart <| Chart.updateChartableData userData_ chartableId)
@@ -627,6 +678,98 @@ update msg model =
                         ]
                     )
 
+                Chart.Trackable.TrackableAddClicked trackableId ->
+                    case model.userData |> UserData.getLineChart model.chartId |> Maybe.andThen (\c -> c.data |> Array.get i) of
+                        Just ( LineChart.Trackable { inverted, multiplier }, _ ) ->
+                            let
+                                nextTrackableOption =
+                                    model.chartableOptions
+                                        |> List.filterMap
+                                            (\( ( dId, visible ), _ ) ->
+                                                case dId of
+                                                    TrackableOption tId ->
+                                                        if visible && tId /= trackableId then
+                                                            Just tId
+
+                                                        else
+                                                            Nothing
+
+                                                    _ ->
+                                                        Nothing
+                                            )
+                                        |> List.head
+
+                                newTrackable =
+                                    case nextTrackableOption of
+                                        Just tId ->
+                                            [ ( tId, 1.0 ) ]
+
+                                        _ ->
+                                            []
+
+                                chartableNames =
+                                    model.chartableOptions
+                                        |> List.filterMap
+                                            (\( ( o, _ ), n ) ->
+                                                case o of
+                                                    ChartableOption _ ->
+                                                        Just n
+
+                                                    _ ->
+                                                        Nothing
+                                            )
+
+                                newChartable =
+                                    Debug.log "newChartable"
+                                        { name = Stringx.nextName chartableNames "Chartable " 1
+                                        , colour = Nothing
+                                        , inverted = inverted
+                                        , sum = ( trackableId, multiplier ) :: newTrackable
+                                        }
+
+                                ( chartableIdM, userData_ ) =
+                                    Debug.log "userData_" (model.userData |> UserData.addChartable newChartable)
+                            in
+                            case chartableIdM of
+                                Just chartableId ->
+                                    let
+                                        newChartableModel =
+                                            Chart.Chartable.init userData_ True chartableId ( newChartable, True )
+
+                                        userData__ =
+                                            userData_ |> UserData.updateLineChart model.chartId (LineChart.replaceTrackableWithChartable i chartableId)
+
+                                        model_ =
+                                            model
+                                                |> setUserData userData__
+                                                |> (\m ->
+                                                        { m
+                                                            | data = List.take i m.data ++ ( ChartableId chartableId, Chartable newChartableModel ) :: List.drop (i + 1) m.data
+                                                            , addState = NotAdding
+                                                        }
+                                                   )
+                                                |> updateChartableOptions userData__ model.chartId
+
+                                        ( model__, cmd ) =
+                                            model_ |> (updateChart1 <| Chart.replaceTrackableWithChartableDataSet userData__ i chartableId)
+
+                                        model___ =
+                                            model__
+                                                |> (updateChart <| Chart.selectDataSet (Just (ChartableId chartableId)))
+                                    in
+                                    ( model___
+                                    , Cmd.batch
+                                        [ Cmd.map ChartMsg cmd
+                                        , Task.perform UserDataUpdated <| Task.succeed userData__
+                                        ]
+                                    )
+
+                                _ ->
+                                    ( model, Cmd.none )
+
+                        _ ->
+                            ( model, Cmd.none )
+
                 _ ->
                     ( model, Cmd.none )
 
@@ -638,7 +781,8 @@ update msg model =
                             | addState =
                                 AddingChartable
                                     (model.chartableOptions
-                                        |> List.map Tuple.first
+                                        |> List.filter (Tuple.second << Tuple.first)
+                                        |> List.map (Tuple.first << Tuple.first)
                                         |> List.head
                                     )
                         }
@@ -660,7 +804,7 @@ update msg model =
                         Just chartable ->
                             let
                                 newChartableModel =
-                                    Chart.Chartable.init userData_ model.trackableOptions True ( chartable, True )
+                                    Chart.Chartable.init userData_ True chartableId ( chartable, True )
 
                                 userData_ =
                                     model.userData |> UserData.updateLineChart model.chartId (LineChart.addChartable chartableId)
@@ -675,7 +819,7 @@ update msg model =
                                                 }
                                            )
                                         |> (updateChart <| Chart.selectDataSet Nothing)
-                                        |> (updateChartableOptions <| Listx.insertLookup (ChartableOption chartableId) ( Stringx.withDefault "[no name]" newChartableModel.name, True ))
+                                        |> updateChartableOptions userData_ model.chartId
 
                                 ( model__, cmd ) =
                                     model_ |> (updateChart1 <| Chart.addChartableDataSet userData_ chartableId)
@@ -710,7 +854,7 @@ update msg model =
                                                 }
                                            )
                                         |> (updateChart <| Chart.selectDataSet Nothing)
-                                        |> (updateChartableOptions <| Listx.insertLookup (TrackableOption trackableId) ( Stringx.withDefault "[no question]" newTrackableModel.question, True ))
+                                        |> updateChartableOptions userData_ model.chartId
 
                                 ( model__, cmd ) =
                                     model_ |> (updateChart1 <| Chart.addTrackableDataSet userData_ trackableId)
@@ -829,33 +973,8 @@ view model =
                                         ChartableToAddChanged
                                         toString
                                         fromString
-                                        (model.chartableOptions
-                                            |> List.sortBy
-                                                (\( option, ( name, _ ) ) ->
-                                                    case option of
-                                                        TrackableOption _ ->
-                                                            "1" ++ String.toUpper name
-
-                                                        ChartableOption _ ->
-                                                            "2" ++ String.toUpper name
-                                                )
-                                            |> List.map
-                                                (\( option, ( name, enabled ) ) -> ( ( option, enabled ), name ))
-                                         -- |> List.map
-                                         --     (\( option, name ) ->
-                                         --         ( ( option
-                                         --           , case option of
-                                         --                 ChartableOption cId ->
-                                         --                     not <| List.member cId <| List.map Tuple.first model.chart.graph.data
-                                         --                 _ ->
-                                         --                     False
-                                         --           )
-                                         --         , name
-                                         --         )
-                                         --     )
-                                        )
+                                        model.chartableOptions
                                         Nothing
-                                        -- (Just "New chartable")
                                         addingChartableId
                                         { showFilled = False }
                                     , Controls.button "ml-4" Controls.ButtonGrey ChartableAddConfirmClicked SolidPlusCircle "Add" True

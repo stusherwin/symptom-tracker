@@ -1,4 +1,4 @@
-module Chart.Chartable exposing (Model, Msg(..), init, toTrackableModel, view)
+module Chart.Chartable exposing (Model, Msg(..), buildTrackableOptions, init, toTrackableModel, view)
 
 import Chart.LineChart as Chart exposing (DataSetId(..))
 import Colour exposing (Colour)
@@ -15,6 +15,7 @@ import Time exposing (Month(..))
 import UserData exposing (UserData)
 import UserData.Chartable as Chartable exposing (Chartable)
 import UserData.ChartableId as ChartableId exposing (ChartableId)
+import UserData.LineChartId as LineChartId exposing (LineChartId)
 import UserData.Trackable as Trackable exposing (Trackable, TrackableData(..))
 import UserData.TrackableId as TrackableId exposing (TrackableId)
 
@@ -38,8 +39,8 @@ type alias TrackableModel =
     }
 
 
-init : UserData -> List ( TrackableId, ( String, Bool ) ) -> Bool -> ( Chartable, Bool ) -> Model
-init userData trackableOptions canDelete ( chartable, visible ) =
+init : UserData -> Bool -> ChartableId -> ( Chartable, Bool ) -> Model
+init userData canDelete chartableId ( chartable, visible ) =
     { name = chartable.name
     , colour = UserData.getChartableColour userData chartable
     , inverted = chartable.inverted
@@ -47,8 +48,43 @@ init userData trackableOptions canDelete ( chartable, visible ) =
     , trackables = chartable.sum |> List.filterMap (toTrackableModel userData)
     , visible = visible
     , nameIsPristine = True
-    , trackableOptions = trackableOptions
+    , trackableOptions = buildTrackableOptions userData chartableId
     }
+
+
+buildTrackableOptions : UserData -> ChartableId -> List ( TrackableId, ( String, Bool ) )
+buildTrackableOptions userData chartableId =
+    let
+        trackablesInUse =
+            UserData.getChartable chartableId userData
+                |> Maybe.map .sum
+                |> Maybe.withDefault []
+                |> List.map Tuple.first
+    in
+    UserData.activeTrackables userData
+        |> List.filter
+            (\( _, ( t, _ ) ) ->
+                case t.data of
+                    TText _ ->
+                        False
+
+                    _ ->
+                        True
+            )
+        |> List.filterMap
+            (\( tId, ( t, visible ) ) ->
+                if visible then
+                    Just
+                        ( tId
+                        , ( t.question
+                          , not (List.member tId trackablesInUse)
+                          )
+                        )
+
+                else
+                    Nothing
+            )
+        |> (List.sortBy <| String.toUpper << Tuple.first << Tuple.second)
 
 
 toTrackableModel : UserData -> ( TrackableId, Float ) -> Maybe ( TrackableId, TrackableModel )
