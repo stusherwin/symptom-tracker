@@ -16,7 +16,10 @@ type Api =
   :<|> Raw
 
 type AppApi =
-     "api" :> "data" :> Get '[JSON] Int
+     "api" :> "data" :>
+          (     Get '[PlainText] Text 
+          :<|> ReqBody '[PlainText] Text :> Post '[PlainText] Text
+          )
 
 fullApi :: Proxy Api
 fullApi = Proxy
