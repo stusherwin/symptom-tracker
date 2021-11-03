@@ -154,7 +154,7 @@ view first last selectedChartable ( chartableId, model ) =
                     ]
                 , if model.visible then
                     span [ class "ml-4 w-full", Htmlx.onClickStopPropagation NoOp ]
-                        [ a [ class "block w-full font-bold flex items-center relative text-opacity-70 hover:text-opacity-100 text-black", href "#", target "_self", Htmlx.onClickPreventDefault (ChartableEditClicked chartableId) ]
+                        [ a [ class "block w-full font-bold flex items-center relative text-opacity-70 hover:text-opacity-100 text-black pr-8", href "#", target "_self", Htmlx.onClickPreventDefault (ChartableEditClicked chartableId) ]
                             [ if selectedChartable == Just chartableId then
                                 icon "w-5 h-5 relative -ml-1 mr-0.5" SolidCaretRight
 

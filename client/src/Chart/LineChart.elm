@@ -39,6 +39,8 @@ type Msg
     | ChartFullScreenClicked
     | ChartZoomOutClicked
     | ChartZoomInClicked
+    | ChartZoomOutRequested (Result Dom.Error Dom.Viewport)
+    | ChartZoomInRequested (Result Dom.Error Dom.Viewport)
     | ChartClicked
     | ChartExpandValueClicked
     | ChartExpandValueCloseClicked
@@ -155,14 +157,30 @@ update msg model =
             ( model |> updateGraph (\c -> { c | selectedDataSet = Nothing, selectedDataPoint = Nothing }), Cmd.none )
 
         ChartZoomOutClicked ->
-            ( model |> updateGraph (\c -> { c | xScale = c.xScale * 3 / 4 })
+            ( model
             , Dom.getViewportOf ("chart" ++ LineChartId.toString model.chartId ++ "-scrollable")
-                |> Task.attempt ViewportUpdated
+                |> Task.attempt ChartZoomOutRequested
             )
 
         ChartZoomInClicked ->
+            ( model
+            , Dom.getViewportOf ("chart" ++ LineChartId.toString model.chartId ++ "-scrollable")
+                |> Task.attempt ChartZoomInRequested
+            )
+
+        ChartZoomOutRequested (Ok scrollable) ->
+            ( model |> updateGraph (\c -> { c | xScale = c.xScale * 3 / 4 })
+            , Dom.getViewportOf ("chart" ++ LineChartId.toString model.chartId ++ "-scrollable")
+                |> Task.andThen (\v -> Dom.setViewportOf ("chart" ++ LineChartId.toString model.chartId ++ "-scrollable") (v.scene.width * ((scrollable.viewport.x + scrollable.viewport.width / 2) / scrollable.scene.width) - (v.viewport.width / 2)) 0)
+                |> Task.andThen (\_ -> Dom.getViewportOf ("chart" ++ LineChartId.toString model.chartId ++ "-scrollable"))
+                |> Task.attempt ViewportUpdated
+            )
+
+        ChartZoomInRequested (Ok scrollable) ->
             ( model |> updateGraph (\c -> { c | xScale = c.xScale * 4 / 3 })
             , Dom.getViewportOf ("chart" ++ LineChartId.toString model.chartId ++ "-scrollable")
+                |> Task.andThen (\v -> Dom.setViewportOf ("chart" ++ LineChartId.toString model.chartId ++ "-scrollable") (v.scene.width * ((scrollable.viewport.x + scrollable.viewport.width / 2) / scrollable.scene.width) - (v.viewport.width / 2)) 0)
+                |> Task.andThen (\_ -> Dom.getViewportOf ("chart" ++ LineChartId.toString model.chartId ++ "-scrollable"))
                 |> Task.attempt ViewportUpdated
             )
 
@@ -200,8 +218,8 @@ update msg model =
                     ( model
                         |> (updateGraph <| \c -> { c | currentWidth = svg.element.width, minWidth = viewport.viewport.width, height = svg.element.height })
                     , if model.graph.currentWidth /= svg.element.width then
-                        Dom.getElement ("chart" ++ LineChartId.toString model.chartId ++ "-svg")
-                            |> Task.attempt ElementUpdated
+                        Dom.getViewportOf ("chart" ++ LineChartId.toString model.chartId ++ "-scrollable")
+                            |> Task.attempt ViewportUpdated
 
                       else
                         Cmd.none
