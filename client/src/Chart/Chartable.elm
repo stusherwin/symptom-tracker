@@ -234,8 +234,8 @@ view { canMoveUp, canMoveDown, isSelected } model =
     in
     [ div
         [ class "border-t-4"
-        , Colour.class "bg" colour
-        , Colour.classUp "border" colour
+        , Colour.bgClass colour
+        , Colour.borderClassDarker colour
         , onMouseEnter <| ChartableHovered True
         , onMouseLeave <| ChartableHovered False
         ]
@@ -363,7 +363,7 @@ view { canMoveUp, canMoveDown, isSelected } model =
     , if isSelected then
         div
             [ class "p-4"
-            , Colour.classDown "bg" colour
+            , Colour.bgClassLighter colour
             ]
         <|
             (model.trackables

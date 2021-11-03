@@ -196,7 +196,7 @@ colourDropdown class toMsg selectedValue { showFilled } =
             (\c ->
                 ( ( c, True )
                 , div [ A.class "p-1 font-bold flex items-center" ]
-                    [ div [ A.class "w-8 h-8 rounded-full flex-shrink-0 flex-grow-0 border-2", Colour.class "bg" c, Colour.classUp "border" c ] []
+                    [ div [ A.class "w-8 h-8 rounded-full flex-shrink-0 flex-grow-0 border-2", Colour.bgClass c, Colour.borderClassDarker c ] []
                     ]
                 )
             )

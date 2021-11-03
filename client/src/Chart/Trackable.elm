@@ -107,8 +107,8 @@ view { canMoveUp, canMoveDown, isSelected } model =
     in
     [ div
         [ class "border-t-4"
-        , Colour.class "bg" colour
-        , Colour.classUp "border" colour
+        , Colour.bgClass colour
+        , Colour.borderClassDarker colour
         , onMouseEnter <| TrackableHovered True
         , onMouseLeave <| TrackableHovered False
         ]
@@ -219,7 +219,7 @@ view { canMoveUp, canMoveDown, isSelected } model =
     , if isSelected then
         div
             [ class "p-4"
-            , Colour.classDown "bg" colour
+            , Colour.bgClassLighter colour
             ]
             [ div [ class "mt-4 first:mt-0 flex" ]
                 [ icon "mt-3 w-4 h-4 ml-0.5 mr-0.5 flex-grow-0 flex-shrink-0" <|

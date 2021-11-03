@@ -312,7 +312,7 @@ viewQuestion currentDay textInputs ( id, t ) =
                 TText _ ->
                     viewTextAnswer id stringValue
     in
-    div [ class "pt-6 pb-6 border-t-4", Colour.class "bg" (T.colour t), Colour.classUp "border" (T.colour t) ]
+    div [ class "pt-6 pb-6 border-t-4", Colour.bgClass (T.colour t), Colour.borderClassDarker (T.colour t) ]
         [ h2 [ class "font-bold text-xl text-center" ] [ text (T.question t) ]
         , div [ class "flex justify-center" ] viewAnswer
         ]

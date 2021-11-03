@@ -627,8 +627,8 @@ viewTrackable editState first last ( id, q ) =
         div []
             [ div
                 [ class "p-4 border-t-4 flex"
-                , Colour.class "bg" colour
-                , Colour.classUp "border" colour
+                , Colour.bgClass colour
+                , Colour.borderClassDarker colour
                 ]
                 [ button
                     [ class "text-black focus:outline-none flex-grow-0 flex-shrink-0 text-opacity-70 hover:text-opacity-100 focus:text-opacity-100"
@@ -710,13 +710,13 @@ viewTrackable editState first last ( id, q ) =
         div []
             [ div
                 [ class "px-4 py-2 border-t-4 flex"
-                , Colour.class "bg" <|
+                , Colour.bgClass <|
                     if q.isVisible then
                         q.colour
 
                     else
                         Colour.Gray
-                , Colour.classUp "border" <|
+                , Colour.borderClassDarker <|
                     if q.isVisible then
                         q.colour
 
@@ -743,7 +743,7 @@ viewTrackable editState first last ( id, q ) =
                 ]
             , div
                 [ class "py-4 px-4 pt-2 pl-12"
-                , Colour.classDown "bg" <|
+                , Colour.bgClassLighter <|
                     if q.isVisible then
                         q.colour
 

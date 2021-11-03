@@ -1,4 +1,4 @@
-module Colour exposing (Colour(..), all, class, classDown, classUp, decode, encode, fromString, toString, toUserString, userSelectable)
+module Colour exposing (Colour(..), all, bgClass, bgClassLighter, borderClassDarker, decode, encode, fromString, toString, toUserString, userSelectable)
 
 import Html exposing (Attribute)
 import Html.Attributes as Html
@@ -269,91 +269,235 @@ userSelectable =
     ]
 
 
-class : String -> Colour -> Attribute msg
-class prefix colour =
+bgClass : Colour -> Attribute msg
+bgClass colour =
     Html.class <|
-        prefix
-            ++ "-"
-            ++ (case colour of
-                    Black ->
-                        "gray-800"
+        case colour of
+            Black ->
+                "bg-gray-800"
 
-                    White ->
-                        "white"
+            White ->
+                "bg-white"
 
-                    MidGray ->
-                        "gray-300"
+            MidGray ->
+                "bg-gray-300"
 
-                    LightGray ->
-                        "gray-200"
+            LightGray ->
+                "bg-gray-200"
 
-                    LighterGray ->
-                        "gray-100"
+            LighterGray ->
+                "bg-gray-100"
 
-                    LightestGray ->
-                        "gray-50"
+            LightestGray ->
+                "bg-gray-50"
 
-                    _ ->
-                        toString colour ++ "-300"
-               )
+            Gray ->
+                "bg-gray-300"
+
+            Red ->
+                "bg-red-300"
+
+            Orange ->
+                "bg-orange-300"
+
+            Amber ->
+                "bg-amber-300"
+
+            Yellow ->
+                "bg-yellow-300"
+
+            Lime ->
+                "bg-lime-300"
+
+            Green ->
+                "bg-green-300"
+
+            Emerald ->
+                "bg-emerald-300"
+
+            Teal ->
+                "bg-teal-300"
+
+            Cyan ->
+                "bg-cyan-300"
+
+            LightBlue ->
+                "bg-lightBlue-300"
+
+            Blue ->
+                "bg-blue-300"
+
+            Indigo ->
+                "bg-indigo-300"
+
+            Violet ->
+                "bg-violet-300"
+
+            Purple ->
+                "bg-purple-300"
+
+            Fuchsia ->
+                "bg-fuchsia-300"
+
+            Pink ->
+                "bg-pink-300"
+
+            Rose ->
+                "bg-rose-300"
 
 
-classUp : String -> Colour -> Attribute msg
-classUp prefix colour =
+bgClassLighter : Colour -> Attribute msg
+bgClassLighter colour =
     Html.class <|
-        prefix
-            ++ "-"
-            ++ (case colour of
-                    Black ->
-                        "gray-900"
+        case colour of
+            Black ->
+                "bg-gray-700"
 
-                    White ->
-                        "gray-50"
+            White ->
+                "bg-white"
 
-                    MidGray ->
-                        "gray-400"
+            MidGray ->
+                "bg-gray-200"
 
-                    LightGray ->
-                        "gray-300"
+            LightGray ->
+                "bg-gray-100"
 
-                    LighterGray ->
-                        "gray-200"
+            LighterGray ->
+                "bg-gray-50"
 
-                    LightestGray ->
-                        "gray-100"
+            LightestGray ->
+                "bg-white"
 
-                    _ ->
-                        toString colour ++ "-400"
-               )
+            Gray ->
+                "bg-gray-200"
+
+            Red ->
+                "bg-red-200"
+
+            Orange ->
+                "bg-orange-200"
+
+            Amber ->
+                "bg-amber-200"
+
+            Yellow ->
+                "bg-yellow-200"
+
+            Lime ->
+                "bg-lime-200"
+
+            Green ->
+                "bg-green-200"
+
+            Emerald ->
+                "bg-emerald-200"
+
+            Teal ->
+                "bg-teal-200"
+
+            Cyan ->
+                "bg-cyan-200"
+
+            LightBlue ->
+                "bg-lightBlue-200"
+
+            Blue ->
+                "bg-blue-200"
+
+            Indigo ->
+                "bg-indigo-200"
+
+            Violet ->
+                "bg-violet-200"
+
+            Purple ->
+                "bg-purple-200"
+
+            Fuchsia ->
+                "bg-fuchsia-200"
+
+            Pink ->
+                "bg-pink-200"
+
+            Rose ->
+                "bg-rose-200"
 
 
-classDown : String -> Colour -> Attribute msg
-classDown prefix colour =
+borderClassDarker : Colour -> Attribute msg
+borderClassDarker colour =
     Html.class <|
-        prefix
-            ++ "-"
-            ++ (case colour of
-                    Black ->
-                        "gray-700"
+        case colour of
+            Black ->
+                "border-gray-900"
 
-                    White ->
-                        "white"
+            White ->
+                "border-gray-50"
 
-                    MidGray ->
-                        "gray-200"
+            MidGray ->
+                "border-gray-400"
 
-                    LightGray ->
-                        "gray-100"
+            LightGray ->
+                "border-gray-300"
 
-                    LighterGray ->
-                        "gray-50"
+            LighterGray ->
+                "border-gray-200"
 
-                    LightestGray ->
-                        "white"
+            LightestGray ->
+                "border-gray-100"
 
-                    _ ->
-                        toString colour ++ "-200"
-               )
+            Gray ->
+                "border-gray-400"
+
+            Red ->
+                "border-red-400"
+
+            Orange ->
+                "border-orange-400"
+
+            Amber ->
+                "border-amber-400"
+
+            Yellow ->
+                "border-yellow-400"
+
+            Lime ->
+                "border-lime-400"
+
+            Green ->
+                "border-green-400"
+
+            Emerald ->
+                "border-emerald-400"
+
+            Teal ->
+                "border-teal-400"
+
+            Cyan ->
+                "border-cyan-400"
+
+            LightBlue ->
+                "border-lightBlue-400"
+
+            Blue ->
+                "border-blue-400"
+
+            Indigo ->
+                "border-indigo-400"
+
+            Violet ->
+                "border-violet-400"
+
+            Purple ->
+                "border-purple-400"
+
+            Fuchsia ->
+                "border-fuchsia-400"
+
+            Pink ->
+                "border-pink-400"
+
+            Rose ->
+                "border-rose-400"
 
 
 decode : D.Decoder Colour
