@@ -1,4 +1,4 @@
-module UserData.Chartable exposing (Chartable, ChartableDict, ChartableId(..), decode, decodeDict, decodeId, decodeIdDict, encode, encodeDict, encodeId, encodeIdDict, fromList, toDict)
+module UserData.Chartable exposing (Chartable, ChartableDict, ChartableId(..), decode, decodeDict, decodeId, decodeIdDict, encode, encodeDict, encodeId, encodeIdDict, fromList, idFromString, idToString, toDict)
 
 import Colour exposing (Colour)
 import Dict
@@ -27,6 +27,14 @@ fromId (ChartableId id) =
 
 type alias ChartableDict =
     IdDict ChartableId Chartable
+
+
+idToString (ChartableId id) =
+    String.fromInt id
+
+
+idFromString =
+    Maybe.map ChartableId << String.toInt
 
 
 encodeId : ChartableId -> E.Value

@@ -395,7 +395,7 @@ view : Model -> Html Msg
 view { questions, selectedValue } =
     div [ class "shadow-inner-t-md" ] <|
         [ h2 [ class "py-4 font-bold text-2xl text-center" ]
-            [ text <| "Manage your questions" ]
+            [ text <| "Trackables" ]
 
         -- , viewTest selectedValue
         ]
@@ -403,7 +403,7 @@ view { questions, selectedValue } =
                     IdDict.map viewQuestion questions
                )
             ++ [ div [ class "bg-gray-200 border-t-4 border-gray-300 flex" ]
-                    [ Controls.button "m-4" Controls.ButtonGrey QuestionAddClicked SolidPlusCircle "Add a question" True
+                    [ Controls.button "m-4" Controls.ButtonGrey QuestionAddClicked SolidPlusCircle "New trackable" True
                     ]
                ]
 
