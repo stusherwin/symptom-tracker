@@ -116,17 +116,19 @@ state (Chartable c) =
 
 
 buildColour : List ( TrackableId, ( Trackable, Float ) ) -> Maybe Colour -> Colour
-buildColour s col =
-    let
-        colourM =
-            if List.length s == 1 || col == Nothing then
-                List.head s
-                    |> Maybe.map (T.colour << Tuple.first << Tuple.second)
+buildColour s ownCol =
+    case ( s, ownCol ) of
+        ( [], _ ) ->
+            Colour.Gray
 
-            else
-                col
-    in
-    colourM |> Maybe.withDefault Colour.Gray
+        ( ( _, ( t, _ ) ) :: [], _ ) ->
+            T.colour t
+
+        ( _, Just col ) ->
+            col
+
+        ( ( _, ( t, _ ) ) :: _, _ ) ->
+            T.colour t
 
 
 

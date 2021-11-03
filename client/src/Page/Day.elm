@@ -69,7 +69,7 @@ update userData msg model =
                 userData_ =
                     userData |> fn
             in
-            ( { m | trackables = UserData.activeTrackables userData }
+            ( { m | trackables = UserData.activeTrackables userData_ }
             , Cmd.batch [ cmd, Task.perform UserDataUpdated <| Task.succeed userData_ ]
             )
 
