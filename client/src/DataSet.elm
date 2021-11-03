@@ -18,6 +18,8 @@ type alias DataSet =
     , colour : Colour
     , dataPoints : Dict Int Float
     , isVisible : Bool
+    , isInverted : Bool
+    , expandedData : List ( String, Dict Int Float, Float )
     }
 
 
@@ -50,11 +52,18 @@ fromChartable c isVisible =
                     identity
                )
     , isVisible = isVisible
+    , isInverted = C.isInverted c
+    , expandedData =
+        C.sum c
+            |> List.map
+                (\( _, ( t, m ) ) ->
+                    ( T.question t, T.onlyFloatData t, m )
+                )
     }
 
 
 fromTrackable : Trackable -> Float -> Bool -> Bool -> DataSet
-fromTrackable t multiplier inverted isVisible =
+fromTrackable t multiplier isInverted isVisible =
     let
         invert rs =
             case List.maximum <| Dict.values rs of
@@ -69,13 +78,15 @@ fromTrackable t multiplier inverted isVisible =
     , dataPoints =
         T.onlyFloatData t
             |> Dict.map (\_ v -> v * multiplier)
-            |> (if inverted then
+            |> (if isInverted then
                     invert
 
                 else
                     identity
                )
     , isVisible = isVisible
+    , isInverted = isInverted
+    , expandedData = [ ( T.question t, T.onlyFloatData t, multiplier ) ]
     }
 
 

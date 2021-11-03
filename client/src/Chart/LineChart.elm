@@ -7,7 +7,6 @@ import Browser.Events as E
 import DataSet exposing (DataSet)
 import Date exposing (Date, Unit(..))
 import Dict exposing (Dict)
-import ExpandedDataSet exposing (ExpandedDataSet)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Htmlx
@@ -34,7 +33,6 @@ type alias Model =
     , userData : UserData
     , fullScreen : Bool
     , graph : Graph.Model
-    , expandedData : Array ExpandedDataSet
     }
 
 
@@ -90,17 +88,6 @@ init today userData chartId chart =
             , currentWidth = 0
             , height = 0
             }
-      , expandedData =
-            LC.dataSets chart
-                |> Array.map
-                    (\( data, _ ) ->
-                        case data of
-                            LC.Chartable { chartable } ->
-                                ExpandedDataSet.fromChartable chartable
-
-                            LC.Trackable { trackable, multiplier, isInverted } ->
-                                ExpandedDataSet.fromTrackable trackable multiplier isInverted
-                    )
       }
     , Cmd.batch
         [ let
@@ -252,10 +239,7 @@ selectDataSet i model =
 
 updateDataSetName : Int -> String -> Model -> ( Model, Cmd Msg )
 updateDataSetName i name ({ graph } as model) =
-    ( { model
-        | graph = { graph | data = graph.data |> Arrayx.update i (\d -> { d | name = name }) }
-        , expandedData = model.expandedData |> Arrayx.update i (\d -> { d | name = name })
-      }
+    ( { model | graph = { graph | data = graph.data |> Arrayx.update i (\d -> { d | name = name }) } }
     , Cmd.none
     )
 
@@ -266,10 +250,7 @@ updateChartableDataSet i userData chartableId ({ graph } as model) =
         |> UserData.getChartable chartableId
         |> Maybe.map
             (\chartable ->
-                ( { model
-                    | graph = { graph | data = graph.data |> Arrayx.update i (\d -> DataSet.fromChartable chartable d.isVisible) }
-                    , expandedData = model.expandedData |> Array.set i (ExpandedDataSet.fromChartable chartable)
-                  }
+                ( { model | graph = { graph | data = graph.data |> Arrayx.update i (\d -> DataSet.fromChartable chartable d.isVisible) } }
                 , Cmd.none
                 )
             )
@@ -282,11 +263,11 @@ updateTrackableDataSet i userData trackableId updatedMultiplierM updatedIsInvert
         |> UserData.getTrackable trackableId
         |> Maybe.andThen
             (\trackable ->
-                model.expandedData
+                model.graph.data
                     |> Array.get i
                     |> Maybe.andThen
                         (\t ->
-                            List.head t.data
+                            List.head t.expandedData
                                 |> Maybe.map
                                     (\( _, _, m ) ->
                                         let
@@ -296,10 +277,7 @@ updateTrackableDataSet i userData trackableId updatedMultiplierM updatedIsInvert
                                             multiplier =
                                                 Maybe.withDefault m updatedMultiplierM
                                         in
-                                        ( { model
-                                            | graph = { graph | data = graph.data |> Arrayx.update i (\d -> DataSet.fromTrackable trackable multiplier isInverted d.isVisible) }
-                                            , expandedData = model.expandedData |> Array.set i (ExpandedDataSet.fromTrackable trackable multiplier isInverted)
-                                          }
+                                        ( { model | graph = { graph | data = graph.data |> Arrayx.update i (\d -> DataSet.fromTrackable trackable multiplier isInverted d.isVisible) } }
                                         , Cmd.none
                                         )
                                     )
@@ -312,10 +290,7 @@ addChartableDataSet : UserData -> ChartableId -> Model -> ( Model, Cmd Msg )
 addChartableDataSet userData chartableId ({ graph } as model) =
     case userData |> UserData.getChartable chartableId of
         Just c ->
-            ( { model
-                | graph = { graph | data = graph.data |> Array.push (DataSet.fromChartable c True) }
-                , expandedData = model.expandedData |> Array.push (ExpandedDataSet.fromChartable c)
-              }
+            ( { model | graph = { graph | data = graph.data |> Array.push (DataSet.fromChartable c True) } }
             , Dom.getViewportOf ("chart" ++ LCId.toString model.chartId ++ "-scrollable")
                 |> Task.attempt ViewportUpdated
             )
@@ -328,10 +303,7 @@ replaceDataSetWithChartable : UserData -> Int -> ChartableId -> Model -> ( Model
 replaceDataSetWithChartable userData i chartableId ({ graph } as model) =
     case userData |> UserData.getChartable chartableId of
         Just c ->
-            ( { model
-                | graph = { graph | data = graph.data |> Array.set i (DataSet.fromChartable c True) }
-                , expandedData = model.expandedData |> Array.set i (ExpandedDataSet.fromChartable c)
-              }
+            ( { model | graph = { graph | data = graph.data |> Array.set i (DataSet.fromChartable c True) } }
             , Dom.getViewportOf ("chart" ++ LCId.toString model.chartId ++ "-scrollable")
                 |> Task.attempt ViewportUpdated
             )
@@ -344,10 +316,7 @@ replaceDataSetWithTrackable : UserData -> Int -> TrackableId -> Float -> Bool ->
 replaceDataSetWithTrackable userData i trackableId multiplier isInverted isVisible ({ graph } as model) =
     case userData |> UserData.getTrackable trackableId of
         Just trackable ->
-            ( { model
-                | graph = { graph | data = graph.data |> Array.set i (DataSet.fromTrackable trackable multiplier isInverted isVisible) }
-                , expandedData = model.expandedData |> Array.set i (ExpandedDataSet.fromTrackable trackable multiplier isInverted)
-              }
+            ( { model | graph = { graph | data = graph.data |> Array.set i (DataSet.fromTrackable trackable multiplier isInverted isVisible) } }
             , Dom.getViewportOf ("chart" ++ LCId.toString model.chartId ++ "-scrollable")
                 |> Task.attempt ViewportUpdated
             )
@@ -360,10 +329,7 @@ addTrackableDataSet : UserData -> TrackableId -> Model -> ( Model, Cmd Msg )
 addTrackableDataSet userData trackableId ({ graph } as model) =
     case userData |> UserData.getTrackable trackableId of
         Just trackable ->
-            ( { model
-                | graph = { graph | data = graph.data |> Array.push (DataSet.fromTrackable trackable 1 False True) }
-                , expandedData = model.expandedData |> Array.push (ExpandedDataSet.fromTrackable trackable 1 False)
-              }
+            ( { model | graph = { graph | data = graph.data |> Array.push (DataSet.fromTrackable trackable 1 False True) } }
             , Dom.getViewportOf ("chart" ++ LCId.toString model.chartId ++ "-scrollable")
                 |> Task.attempt ViewportUpdated
             )
@@ -374,10 +340,7 @@ addTrackableDataSet userData trackableId ({ graph } as model) =
 
 removeDataSet : Int -> Model -> ( Model, Cmd Msg )
 removeDataSet i ({ graph } as model) =
-    ( { model
-        | graph = { graph | data = graph.data |> Arrayx.delete i }
-        , expandedData = model.expandedData |> Arrayx.delete i
-      }
+    ( { model | graph = { graph | data = graph.data |> Arrayx.delete i } }
     , Dom.getViewportOf ("chart" ++ LCId.toString model.chartId ++ "-scrollable")
         |> Task.attempt ViewportUpdated
     )
@@ -421,7 +384,7 @@ view model =
                     , class "absolute overflow-x-scroll top-0 left-0 right-0 bottom-0"
                     ]
                     [ Html.map GraphMsg <| viewLineGraph ("chart" ++ LCId.toString model.chartId ++ "-svg") "h-full" model.graph ]
-                , if Array.isEmpty model.expandedData then
+                , if Array.isEmpty model.graph.data then
                     div [ class "absolute inset-0 flex justify-center items-center" ] [ span [ class "mb-6" ] [ text "No data added yet" ] ]
 
                   else
@@ -442,38 +405,38 @@ view model =
                 , button
                     [ class "mt-2 rounded shadow p-2 bg-white bg-opacity-80 text-black focus:outline-none"
                     , classList
-                        [ ( "text-opacity-30 cursor-default", Array.isEmpty model.expandedData )
-                        , ( "text-opacity-70 hover:text-opacity-100 hover:bg-opacity-100 focus:text-opacity-100 focus:bg-opacity-100", not (Array.isEmpty model.expandedData) )
+                        [ ( "text-opacity-30 cursor-default", Array.isEmpty model.graph.data )
+                        , ( "text-opacity-70 hover:text-opacity-100 hover:bg-opacity-100 focus:text-opacity-100 focus:bg-opacity-100", not (Array.isEmpty model.graph.data) )
                         ]
                     , Htmlx.onClickStopPropagation ChartZoomInClicked
-                    , disabled (Array.isEmpty model.expandedData)
+                    , disabled (Array.isEmpty model.graph.data)
                     ]
                     [ icon "w-5 h-5" SolidPlus
                     ]
                 , button
                     [ class "mt-2 rounded shadow p-2 bg-white bg-opacity-80 text-black focus:outline-none"
                     , classList
-                        [ ( "text-opacity-30 cursor-default", Array.isEmpty model.expandedData || model.graph.currentWidth > 0 && model.graph.currentWidth <= model.graph.minWidth )
-                        , ( "text-opacity-70 hover:text-opacity-100 hover:bg-opacity-100 focus:text-opacity-100 focus:bg-opacity-100", not (Array.isEmpty model.expandedData) && model.graph.currentWidth > model.graph.minWidth )
+                        [ ( "text-opacity-30 cursor-default", Array.isEmpty model.graph.data || model.graph.currentWidth > 0 && model.graph.currentWidth <= model.graph.minWidth )
+                        , ( "text-opacity-70 hover:text-opacity-100 hover:bg-opacity-100 focus:text-opacity-100 focus:bg-opacity-100", not (Array.isEmpty model.graph.data) && model.graph.currentWidth > model.graph.minWidth )
                         ]
                     , Htmlx.onClickStopPropagation ChartZoomOutClicked
-                    , disabled (Array.isEmpty model.expandedData || model.graph.currentWidth > 0 && model.graph.currentWidth <= model.graph.minWidth)
+                    , disabled (Array.isEmpty model.graph.data || model.graph.currentWidth > 0 && model.graph.currentWidth <= model.graph.minWidth)
                     ]
                     [ icon "w-5 h-5" SolidMinus
                     ]
                 , button
                     [ class "mt-2 rounded shadow p-2 bg-white bg-opacity-80 text-black focus:outline-none fill-icon"
                     , classList
-                        [ ( "disabled cursor-default", Array.isEmpty model.expandedData )
+                        [ ( "disabled cursor-default", Array.isEmpty model.graph.data )
                         ]
                     , Htmlx.onClickStopPropagation (ChartFillLinesChecked <| not model.graph.fillLines)
-                    , disabled (Array.isEmpty model.expandedData)
+                    , disabled (Array.isEmpty model.graph.data)
                     ]
                     [ fillIcon "w-5 h-5" model.graph.fillLines ]
                 ]
              ]
-                ++ (case ( model.graph.selectedDataSet, model.graph.selectedDataSet |> Maybe.andThen (\i -> Array.get i model.expandedData) ) of
-                        ( Just i, Just { name, isInverted, data } ) ->
+                ++ (case ( model.graph.selectedDataSet, model.graph.selectedDataSet |> Maybe.andThen (\i -> Array.get i model.graph.data) ) of
+                        ( Just i, Just { name, isInverted, expandedData } ) ->
                             [ div
                                 [ class "absolute left-14 top-6 rounded bg-white bg-opacity-80 p-2 min-w-44 max-w-xs" ]
                                 ([ button
@@ -497,7 +460,7 @@ view model =
                                             Just date ->
                                                 let
                                                     total =
-                                                        List.sum <| List.map (\( _, d, m ) -> (Maybe.withDefault 0 <| Dict.get date <| d) * m) <| data
+                                                        List.sum <| List.map (\( _, d, m ) -> (Maybe.withDefault 0 <| Dict.get date <| d) * m) <| expandedData
 
                                                     invertedTotal =
                                                         if isInverted then
@@ -548,7 +511,7 @@ view model =
                                                 , if model.expandedValue then
                                                     div [ class "mt-2 pr-2 max-h-24 overflow-y-auto text-sm" ]
                                                         [ table [ class "w-full" ] <|
-                                                            (data
+                                                            (expandedData
                                                                 |> List.indexedMap
                                                                     (\di ( question, d, multiplier ) ->
                                                                         let
