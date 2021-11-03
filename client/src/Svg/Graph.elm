@@ -405,7 +405,6 @@ viewLineGraph class { data, today, selectedDataPoint, hoveredDataPoint, selected
                 , strokeWidth_ 0
                 , strokeLinecap "round"
                 , strokeLinejoin "round"
-                , strokeOpacity_ 0
                 , fillGradient_ <|
                     if fillLines then
                         Normal dataSet.colour
@@ -429,7 +428,6 @@ viewLineGraph class { data, today, selectedDataPoint, hoveredDataPoint, selected
                     , strokeWidth_ 2
                     , strokeLinecap "round"
                     , strokeLinejoin "round"
-                    , strokeOpacity_ 100
                     , filter_ <|
                         if (selectedDataSet == Nothing && hoveredDataSet == Nothing) || selectedDataSet == Just id || hoveredDataSet == Just id then
                             NoFilter
@@ -452,7 +450,6 @@ viewLineGraph class { data, today, selectedDataPoint, hoveredDataPoint, selected
                                     , f_ r 3
                                     , strokeColour_ dataSet.colour
                                     , strokeWidth_ 0
-                                    , strokeOpacity_ 100
                                     , fillColour_ dataSet.colour
                                     , filter_ <|
                                         if (selectedDataSet == Nothing && hoveredDataSet == Nothing) || selectedDataSet == Just id || hoveredDataSet == Just id then
@@ -460,7 +457,6 @@ viewLineGraph class { data, today, selectedDataPoint, hoveredDataPoint, selected
 
                                         else
                                             Grayscale
-                                    , fillOpacity_ 100
                                     , onMouseOver <| DataPointHovered <| Just ( id, date )
                                     , onMouseOut <| DataPointHovered Nothing
                                     , Htmlx.onClickStopPropagation <| DataPointClicked ( id, date )
@@ -509,7 +505,7 @@ viewLineGraph class { data, today, selectedDataPoint, hoveredDataPoint, selected
                     data
         )
             :: background
-            ++ ((case featuredDataPoint of
+            ++ ((case selectedDataSet of
                     Nothing ->
                         axes
 
@@ -520,6 +516,13 @@ viewLineGraph class { data, today, selectedDataPoint, hoveredDataPoint, selected
                             |> List.filter (.visible << Tuple.second)
                             |> List.filter ((\id -> selectedDataSet /= Just id) << Tuple.first)
                             |> List.concatMap dataLine
+                       )
+                    ++ (case selectedDataSet of
+                            Just _ ->
+                                axes
+
+                            _ ->
+                                []
                        )
                     ++ (data
                             |> List.filter (.visible << Tuple.second)
@@ -537,14 +540,13 @@ viewLineGraph class { data, today, selectedDataPoint, hoveredDataPoint, selected
                                             y =
                                                 minY + ((value / toFloat valueStep) * v.yStep)
                                         in
-                                        [ highlightLine [ strokeOpacity_ 60, f_ x1 x, fh_ y1 <| minY + 1, f_ x2 x, fh_ y2 <| y - 1.5 ]
+                                        [ highlightLine [ strokeOpacity_ 60, f_ x1 x, fh_ y1 <| minY + 2, f_ x2 x, fh_ y2 <| y - 1.5 ]
                                         , circle
                                             [ f_ cx x
                                             , fh_ cy y
                                             , f_ r 4
                                             , strokeColour_ Colour.White
                                             , strokeWidth_ 0
-                                            , strokeOpacity_ 0
                                             , fillColour_ Colour.White
                                             , fillOpacity_ 60
                                             , onMouseOver <| DataPointHovered <| Just ( id, date )
@@ -552,22 +554,20 @@ viewLineGraph class { data, today, selectedDataPoint, hoveredDataPoint, selected
                                             , Htmlx.onClickStopPropagation <| DataPointClicked ( id, date )
                                             ]
                                             []
+                                        , axisLine [ f_ x1 x, fh_ y1 <| minY - 3, f_ x2 x, fh_ y2 <| y - 1.5 ]
+                                        , circle
+                                            [ f_ cx x
+                                            , fh_ cy y
+                                            , f_ r 3
+                                            , strokeColour_ Colour.Black
+                                            , strokeWidth_ 0
+                                            , fillColour_ Colour.Black
+                                            , onMouseOver <| DataPointHovered <| Just ( id, date )
+                                            , onMouseOut <| DataPointHovered Nothing
+                                            , Htmlx.onClickStopPropagation <| DataPointClicked ( id, date )
+                                            ]
+                                            []
                                         ]
-                                            ++ axes
-                                            ++ [ axisLine [ f_ x1 x, fh_ y1 <| minY - 3, f_ x2 x, fh_ y2 <| y - 1.5 ]
-                                               , circle
-                                                    [ f_ cx x
-                                                    , fh_ cy y
-                                                    , f_ r 3
-                                                    , strokeColour_ Colour.Black
-                                                    , strokeWidth_ 0
-                                                    , fillColour_ Colour.Black
-                                                    , onMouseOver <| DataPointHovered <| Just ( id, date )
-                                                    , onMouseOut <| DataPointHovered Nothing
-                                                    , Htmlx.onClickStopPropagation <| DataPointClicked ( id, date )
-                                                    ]
-                                                    []
-                                               ]
 
                                     _ ->
                                         []
