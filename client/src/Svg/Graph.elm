@@ -14,9 +14,7 @@ import Svg.Events as E exposing (onClick, onMouseOut, onMouseOver)
 
 
 type Msg dataSetId
-    = -- DataPointHovered (Maybe Int)
-      -- | DataPointClicked Int
-      DataLineHovered (Maybe dataSetId)
+    = DataLineHovered (Maybe dataSetId)
     | DataLineClicked dataSetId
     | MouseDown ( Float, Float )
     | MouseMove ( Float, Float )
@@ -32,9 +30,6 @@ type alias Model m dataSetId dataSet =
         , selectedDataPoint : Maybe Int
         , hoveredDataPoint : Maybe Int
         , fillLines : Bool
-
-        -- , showPoints : Bool
-        , point : Maybe ( Float, Float )
     }
 
 
@@ -54,10 +49,6 @@ type alias DataSet dataSet =
 update : Msg dataSetId -> Model m dataSetId dataSet -> Model m dataSetId dataSet
 update msg model =
     case msg of
-        -- DataPointHovered p ->
-        --     hoverDataPoint p model
-        -- DataPointClicked d ->
-        --     selectDataPoint d model
         DataLineHovered id ->
             hoverDataSet id model
 
@@ -156,26 +147,7 @@ hoverDataSet idM model =
                 _ ->
                     Nothing
         , leavingDataSet =
-            case idM of
-                Nothing ->
-                    Nothing
-
-                _ ->
-                    model.leavingDataSet
-    }
-
-
-selectDataPoint : Int -> Model m dataSetId dataSet -> Model m dataSetId dataSet
-selectDataPoint date model =
-    { model
-        | selectedDataPoint =
-            case model.selectedDataSet of
-                Just _ ->
-                    Just date
-
-                _ ->
-                    Nothing
-        , hoveredDataPoint = Nothing
+            idM |> Maybe.andThen (always model.leavingDataSet)
     }
 
 
@@ -185,55 +157,15 @@ selectNearestDataPoint ( xPerc, yPerc ) model =
         | selectedDataPoint =
             case model.selectedDataSet of
                 Just id ->
-                    case model.data |> Listx.lookup id |> Maybe.map (Dict.keys << .dataPoints) of
-                        Just dates ->
-                            let
-                                startDate =
-                                    Date.toRataDie <| findStartDate model.today model.data
+                    let
+                        nearestPoint =
+                            findNearestDataPoint xPerc id model
+                    in
+                    if model.selectedDataPoint == nearestPoint then
+                        Nothing
 
-                                range =
-                                    toFloat <| Date.toRataDie model.today - startDate
-
-                                date =
-                                    toFloat startDate + xPerc * range
-
-                                findNearestPoint ds =
-                                    case ds of
-                                        [] ->
-                                            Nothing
-
-                                        [ d ] ->
-                                            Just d
-
-                                        d1 :: d2 :: rest ->
-                                            let
-                                                d1f =
-                                                    toFloat d1
-
-                                                d2f =
-                                                    toFloat d2
-                                            in
-                                            if d1f <= date && date <= d2f then
-                                                if date - d1f < d2f - date then
-                                                    Just d1
-
-                                                else
-                                                    Just d2
-
-                                            else
-                                                findNearestPoint (d2 :: rest)
-
-                                nearestPoint =
-                                    findNearestPoint dates
-                            in
-                            if model.selectedDataPoint == nearestPoint then
-                                Nothing
-
-                            else
-                                nearestPoint
-
-                        _ ->
-                            Nothing
+                    else
+                        nearestPoint
 
                 _ ->
                     Nothing
@@ -247,52 +179,57 @@ hoverNearestDataPoint ( xPerc, yPerc ) model =
         | hoveredDataPoint =
             case ( model.selectedDataPoint, model.selectedDataSet ) of
                 ( Nothing, Just id ) ->
-                    case model.data |> Listx.lookup id |> Maybe.map (Dict.keys << .dataPoints) of
-                        Just dates ->
-                            let
-                                startDate =
-                                    Date.toRataDie <| findStartDate model.today model.data
-
-                                range =
-                                    toFloat <| Date.toRataDie model.today - startDate
-
-                                date =
-                                    toFloat startDate + xPerc * range
-
-                                findNearestPoint ds =
-                                    case ds of
-                                        [] ->
-                                            Nothing
-
-                                        [ d ] ->
-                                            Just d
-
-                                        d1 :: d2 :: rest ->
-                                            let
-                                                d1f =
-                                                    toFloat d1
-
-                                                d2f =
-                                                    toFloat d2
-                                            in
-                                            if d1f <= date && date <= d2f then
-                                                if date - d1f < d2f - date then
-                                                    Just d1
-
-                                                else
-                                                    Just d2
-
-                                            else
-                                                findNearestPoint (d2 :: rest)
-                            in
-                            findNearestPoint dates
-
-                        _ ->
-                            Nothing
+                    findNearestDataPoint xPerc id model
 
                 _ ->
                     Nothing
     }
+
+
+findNearestDataPoint : Float -> dataSetId -> Model m dataSetId dataSet -> Maybe Int
+findNearestDataPoint xPerc id model =
+    case model.data |> Listx.lookup id |> Maybe.map (Dict.keys << .dataPoints) of
+        Just dates ->
+            let
+                startDate =
+                    Date.toRataDie <| findStartDate model.today model.data
+
+                range =
+                    toFloat <| Date.toRataDie model.today - startDate
+
+                date =
+                    toFloat startDate + xPerc * range
+
+                findNearestPoint ds =
+                    case ds of
+                        [] ->
+                            Nothing
+
+                        [ d ] ->
+                            Just d
+
+                        d1 :: d2 :: rest ->
+                            let
+                                d1f =
+                                    toFloat d1
+
+                                d2f =
+                                    toFloat d2
+                            in
+                            if d1f <= date && date <= d2f then
+                                if date - d1f < d2f - date then
+                                    Just d1
+
+                                else
+                                    Just d2
+
+                            else
+                                findNearestPoint (d2 :: rest)
+            in
+            findNearestPoint dates
+
+        _ ->
+            Nothing
 
 
 toggleDataSetVisible : dataSetId -> Model m dataSetId dataSet -> Model m dataSetId dataSet
@@ -474,14 +411,6 @@ viewLineGraph class m =
         axes =
             xAxis
 
-        featuredDataPoint =
-            case m.selectedDataPoint of
-                Just id ->
-                    Just id
-
-                Nothing ->
-                    m.hoveredDataPoint
-
         dataLine : ( dataSetId, DataSet dataSet ) -> List (Svg (Msg dataSetId))
         dataLine ( id, dataSet ) =
             let
@@ -564,11 +493,10 @@ viewLineGraph class m =
                                 []
                            )
                     )
-                    -- , Htmlx.onClickStopPropagation <| DataLineClicked id
                     []
                 :: (if m.selectedDataSet == Just id then
                         List.map
-                            (\{ date, x, y } ->
+                            (\{ x, y } ->
                                 circle
                                     [ f_ cx x
                                     , fh_ cy y
@@ -576,15 +504,6 @@ viewLineGraph class m =
                                     , strokeColour_ dataSet.colour
                                     , strokeWidth_ 0
                                     , fillColour_ dataSet.colour
-
-                                    -- , filter_ <|
-                                    --     if (m.selectedDataSet == Nothing && m.hoveredDataSet == Nothing) || m.selectedDataSet == Just id || m.hoveredDataSet == Just id then
-                                    --         NoFilter
-                                    --     else
-                                    --         Grayscale
-                                    -- , onMouseOver <| DataPointHovered <| Just date
-                                    -- , onMouseOut <| DataPointHovered Nothing
-                                    -- , Htmlx.onClickStopPropagation <| DataPointClicked date
                                     ]
                                     []
                             )
@@ -593,6 +512,92 @@ viewLineGraph class m =
                     else
                         []
                    )
+
+        highlightedDataPoint =
+            let
+                featuredDataPoint =
+                    case m.selectedDataPoint of
+                        Just id ->
+                            Just id
+
+                        Nothing ->
+                            m.hoveredDataPoint
+            in
+            case ( m.selectedDataSet, featuredDataPoint ) of
+                ( Just id, Just date ) ->
+                    case m.data |> Listx.lookup id |> Maybe.andThen (.dataPoints >> Dict.get date) of
+                        Just value ->
+                            let
+                                x =
+                                    minX + toFloat (date - startDateRD) * v.xStep
+
+                                y =
+                                    minY + ((value / toFloat valueStep) * v.yStep)
+                            in
+                            [ highlightLine [ strokeOpacity_ 60, f_ x1 x, fh_ y1 <| minY + 2, f_ x2 x, fh_ y2 <| y - 1.5 ]
+                            , circle
+                                [ f_ cx x
+                                , fh_ cy y
+                                , f_ r 4
+                                , strokeColour_ Colour.White
+                                , strokeWidth_ 0
+                                , fillColour_ Colour.White
+                                , fillOpacity_ 60
+                                ]
+                                []
+                            , axisLine [ f_ x1 x, fh_ y1 <| minY - 3, f_ x2 x, fh_ y2 <| y - 1.5 ]
+                            , circle
+                                [ f_ cx x
+                                , fh_ cy y
+                                , f_ r 3
+                                , strokeColour_ Colour.Black
+                                , strokeWidth_ 0
+                                , fillColour_ Colour.Black
+                                ]
+                                []
+                            ]
+
+                        _ ->
+                            []
+
+                _ ->
+                    []
+
+        definitions =
+            defs [] <|
+                S.filter [ id "grayscale" ]
+                    [ feColorMatrix [ type_ "saturate", values "0.1" ] []
+                    ]
+                    :: S.filter [ id "brighten" ]
+                        [ feComponentTransfer []
+                            [ feFuncR [ type_ "linear", slope "1.2" ]
+                                []
+                            , feFuncG
+                                [ type_ "linear", slope "1.2" ]
+                                []
+                            , feFuncB
+                                [ type_ "linear", slope "1.2" ]
+                                []
+                            ]
+                        ]
+                    :: ((Colour.Gray :: (m.data |> List.map (.colour << Tuple.second)))
+                            |> List.concatMap
+                                (\colour ->
+                                    [ linearGradient [ id <| "gradient-opaque-" ++ Colour.toString colour, x1 "0", x2 "0", y1 "0", y2 "1" ]
+                                        [ stop [ offset "0%", A.class <| "stop-" ++ Colour.toString colour, stopOpacity "90%" ] []
+                                        , stop [ offset "100%", A.class <| "stop-" ++ Colour.toString colour, stopOpacity "70%" ] []
+                                        ]
+                                    , linearGradient [ id <| "gradient-normal-" ++ Colour.toString colour, x1 "0", x2 "0", y1 "0", y2 "1" ]
+                                        [ stop [ offset "0%", A.class <| "stop-" ++ Colour.toString colour, stopOpacity "80%" ] []
+                                        , stop [ offset "100%", A.class <| "stop-" ++ Colour.toString colour, stopOpacity "60%" ] []
+                                        ]
+                                    , linearGradient [ id <| "gradient-transparent-" ++ Colour.toString colour, x1 "0", x2 "0", y1 "0", y2 "1" ]
+                                        [ stop [ offset "0%", A.class <| "stop-" ++ Colour.toString colour, stopOpacity "20%" ] []
+                                        , stop [ offset "100%", A.class <| "stop-" ++ Colour.toString colour, stopOpacity "0%" ] []
+                                        ]
+                                    ]
+                                )
+                       )
     in
     svg
         ([ viewBox w h
@@ -613,130 +618,33 @@ viewLineGraph class m =
                )
         )
     <|
-        (defs [] <|
-            S.filter [ id "grayscale" ]
-                [ feColorMatrix [ type_ "saturate", values "0.1" ] []
-                ]
-                :: S.filter [ id "brighten" ]
-                    [ feComponentTransfer []
-                        [ feFuncR [ type_ "linear", slope "1.2" ]
-                            []
-                        , feFuncG
-                            [ type_ "linear", slope "1.2" ]
-                            []
-                        , feFuncB
-                            [ type_ "linear", slope "1.2" ]
-                            []
-                        ]
-                    ]
-                :: ((Colour.Gray :: (m.data |> List.map (.colour << Tuple.second)))
-                        |> List.concatMap
-                            (\colour ->
-                                [ linearGradient [ id <| "gradient-opaque-" ++ Colour.toString colour, x1 "0", x2 "0", y1 "0", y2 "1" ]
-                                    [ stop [ offset "0%", A.class <| "stop-" ++ Colour.toString colour, stopOpacity "90%" ] []
-                                    , stop [ offset "100%", A.class <| "stop-" ++ Colour.toString colour, stopOpacity "70%" ] []
-                                    ]
-                                , linearGradient [ id <| "gradient-normal-" ++ Colour.toString colour, x1 "0", x2 "0", y1 "0", y2 "1" ]
-                                    [ stop [ offset "0%", A.class <| "stop-" ++ Colour.toString colour, stopOpacity "80%" ] []
-                                    , stop [ offset "100%", A.class <| "stop-" ++ Colour.toString colour, stopOpacity "60%" ] []
-                                    ]
-                                , linearGradient [ id <| "gradient-transparent-" ++ Colour.toString colour, x1 "0", x2 "0", y1 "0", y2 "1" ]
-                                    [ stop [ offset "0%", A.class <| "stop-" ++ Colour.toString colour, stopOpacity "20%" ] []
-                                    , stop [ offset "100%", A.class <| "stop-" ++ Colour.toString colour, stopOpacity "0%" ] []
-                                    ]
-                                ]
-                            )
-                   )
-        )
+        definitions
             :: background
-            ++ ((case m.selectedDataSet of
+            ++ (case m.selectedDataSet of
                     Nothing ->
                         axes
 
                     _ ->
                         []
-                )
-                    ++ (m.data
-                            |> List.filter (.visible << Tuple.second)
-                            |> List.filter ((\id -> m.selectedDataSet /= Just id) << Tuple.first)
-                            |> List.concatMap dataLine
-                       )
-                    ++ (case m.selectedDataSet of
-                            Just _ ->
-                                axes
-
-                            _ ->
-                                []
-                       )
-                    ++ (m.data
-                            |> List.filter (.visible << Tuple.second)
-                            |> List.filter ((\id -> m.selectedDataSet == Just id) << Tuple.first)
-                            |> List.concatMap dataLine
-                       )
-                    ++ (case ( m.selectedDataSet, featuredDataPoint ) of
-                            ( Just id, Just date ) ->
-                                case m.data |> Listx.lookup id |> Maybe.andThen (.dataPoints >> Dict.get date) of
-                                    Just value ->
-                                        let
-                                            x =
-                                                minX + toFloat (date - startDateRD) * v.xStep
-
-                                            y =
-                                                minY + ((value / toFloat valueStep) * v.yStep)
-                                        in
-                                        [ highlightLine [ strokeOpacity_ 60, f_ x1 x, fh_ y1 <| minY + 2, f_ x2 x, fh_ y2 <| y - 1.5 ]
-                                        , circle
-                                            [ f_ cx x
-                                            , fh_ cy y
-                                            , f_ r 4
-                                            , strokeColour_ Colour.White
-                                            , strokeWidth_ 0
-                                            , fillColour_ Colour.White
-                                            , fillOpacity_ 60
-
-                                            -- , onMouseOver <| DataPointHovered <| Just date
-                                            -- , onMouseOut <| DataPointHovered Nothing
-                                            -- , Htmlx.onClickStopPropagation <| DataPointClicked date
-                                            ]
-                                            []
-                                        , axisLine [ f_ x1 x, fh_ y1 <| minY - 3, f_ x2 x, fh_ y2 <| y - 1.5 ]
-                                        , circle
-                                            [ f_ cx x
-                                            , fh_ cy y
-                                            , f_ r 3
-                                            , strokeColour_ Colour.Black
-                                            , strokeWidth_ 0
-                                            , fillColour_ Colour.Black
-
-                                            -- , onMouseOver <| DataPointHovered <| Just date
-                                            -- , onMouseOut <| DataPointHovered Nothing
-                                            -- , Htmlx.onClickStopPropagation <| DataPointClicked date
-                                            ]
-                                            []
-                                        ]
-
-                                    _ ->
-                                        []
-
-                            _ ->
-                                []
-                       )
-                    ++ (Maybe.withDefault [] <|
-                            Maybe.map
-                                (\( mx, my ) ->
-                                    [ circle
-                                        [ f_ cx (mx * w)
-                                        , f_ cy (my * h)
-                                        , f_ r 3
-                                        , strokeWidth_ 0
-                                        , fillColour_ Colour.Black
-                                        ]
-                                        []
-                                    ]
-                                )
-                                m.point
-                       )
                )
+            ++ (m.data
+                    |> List.filter (.visible << Tuple.second)
+                    |> List.filter ((\id -> m.selectedDataSet /= Just id) << Tuple.first)
+                    |> List.concatMap dataLine
+               )
+            ++ (case m.selectedDataSet of
+                    Just _ ->
+                        axes
+
+                    _ ->
+                        []
+               )
+            ++ (m.data
+                    |> List.filter (.visible << Tuple.second)
+                    |> List.filter ((\id -> m.selectedDataSet == Just id) << Tuple.first)
+                    |> List.concatMap dataLine
+               )
+            ++ highlightedDataPoint
 
 
 findStartDate : Date -> List ( dataSetId, DataSet dataSet ) -> Date

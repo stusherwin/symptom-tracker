@@ -50,10 +50,6 @@ type EditState
     | AddingChartable (Maybe ChartableId)
 
 
-
--- | EditingChartable ChartableId Bool
-
-
 type alias ChartableModel =
     { trackables : List ( TrackableId, TrackableModel )
     , inverted : Bool
@@ -126,8 +122,6 @@ toChartModel today userData chart =
     in
     { today = today
     , fillLines = chart.fillLines
-
-    -- , showPoints = chart.showPoints
     , data =
         chart.chartables
             |> List.filterMap toChartableModel_
@@ -137,7 +131,6 @@ toChartModel today userData chart =
     , selectedDataPoint = Nothing
     , hoveredDataPoint = Nothing
     , addState = NotAdding
-    , point = Nothing
     , viewport = Nothing
     , expandedValue = False
     }
@@ -285,21 +278,6 @@ update msg model =
         updateChartableOptions fn m =
             { m | chartableOptions = m.chartableOptions |> fn |> List.sortBy (String.toUpper << Tuple.second) }
 
-        -- updateSelectedDataSet c =
-        --     { c
-        --         | selectedDataSet =
-        --             case c.editState of
-        --                 EditingChartable chartableId _ ->
-        --                     Just chartableId
-        --                 _ ->
-        --                     Nothing
-        --         , hoveredDataSet = Nothing
-        --         -- , leavingDataSet =                     case c.editState of
-        --         --         EditingChartable chartableId _ ->
-        --         --             Just chartableId
-        --         --         _ ->
-        --         --             Nothing
-        --     }
         setUserData userData_ m =
             { m | userData = userData_ }
     in
@@ -315,16 +293,6 @@ update msg model =
             , Task.perform UserDataUpdated <| Task.succeed userData_
             )
 
-        -- ChartShowPointsChecked chartId sp ->
-        --     let
-        --         userData_ =
-        --             model.userData |> UserData.updateLineChart chartId (LineChart.setShowPoints sp)
-        --     in
-        --     ( model
-        --         |> setUserData userData_
-        --         |> (updateChartModel chartId <| \c -> { c | showPoints = sp })
-        --     , Task.perform UserDataUpdated <| Task.succeed userData_
-        --     )
         ChartFullScreenClicked chartId ->
             ( model, toggleElementFullScreen ("chart" ++ LineChartId.toString chartId) )
 
@@ -767,7 +735,6 @@ update msg model =
                                     in
                                     c |> Graph.hoverNearestDataPoint ( xPerc, yPerc )
 
-                                -- { c | point = Just ( xPerc, yPerc ) }
                                 _ ->
                                     c
                    )
@@ -893,12 +860,6 @@ viewLineChart fullScreen chartableOptions trackableOptions userData ( chartId, m
                                     else
                                         dataSet.name
                                 ]
-
-                        -- , button
-                        --     [ class "ml-4 rounded text-black text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
-                        --     , Htmlx.onClickStopPropagation (ChartableEditClicked chartId chartableId)
-                        --     ]
-                        --     [ icon "w-5 h-5" <| SolidPencilAlt ]
                         , button
                             [ class "ml-4 rounded text-black text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
                             , Htmlx.onClickStopPropagation (ChartableDeleteClicked chartId chartableId)
@@ -1029,8 +990,6 @@ viewLineChart fullScreen chartableOptions trackableOptions userData ( chartId, m
             [ div
                 [ class "mx-4 my-0 flex scrollable-parent relative"
                 , style "height" "300px"
-
-                -- , onClick (ChartClicked chartId)
                 ]
                 ([ viewJustYAxis "flex-grow-0 flex-shrink-0" model
                  , viewScrollableContainer ("chart" ++ LineChartId.toString chartId ++ "-scrollable") [ Html.map (GraphMsg chartId) <| viewLineGraph "h-full" model ]
@@ -1128,7 +1087,7 @@ viewLineChart fullScreen chartableOptions trackableOptions userData ( chartId, m
                                                             ]
                                                                 ++ (case invertedTotal of
                                                                         Just ( _, t ) ->
-                                                                            [ span [ class "ml-1" ] [ text "(Inverted: " ]
+                                                                            [ span [ class "ml-1" ] [ text "(inverted " ]
                                                                             , span [ class "font-bold" ] [ text <| String.fromFloat t ]
                                                                             , span [ class "" ] [ text ")" ]
                                                                             ]
@@ -1177,13 +1136,13 @@ viewLineChart fullScreen chartableOptions trackableOptions userData ( chartId, m
                                                                             Just ( max, t ) ->
                                                                                 [ tr []
                                                                                     [ td [ class "align-baseline" ] []
-                                                                                    , td [ class "pl-2 align-baseline text-right font-bold", colspan 5 ] [ text <| "Total:" ]
+                                                                                    , td [ class "pl-2 align-baseline text-right", colspan 5 ] [ text <| "Total:" ]
                                                                                     , td [ class "pl-1 align-baseline text-right font-bold" ] [ text <| String.fromFloat total ]
                                                                                     ]
                                                                                 , tr []
                                                                                     [ td [ class "align-baseline" ] []
                                                                                     , td [ class "pl-2 align-baseline text-right", colspan 2 ]
-                                                                                        [ span [ class "font-bold" ] [ text "Inverted: " ]
+                                                                                        [ span [ class "" ] [ text "Inverted: " ]
                                                                                         , text <| String.fromFloat max ++ " (max value)"
                                                                                         ]
                                                                                     , td [ class "pl-1 align-baseline" ] [ icon "w-2 h-2" SolidMinus ]
@@ -1223,16 +1182,6 @@ viewLineChart fullScreen chartableOptions trackableOptions userData ( chartId, m
                 , checked model.fillLines
                 ]
                 []
-
-            -- , label [ class "ml-8 text-right whitespace-nowrap", for "show-points" ] [ text "Show data points" ]
-            -- , input
-            --     [ type_ "checkbox"
-            --     , id "show-points"
-            --     , class "ml-2"
-            --     , onCheck (ChartShowPointsChecked chartId)
-            --     , checked model.showPoints
-            --     ]
-            --     []
             ]
         , div [ class "mt-4 bg-gray-200" ] <|
             (model.data |> List.concatMap viewChartable)
