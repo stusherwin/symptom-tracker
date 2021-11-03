@@ -23,6 +23,7 @@ type Msg dataSetId
 type alias Model m dataSetId dataSet =
     { m
         | today : Date
+        , xScale : Float
         , data : List ( dataSetId, DataSet dataSet )
         , selectedDataSet : Maybe dataSetId
         , hoveredDataSet : Maybe dataSetId
@@ -343,11 +344,14 @@ viewLineGraph class m =
         dayLength =
             Date.toRataDie (Date.add Days 1 startDate) - startDateRD
 
+        xStep =
+            v.xStep * m.xScale
+
         xSteps =
             floor (toFloat (Date.toRataDie m.today - startDateRD) / toFloat dayLength)
 
         ( w, h ) =
-            ( v.xStep * toFloat xSteps, v.mb + v.mt + v.yStep * 5 )
+            ( xStep * toFloat xSteps, v.mb + v.mt + v.yStep * 5 )
 
         minX =
             0
@@ -368,27 +372,27 @@ viewLineGraph class m =
                 :: List.concatMap
                     (\n ->
                         if n == 0 then
-                            [ axisLine [ f_ x1 <| minX + toFloat n * v.xStep + 1, fh_ y1 minY, f_ x2 <| minX + toFloat n * v.xStep + 1, fh_ y2 <| minY - v.longDash ]
-                            , text_ [ f_ x <| minX + toFloat n * v.xStep, fh_ y <| minY - v.longDash - 5.0, fontSize "10px", dominantBaseline "hanging", textAnchor "start" ] [ text <| Date.format "d MMM" <| Date.add Days n startDate ]
+                            [ axisLine [ f_ x1 <| minX + toFloat n * xStep + 1, fh_ y1 minY, f_ x2 <| minX + toFloat n * xStep + 1, fh_ y2 <| minY - v.longDash ]
+                            , text_ [ f_ x <| minX + toFloat n * xStep, fh_ y <| minY - v.longDash - 5.0, fontSize "10px", dominantBaseline "hanging", textAnchor "start" ] [ text <| Date.format "d MMM" <| Date.add Days n startDate ]
                             ]
 
                         else if n == xSteps then
-                            [ axisLine [ f_ x1 <| minX + toFloat n * v.xStep - 1, fh_ y1 minY, f_ x2 <| minX + toFloat n * v.xStep - 1, fh_ y2 <| minY - v.longDash ]
-                            , text_ [ f_ x <| minX + toFloat n * v.xStep, fh_ y <| minY - v.longDash - 5.0, fontSize "10px", dominantBaseline "hanging", textAnchor "end" ] [ text <| Date.format "d MMM" <| Date.add Days n startDate ]
+                            [ axisLine [ f_ x1 <| minX + toFloat n * xStep - 1, fh_ y1 minY, f_ x2 <| minX + toFloat n * xStep - 1, fh_ y2 <| minY - v.longDash ]
+                            , text_ [ f_ x <| minX + toFloat n * xStep, fh_ y <| minY - v.longDash - 5.0, fontSize "10px", dominantBaseline "hanging", textAnchor "end" ] [ text <| Date.format "d MMM" <| Date.add Days n startDate ]
                             ]
 
                         else if xSteps <= 7 || n == xSteps || modBy 7 n == 0 then
-                            [ axisLine [ f_ x1 <| minX + toFloat n * v.xStep, fh_ y1 minY, f_ x2 <| minX + toFloat n * v.xStep, fh_ y2 <| minY - v.longDash ]
-                            , text_ [ f_ x <| minX + toFloat n * v.xStep, fh_ y <| minY - v.longDash - 5.0, fontSize "10px", dominantBaseline "hanging", textAnchor "middle" ] [ text <| Date.format "d MMM" <| Date.add Days n startDate ]
+                            [ axisLine [ f_ x1 <| minX + toFloat n * xStep, fh_ y1 minY, f_ x2 <| minX + toFloat n * xStep, fh_ y2 <| minY - v.longDash ]
+                            , text_ [ f_ x <| minX + toFloat n * xStep, fh_ y <| minY - v.longDash - 5.0, fontSize "10px", dominantBaseline "hanging", textAnchor "middle" ] [ text <| Date.format "d MMM" <| Date.add Days n startDate ]
                             ]
 
                         else
-                            [ axisLine [ f_ x1 <| minX + toFloat n * v.xStep, fh_ y1 minY, f_ x2 <| minX + toFloat n * v.xStep, fh_ y2 <| minY - v.shortDash ] ]
+                            [ axisLine [ f_ x1 <| minX + toFloat n * xStep, fh_ y1 minY, f_ x2 <| minX + toFloat n * xStep, fh_ y2 <| minY - v.shortDash ] ]
                     )
                     (List.range 0 xSteps)
 
         xLines =
-            List.map (\n -> dottedLine [ f_ x1 <| minX + toFloat n * v.xStep, fh_ y1 minY, f_ x2 <| minX + toFloat n * v.xStep, fh_ y2 maxY ])
+            List.map (\n -> dottedLine [ f_ x1 <| minX + toFloat n * xStep, fh_ y1 minY, f_ x2 <| minX + toFloat n * xStep, fh_ y2 maxY ])
                 (List.range 0 xSteps)
 
         yLines =
@@ -421,7 +425,7 @@ viewLineGraph class m =
                             (\date value ->
                                 { date = date
                                 , value = value
-                                , x = minX + toFloat (date - startDateRD) * v.xStep
+                                , x = minX + toFloat (date - startDateRD) * xStep
                                 , y = minY + ((value / toFloat valueStep) * v.yStep)
                                 }
                             )
@@ -529,7 +533,7 @@ viewLineGraph class m =
                         Just value ->
                             let
                                 x =
-                                    minX + toFloat (date - startDateRD) * v.xStep
+                                    minX + toFloat (date - startDateRD) * xStep
 
                                 y =
                                     minY + ((value / toFloat valueStep) * v.yStep)

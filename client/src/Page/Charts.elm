@@ -133,6 +133,7 @@ toChartModel today userData chart =
     , addState = NotAdding
     , viewport = Nothing
     , expandedValue = False
+    , xScale = 1
     }
 
 
@@ -298,6 +299,18 @@ update msg model =
 
         ChartClicked chartId ->
             ( model |> updateChartModel chartId (\c -> { c | selectedDataSet = Nothing, selectedDataPoint = Nothing }), Cmd.none )
+
+        ChartZoomOutClicked chartId ->
+            ( model |> updateChartModel chartId (\c -> { c | xScale = c.xScale * 3 / 4 })
+            , Dom.getViewportOf ("chart" ++ LineChartId.toString chartId ++ "-scrollable")
+                |> Task.attempt (ViewportUpdated chartId)
+            )
+
+        ChartZoomInClicked chartId ->
+            ( model |> updateChartModel chartId (\c -> { c | xScale = c.xScale * 4 / 3 })
+            , Dom.getViewportOf ("chart" ++ LineChartId.toString chartId ++ "-scrollable")
+                |> Task.attempt (ViewportUpdated chartId)
+            )
 
         ChartableHovered chartId chartableId ->
             ( model |> (updateChartModel chartId <| Graph.hoverDataSet chartableId), Cmd.none )
