@@ -1,7 +1,7 @@
 module Colour exposing (Colour(..), all, class, classDown, classUp, decode, encode, fromString, toString, toUserString, userSelectable)
 
 import Html exposing (Attribute)
-import Html.Attributes as Html exposing (class)
+import Html.Attributes as Html
 import Json.Decode as D
 import Json.Encode as E
 

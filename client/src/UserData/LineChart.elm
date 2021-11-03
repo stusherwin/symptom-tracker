@@ -5,7 +5,6 @@ import Arrayx
 import IdDict exposing (IdDict(..))
 import Json.Decode as D
 import Json.Encode as E
-import Listx
 import UserData.ChartableId as ChartableId exposing (ChartableId)
 import UserData.LineChartId exposing (LineChartId)
 import UserData.TrackableId as TrackableId exposing (TrackableId)

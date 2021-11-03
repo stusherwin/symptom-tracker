@@ -95,8 +95,8 @@ update userData optionsM msg model =
             ( model, Cmd.none )
 
 
-view : { canMoveUp : Bool, canMoveDown : Bool, isSelected : Bool } -> ( TrackableId, Model ) -> List (Html Msg)
-view { canMoveUp, canMoveDown, isSelected } ( trackableId, model ) =
+view : { canMoveUp : Bool, canMoveDown : Bool, isSelected : Bool } -> Model -> List (Html Msg)
+view { canMoveUp, canMoveDown, isSelected } model =
     let
         colour =
             if not model.visible then
@@ -228,9 +228,9 @@ view { canMoveUp, canMoveDown, isSelected } ( trackableId, model ) =
                     TrackableChanged
                     TrackableId.toString
                     TrackableId.fromString
-                    (model.options |> List.map (\( tId, ( q, visible ) ) -> ( ( tId, visible || tId == trackableId ), q )))
+                    (model.options |> List.map (\( tId, ( q, visible ) ) -> ( ( tId, visible || tId == model.trackableId ), q )))
                     Nothing
-                    (Just trackableId)
+                    (Just model.trackableId)
                     { showFilled = False }
                 , icon "mt-3 ml-4 w-4 h-4 flex-grow-0 flex-shrink-0" SolidTimes
                 , Controls.textbox [ class "ml-4 w-20 flex-grow-0 flex-shrink-0" ] [] model.multiplier { isValid = model.isValid, isRequired = True, isPristine = False } TrackableMultiplierUpdated

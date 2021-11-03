@@ -2,7 +2,6 @@ module Page.Trackables exposing (Model, Msg(..), init, update, view)
 
 import Array exposing (Array)
 import Browser.Dom as Dom
-import Chart.Chartable
 import Chart.LineChart as Chart exposing (DataSetId(..))
 import Colour exposing (Colour(..))
 import Controls

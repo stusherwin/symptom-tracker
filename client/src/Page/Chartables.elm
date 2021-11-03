@@ -1,16 +1,15 @@
 module Page.Chartables exposing (Model, Msg(..), init, update, view)
 
 import Array exposing (Array)
+import Arrayx
 import Browser.Dom as Dom
 import Chart.Chartable
 import Chart.LineChart as Chart exposing (DataSetId(..))
 import Colour exposing (Colour(..))
 import Controls
-import Dict
 import Html exposing (..)
 import Html.Attributes as A exposing (..)
 import Html.Events exposing (onClick)
-import Htmlx
 import IdDict
 import Listx
 import Platform.Cmd as Cmd
@@ -25,7 +24,7 @@ import UserData.TrackableId as TrackableId exposing (TrackableId)
 
 
 type alias Model =
-    { chartables : List ( ChartableId, Chart.Chartable.Model )
+    { chartables : Array ( ChartableId, Chart.Chartable.Model )
     , userData : UserData
     , editState : EditState
     }
@@ -62,6 +61,7 @@ init userData =
                         in
                         ( id, Chart.Chartable.init userData canDelete id ( c, v ) )
                )
+            |> Array.fromList
     , userData = userData
     , editState = NotEditing
     }
@@ -96,7 +96,7 @@ update msg model =
             case idM of
                 Just id ->
                     ( { model
-                        | chartables = model.chartables |> Listx.insertLookup id (Chart.Chartable.init userData_ True id ( chartable, True ))
+                        | chartables = model.chartables |> Array.push ( id, Chart.Chartable.init userData_ True id ( chartable, True ) )
                         , editState = EditingChartable id
                       }
                     , Cmd.batch
@@ -112,7 +112,7 @@ update msg model =
                     ( model, Cmd.none )
 
         ChartableMsg i chartableMsg ->
-            case model.chartables |> Array.fromList |> Array.get i of
+            case model.chartables |> Array.get i of
                 Just ( chartableId, chartable ) ->
                     let
                         updateChartable : (Chart.Chartable.Model -> ( Chart.Chartable.Model, Cmd Chart.Chartable.Msg )) -> ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
@@ -121,7 +121,7 @@ update msg model =
                                 ( chartable_, c_ ) =
                                     fn chartable
                             in
-                            ( { m | chartables = m.chartables |> Array.fromList |> Array.set i ( chartableId, chartable_ ) |> Array.toList }
+                            ( { m | chartables = m.chartables |> Array.set i ( chartableId, chartable_ ) }
                             , Cmd.batch [ c, Cmd.map (ChartableMsg i) c_ ]
                             )
 
@@ -158,7 +158,7 @@ update msg model =
                             ( model, Cmd.none )
                                 |> setUserData userData_
                                 |> (updateChartable <| Chart.Chartable.update userData_ chartableMsg)
-                                |> (Tuple.mapFirst <| \m -> { m | chartables = m.chartables |> Listx.moveHeadwardsBy Tuple.first chartableId })
+                                |> (Tuple.mapFirst <| \m -> { m | chartables = m.chartables |> Arrayx.swap i (i - 1) })
 
                         Chart.Chartable.ChartableDownClicked ->
                             let
@@ -168,7 +168,7 @@ update msg model =
                             ( model, Cmd.none )
                                 |> setUserData userData_
                                 |> (updateChartable <| Chart.Chartable.update userData_ chartableMsg)
-                                |> (Tuple.mapFirst <| \m -> { m | chartables = m.chartables |> Listx.moveTailwardsBy Tuple.first chartableId })
+                                |> (Tuple.mapFirst <| \m -> { m | chartables = m.chartables |> Arrayx.swap i (i + 1) })
 
                         Chart.Chartable.ChartableNameUpdated name ->
                             let
@@ -213,7 +213,7 @@ update msg model =
                                 |> (Tuple.mapFirst <|
                                         \m ->
                                             { m
-                                                | chartables = m.chartables |> List.filter (\( cId, _ ) -> cId /= chartableId)
+                                                | chartables = m.chartables |> Arrayx.delete i
                                                 , editState = NotEditing
                                             }
                                    )
@@ -245,8 +245,8 @@ update msg model =
                             let
                                 trackableM =
                                     model.chartables
-                                        |> Listx.lookup chartableId
-                                        |> Maybe.map .trackableOptions
+                                        |> Array.get i
+                                        |> Maybe.map (Tuple.second >> .trackableOptions)
                                         |> Maybe.withDefault []
                                         |> List.filter (\( _, ( _, visible ) ) -> visible)
                                         |> List.map Tuple.first
@@ -290,11 +290,17 @@ view { chartables, editState } =
             [ text <| "Chartables" ]
         , div [ class "" ] <|
             (chartables
-                |> List.indexedMap
+                |> Array.indexedMap
                     (\i ( cId, c ) ->
-                        Chart.Chartable.view { canMoveUp = i > 0, canMoveDown = i < List.length chartables - 1, isSelected = editState == EditingChartable cId } c
+                        Chart.Chartable.view
+                            { canMoveUp = i > 0
+                            , canMoveDown = i < Array.length chartables - 1
+                            , isSelected = editState == EditingChartable cId
+                            }
+                            c
                             |> List.map (Html.map <| ChartableMsg i)
                     )
+                |> Array.toList
                 |> List.concat
             )
                 ++ [ div [ class "bg-gray-300 border-t-4 border-gray-400 flex" ]
