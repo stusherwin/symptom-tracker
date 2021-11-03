@@ -98,8 +98,8 @@ circleButton class colour toMsg text enabled =
         ]
 
 
-dropdown : String -> (Maybe a -> msg) -> (a -> String) -> (String -> Maybe a) -> List ( ( a, Bool ), Html msg ) -> Maybe a -> { unselectedItemClass : String, selectedItemClass : String, showFilled : Bool, darkBorder : Bool } -> Html msg
-dropdown class toMsg toString fromString options selectedValue { unselectedItemClass, selectedItemClass, showFilled, darkBorder } =
+dropdown : String -> (Maybe a -> msg) -> (a -> String) -> (String -> Maybe a) -> List ( ( a, Bool ), Html msg ) -> Maybe (Html msg) -> Maybe a -> { unselectedItemClass : String, selectedItemClass : String, showFilled : Bool, darkBorder : Bool } -> Html msg
+dropdown class toMsg toString fromString options optionsNone selectedValue { unselectedItemClass, selectedItemClass, showFilled, darkBorder } =
     let
         isEmpty =
             case selectedValue of
@@ -108,6 +108,21 @@ dropdown class toMsg toString fromString options selectedValue { unselectedItemC
 
                 _ ->
                     True
+
+        option value enabled html =
+            li
+                [ tabindex -1
+                , attribute "data-value" value
+                , A.class "cursor-default"
+                , A.classList <|
+                    [ ( "options-selectable", enabled )
+                    , ( "text-gray-300", not enabled )
+                    ]
+                        ++ List.map (\s -> ( "focus:" ++ s, enabled )) (String.split " " selectedItemClass)
+                        ++ List.map (\s -> ( "hover:" ++ s, enabled )) (String.split " " selectedItemClass)
+                        ++ List.map (\s -> ( "group-hover:" ++ s, enabled )) (String.split " " unselectedItemClass)
+                ]
+                [ html ]
     in
     node "dropdown-list"
         [ A.class "block relative z-0 rounded border-4"
@@ -138,34 +153,31 @@ dropdown class toMsg toString fromString options selectedValue { unselectedItemC
             , div [ A.class "absolute right-0 top-0 bottom-0 w-8 flex justify-center items-center bg-gray-200 group-hover:bg-gray-300" ] [ Icon.icon "w-6 h-6" SolidAngleDown ]
             ]
         , ul [ tabindex -1, A.class "group options-parent hidden-visually absolute bg-white border border-gray-800 max-h-80 overflow-y-auto mt-1 -left-1 -right-1" ] <|
-            li [ tabindex -1, A.class "options-none hidden-all py-5 px-2 text-lg italic" ] []
-                :: List.map
-                    (\( ( v, enabled ), html ) ->
-                        li
-                            [ tabindex -1
-                            , attribute "data-value" (toString v)
-                            , A.class "cursor-default"
-                            , A.classList <|
-                                [ ( "options-selectable", enabled )
-                                , ( "text-gray-300", not enabled )
-                                ]
-                                    ++ List.map (\s -> ( "focus:" ++ s, enabled )) (String.split " " selectedItemClass)
-                                    ++ List.map (\s -> ( "hover:" ++ s, enabled )) (String.split " " selectedItemClass)
-                                    ++ List.map (\s -> ( "group-hover:" ++ s, enabled )) (String.split " " unselectedItemClass)
-                            ]
-                            [ html ]
-                    )
-                    options
+            li [ tabindex -1, A.class "options-not-found hidden-all py-5 px-2 text-lg italic" ] []
+                :: (case optionsNone of
+                        Just html ->
+                            [ option "" True html ]
+
+                        _ ->
+                            []
+                   )
+                ++ (options
+                        |> List.map
+                            (\( ( v, enabled ), html ) ->
+                                option (toString v) enabled html
+                            )
+                   )
         ]
 
 
-textDropdown : String -> (Maybe a -> msg) -> (a -> String) -> (String -> Maybe a) -> List ( ( a, Bool ), String ) -> Maybe a -> { showFilled : Bool } -> Html msg
-textDropdown class toMsg toString fromString options selectedValue { showFilled } =
+textDropdown : String -> (Maybe a -> msg) -> (a -> String) -> (String -> Maybe a) -> List ( ( a, Bool ), String ) -> Maybe String -> Maybe a -> { showFilled : Bool } -> Html msg
+textDropdown class toMsg toString fromString options optionsNone selectedValue { showFilled } =
     dropdown class
         toMsg
         toString
         fromString
         (List.map (Tuple.mapSecond (\t -> div [ A.class "py-1 px-2 font-bold flex items-center" ] [ span [] [ text t ] ])) options)
+        (optionsNone |> Maybe.map (\t -> div [ A.class "py-1 px-2 font-bold flex items-center" ] [ span [] [ text t ] ]))
         selectedValue
         { unselectedItemClass = "bg-white text-black"
         , selectedItemClass = "bg-gray-800 text-white"
@@ -190,6 +202,7 @@ colourDropdown class toMsg selectedValue { showFilled } =
             )
             Colour.userSelectable
         )
+        Nothing
         selectedValue
         { unselectedItemClass = "bg-white text-black"
         , selectedItemClass = "bg-gray-800 text-white"
@@ -214,6 +227,7 @@ iconDropdown dropdownClass toMsg selectedValue { showFilled } =
             )
             Icon.userSelectable
         )
+        Nothing
         selectedValue
         { unselectedItemClass = "bg-gray-800 text-white"
         , selectedItemClass = "bg-white text-black"
@@ -222,8 +236,8 @@ iconDropdown dropdownClass toMsg selectedValue { showFilled } =
         }
 
 
-textbox : List (Attribute msg) -> List (Attribute msg) -> String -> { isValid : Bool, isRequired : Bool } -> (String -> msg) -> Html msg
-textbox outerAttributes inputAttributes value { isValid, isRequired } toMsg =
+textbox : List (Attribute msg) -> List (Attribute msg) -> String -> { isValid : Bool, isRequired : Bool, isPristine : Bool } -> (String -> msg) -> Html msg
+textbox outerAttributes inputAttributes value { isValid, isRequired, isPristine } toMsg =
     let
         isEmpty =
             String.isEmpty value
@@ -231,8 +245,8 @@ textbox outerAttributes inputAttributes value { isValid, isRequired } toMsg =
     div
         ([ A.class "rounded border-4 h-10 border-opacity-50 hover:border-opacity-80 focus-within:border-opacity-80"
          , classList
-            [ ( "border-black", isEmpty && not isRequired || not isEmpty && isValid )
-            , ( "border-red-600", isEmpty && isRequired || not isEmpty && not isValid )
+            [ ( "border-black", isEmpty && (not isRequired || isPristine) || not isEmpty && isValid )
+            , ( "border-red-600", isEmpty && isRequired && not isPristine || not isEmpty && not isValid )
             ]
          ]
             ++ outerAttributes

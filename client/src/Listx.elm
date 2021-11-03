@@ -79,18 +79,18 @@ updateLookup id fn list =
                 ( xId, x ) :: updateLookup id fn xs
 
 
-replaceLookup : id -> a -> List ( id, a ) -> List ( id, a )
-replaceLookup id newX list =
+insertLookup : id -> a -> List ( id, a ) -> List ( id, a )
+insertLookup id newX list =
     case list of
         [] ->
-            []
+            [ ( id, newX ) ]
 
         ( xId, x ) :: xs ->
             if xId == id then
                 ( xId, newX ) :: xs
 
             else
-                ( xId, x ) :: replaceLookup id newX xs
+                ( xId, x ) :: insertLookup id newX xs
 
 
 updateLookupWithKey : id -> (( id, a ) -> ( id, a )) -> List ( id, a ) -> List ( id, a )

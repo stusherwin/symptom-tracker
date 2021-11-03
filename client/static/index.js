@@ -54,9 +54,9 @@ class DropdownList extends HTMLElement {
     filteredOptions.forEach(o => o.classList.remove("hidden-all"));
 
     if (filteredOptions.length == 0) {
-      this.optionsNone.classList.remove("hidden-all");
+      this.optionsNotFound.classList.remove("hidden-all");
     } else {
-      this.optionsNone.classList.add("hidden-all");
+      this.optionsNotFound.classList.add("hidden-all");
     }
   }
 
@@ -90,9 +90,9 @@ class DropdownList extends HTMLElement {
       throw "DropdownList error: options-input not found!";
     }
 
-    this.optionsNone = this.querySelector('ul.options-parent > li.options-none');
-    if (!this.optionsNone) {
-      throw "DropdownList error: options-none not found!";
+    this.optionsNotFound = this.querySelector('ul.options-parent > li.options-not-found');
+    if (!this.optionsNotFound) {
+      throw "DropdownList error: options-not-found not found!";
     }
 
     this.optionsParent = this.querySelector('ul.options-parent');
@@ -343,9 +343,9 @@ class DropdownList extends HTMLElement {
         throw "DropdownList error: options-input not found!";
       }
 
-      this.optionsNone = this.querySelector('ul.options-parent > li.options-none');
-      if (!this.optionsNone) {
-        throw "DropdownList error: options-none not found!";
+      this.optionsNotFound = this.querySelector('ul.options-parent > li.options-not-found');
+      if (!this.optionsNotFound) {
+        throw "DropdownList error: options-not-found not found!";
       }
 
       this.optionsParent = this.querySelector('ul.options-parent');

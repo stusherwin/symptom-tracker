@@ -14,6 +14,7 @@ import Htmlx
 import IdDict exposing (IdDict)
 import Listx
 import Maybe exposing (Maybe)
+import Stringx
 import Svg.Graph as Graph exposing (Msg, viewJustYAxis, viewLineGraph)
 import Svg.Icon exposing (IconType(..), icon)
 import Task
@@ -34,13 +35,16 @@ type alias Model =
 
 
 type alias LineChartModel =
-    { addingChartable : Maybe ChartableId
+    { addingChartable : Bool
+    , chartableToAdd : Maybe ChartableId
+    , newChartable : Bool
     }
 
 
 type alias ChartableModel =
     { trackables : List ( TrackableId, TrackableModel )
     , inverted : Bool
+    , nameIsPristine : Bool
     }
 
 
@@ -65,7 +69,7 @@ init today userData =
       , chartableOptions =
             UserData.chartables userData
                 |> IdDict.toList
-                |> (List.map <| Tuple.mapSecond .name)
+                |> (List.map <| Tuple.mapSecond (Stringx.withDefault "[no name]" << .name))
       , userData = userData
       }
     , Cmd.batch <|
@@ -98,7 +102,9 @@ toChartModel today chartables trackables chart =
     , selectedDataSet = Nothing
     , hoveredDataSet = Nothing
     , selectedDataPoint = Nothing
-    , addingChartable = Nothing
+    , addingChartable = False
+    , chartableToAdd = Nothing
+    , newChartable = False
     }
 
 
@@ -114,6 +120,7 @@ toChartableModel chartables trackables chartableId { visible } =
                 , inverted = chartable.inverted
                 , trackables = chartable.sum |> List.filterMap (toTrackableModel trackables)
                 , visible = visible
+                , nameIsPristine = True
                 }
             )
 
@@ -140,7 +147,7 @@ toColour trackables chartable =
             (List.head chartable.sum
                 |> Maybe.andThen ((\t -> IdDict.get t trackables) << Tuple.first)
                 |> Maybe.map .colour
-                |> Maybe.withDefault Colour.Black
+                |> Maybe.withDefault Colour.Gray
             )
 
 
@@ -229,7 +236,9 @@ update msg model =
             ( model |> (updateChartModel chartId <| Graph.hoverDataSet chartableId), Cmd.none )
 
         ChartableEditClicked chartId chartableId ->
-            ( model |> (updateChartModel chartId <| Graph.toggleDataSetSelected chartableId), Cmd.none )
+            ( model |> (updateChartModel chartId <| Graph.toggleDataSetSelected chartableId)
+            , Task.attempt (always NoOp) <| Dom.focus <| "chart" ++ LineChart.idToString chartId ++ "-chartable" ++ Chartable.idToString chartableId ++ "-name"
+            )
 
         ChartableCloseClicked chartId chartableId ->
             ( model |> (updateChartModel chartId <| Graph.toggleDataSetSelected chartableId), Cmd.none )
@@ -254,8 +263,9 @@ update msg model =
                    )
                 |> (updateChartModel chartId <|
                         updateChartableModel chartableId <|
-                            \c -> { c | name = name }
+                            \c -> { c | name = name, nameIsPristine = False }
                    )
+                |> (\m -> { m | chartableOptions = m.chartableOptions |> Listx.insertLookup chartableId (Stringx.withDefault "[no name]" name) })
             , Cmd.none
             )
 
@@ -291,7 +301,8 @@ update msg model =
                 |> (updateChartModel chartId <|
                         \c ->
                             { c
-                                | addingChartable =
+                                | addingChartable = True
+                                , chartableToAdd =
                                     model.chartableOptions
                                         |> List.map Tuple.first
                                         |> List.filter (\tId -> not (List.member tId <| IdDict.keys c.data))
@@ -301,12 +312,12 @@ update msg model =
             , Cmd.none
             )
 
-        ChartableToAddChanged chartId (Just chartableId) ->
+        ChartableToAddChanged chartId chartableId ->
             ( model
                 |> (updateChartModel chartId <|
                         \c ->
                             { c
-                                | addingChartable = Just chartableId
+                                | chartableToAdd = chartableId
                             }
                    )
             , Cmd.none
@@ -314,32 +325,56 @@ update msg model =
 
         ChartableAddConfirmClicked chartId ->
             let
-                chartableIdM =
-                    model.charts |> Listx.lookup chartId |> Maybe.andThen .addingChartable
+                ( chartableIdM, userDataU, isNew ) =
+                    case model.charts |> Listx.lookup chartId |> Maybe.andThen .chartableToAdd of
+                        Just id ->
+                            ( Just id, model.userData, False )
+
+                        _ ->
+                            let (id, userData) = 
+                                    model.userData
+                                        |> UserData.addChartable
+                                            { name = ""
+                                            , colour = Nothing
+                                            , inverted = False
+                                            , sum = []
+                                            }
+                            in (id, userData, True)
+
+                chartablesU =
+                    UserData.chartables userDataU
 
                 newChartableModelM =
-                    chartableIdM |> Maybe.andThen (\chartableId -> toChartableModel chartables trackables chartableId { visible = True })
+                    chartableIdM |> Maybe.andThen (\chartableId -> toChartableModel chartablesU trackables chartableId { visible = True })
             in
             case ( chartableIdM, newChartableModelM ) of
                 ( Just chartableId, Just newChartableModel ) ->
-                    ( model
-                        |> (updateUserData <|
-                                UserData.updateLineChart chartId <|
-                                    \c ->
-                                        { c
-                                            | chartables = c.chartables |> IdDict.insert chartableId { visible = True }
-                                            , chartableOrder = chartableId :: c.chartableOrder
-                                        }
-                           )
-                        |> (updateChartModel chartId <|
-                                \c ->
-                                    { c
-                                        | data = c.data |> IdDict.insert chartableId newChartableModel
-                                        , dataOrder = chartableId :: c.dataOrder
-                                        , addingChartable = Nothing
-                                    }
-                           )
-                    , Cmd.none
+                    ( { model
+                        | userData =
+                            userDataU
+                                |> (UserData.updateLineChart chartId <|
+                                        \c ->
+                                            { c
+                                                | chartables = c.chartables |> IdDict.insert chartableId { visible = True }
+                                                , chartableOrder = chartableId :: c.chartableOrder
+                                            }
+                                   )
+                        , charts =
+                            model.charts
+                                |> (Listx.updateLookup chartId <|
+                                        \c ->
+                                            { c
+                                                | data = c.data |> IdDict.insert chartableId newChartableModel
+                                                , dataOrder = chartableId :: c.dataOrder
+                                                , addingChartable = False
+                                                , chartableToAdd = Nothing
+                                                , selectedDataSet = if isNew then Just chartableId else Nothing
+                                            }
+                                   )
+                        , chartableOptions = model.chartableOptions |> Listx.insertLookup chartableId (Stringx.withDefault "[no name]" newChartableModel.name)
+                      }
+                    , if isNew then Task.attempt (always NoOp) <| Dom.focus <| "chart" ++ LineChart.idToString chartId ++ "-chartable" ++ Chartable.idToString chartableId ++ "-name"
+                    else Cmd.none
                     )
 
                 _ ->
@@ -350,7 +385,8 @@ update msg model =
                 |> (updateChartModel chartId <|
                         \c ->
                             { c
-                                | addingChartable = Nothing
+                                | addingChartable = False
+                                , chartableToAdd = Nothing
                             }
                    )
             , Cmd.none
@@ -418,7 +454,7 @@ update msg model =
 
                 chartableUM =
                     Maybe.map2
-                        (\c m -> { c | sum = c.sum |> Listx.replaceLookup trackableId m })
+                        (\c m -> { c | sum = c.sum |> Listx.insertLookup trackableId m })
                         (UserData.chartables model.userData |> IdDict.get chartableId)
                         multiplierM
             in
@@ -653,7 +689,9 @@ viewLineChart chartableOptions trackableOptions ( chartId, model ) =
                                             else
                                                 SolidEyeSlash
                                         ]
-                                    , Controls.textbox [ class "ml-4 w-72" ] [] dataSet.name { isValid = True, isRequired = True } (ChartableNameUpdated chartId chartableId)
+                                    , Controls.textbox [ class "ml-4 w-72" ] [ 
+                                        id <| "chart" ++ LineChart.idToString chartId ++ "-chartable" ++ Chartable.idToString chartableId ++ "-name"
+                                        , placeholder "Name" ] dataSet.name { isValid = True, isRequired = True, isPristine = dataSet.nameIsPristine } (ChartableNameUpdated chartId chartableId)
                                     , label [ class "ml-auto font-bold text-right whitespace-nowrap", for "inverted" ] [ text "Invert data" ]
                                     , input
                                         [ type_ "checkbox"
@@ -710,10 +748,11 @@ viewLineChart chartableOptions trackableOptions ( chartId, model ) =
                                                                 )
                                                             )
                                                     )
+                                                    Nothing
                                                     (Just trackableId)
                                                     { showFilled = False }
                                                 , icon "mt-3 ml-4 w-4 h-4 flex-grow-0 flex-shrink-0" SolidTimes
-                                                , Controls.textbox [ class "ml-4 w-20 flex-grow-0 flex-shrink-0" ] [] t.multiplier { isValid = t.isValid, isRequired = True } (TrackableMultiplierUpdated chartId chartableId trackableId)
+                                                , Controls.textbox [ class "ml-4 w-20 flex-grow-0 flex-shrink-0" ] [] t.multiplier { isValid = t.isValid, isRequired = True, isPristine = False } (TrackableMultiplierUpdated chartId chartableId trackableId)
                                                 , button
                                                     [ class "ml-4 rounded text-black text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
                                                     , onClick (TrackableDeleteClicked chartId chartableId trackableId)
@@ -722,7 +761,7 @@ viewLineChart chartableOptions trackableOptions ( chartId, model ) =
                                                 ]
                                         )
                                 )
-                                    ++ [ div [ class "mt-4 flex" ]
+                                    ++ [ div [ class "mt-4 first:mt-0 flex" ]
                                             [ Controls.button "ml-9 flex-grow-0 flex-shrink-0 whitespace-nowrap" Controls.ButtonGrey (TrackableAddClicked chartId chartableId) SolidPlusCircle "Add trackable" True ]
                                        ]
 
@@ -757,12 +796,8 @@ viewLineChart chartableOptions trackableOptions ( chartId, model ) =
                 []
             ]
         , div [ class "mt-4 bg-gray-200" ] <|
-            [ div [ class "px-4 py-2 bg-gray-300 border-t-4 border-gray-400 flex" ] <|
-                if model.addingChartable == Nothing then
-                    [ Controls.button "" Controls.ButtonGrey (ChartableAddClicked chartId) SolidPlusCircle "Add chartable" True
-                    ]
-
-                else
+            [ if model.addingChartable then
+                div [ class "px-4 py-2 bg-gray-300 border-t-4 border-gray-400 flex" ]
                     [ Controls.textDropdown "w-full h-10"
                         (ChartableToAddChanged chartId)
                         Chartable.idToString
@@ -779,10 +814,23 @@ viewLineChart chartableOptions trackableOptions ( chartId, model ) =
                                     )
                                 )
                         )
-                        model.addingChartable
+                        (Just "New chartable")
+                        model.chartableToAdd
                         { showFilled = False }
                     , Controls.button "ml-4" Controls.ButtonGrey (ChartableAddConfirmClicked chartId) SolidPlusCircle "Add" True
-                    , Controls.button "ml-2" Controls.ButtonGrey (ChartableAddCancelClicked chartId) SolidTimesCircle "Cancel" True
+                    , button
+                        [ class "ml-4 rounded text-black text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
+                        , onClick (ChartableAddCancelClicked chartId)
+                        ]
+                        [ icon "w-5 h-5" <| SolidTimes ]
+                    ]
+
+              else if model.newChartable then
+                div [] [ text "New chartable ..." ]
+
+              else
+                div [ class "px-4 py-2 bg-gray-300 border-t-4 border-gray-400 flex" ]
+                    [ Controls.button "" Controls.ButtonGrey (ChartableAddClicked chartId) SolidPlusCircle "Add chartable" True
                     ]
             ]
                 ++ List.concat viewChartables

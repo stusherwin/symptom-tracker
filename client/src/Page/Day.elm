@@ -437,6 +437,7 @@ viewScaleAnswerSelect min max id answer =
         String.fromInt
         String.toInt
         (List.map (\i -> ( ( i, True ), String.fromInt i )) <| List.range min max)
+        (Just "\u{00A0}")
         answer
         { showFilled = True }
     ]
@@ -444,13 +445,13 @@ viewScaleAnswerSelect min max id answer =
 
 viewIntAnswer : TrackableId -> String -> Bool -> List (Html Msg)
 viewIntAnswer id answer isValid =
-    [ Controls.textbox [ class "mt-4 w-20" ] [] answer { isValid = isValid, isRequired = False } (IntAnswerUpdated id)
+    [ Controls.textbox [ class "mt-4 w-20" ] [] answer { isValid = isValid, isRequired = False, isPristine = False } (IntAnswerUpdated id)
     ]
 
 
 viewFloatAnswer : TrackableId -> String -> Bool -> List (Html Msg)
 viewFloatAnswer id answer isValid =
-    [ Controls.textbox [ class "mt-4 w-20" ] [] answer { isValid = isValid, isRequired = False } (FloatAnswerUpdated id)
+    [ Controls.textbox [ class "mt-4 w-20" ] [] answer { isValid = isValid, isRequired = False, isPristine = False } (FloatAnswerUpdated id)
     ]
 
 

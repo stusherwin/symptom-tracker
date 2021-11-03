@@ -426,6 +426,7 @@ viewTest selectedValue =
         , ( ( 9, True ), "Cabbage" )
         , ( ( 10, True ), "Courgettes" )
         ]
+        Nothing
         (Just selectedValue)
         { showFilled = False }
 
@@ -475,6 +476,7 @@ viewQuestion id q =
                                         ( ( i, i >= q.scaleOptions.fromMin && i <= q.scaleOptions.fromMax ), String.fromInt i )
                                     )
                             )
+                            Nothing
                             (Just q.scaleOptions.from)
                             { showFilled = False }
                         , span [ class "mr-2 py-1 border-4 border-transparent font-bold" ] [ text "to" ]
@@ -489,6 +491,7 @@ viewQuestion id q =
                                         ( ( i, i >= q.scaleOptions.toMin && i <= q.scaleOptions.toMax ), String.fromInt i )
                                     )
                             )
+                            Nothing
                             (Just q.scaleOptions.to)
                             { showFilled = False }
                         ]
@@ -544,10 +547,10 @@ viewQuestion id q =
     in
     div [ class "py-6 px-4 border-t-4", Colour.class "bg" q.colour, Colour.classUp "border" q.colour ] <|
         [ div [ class "flex justify-between items-end" ]
-            [ Controls.textbox [ class "w-full" ] [ A.id <| "q-" ++ Trackable.idToString id ] q.question { isValid = True, isRequired = False } (QuestionTextUpdated id)
+            [ Controls.textbox [ class "w-full" ] [ A.id <| "q-" ++ Trackable.idToString id ] q.question { isValid = True, isRequired = False, isPristine = False } (QuestionTextUpdated id)
             ]
         , div [ class "flex justify-start items-end" ]
-            [ Controls.textDropdown "mt-4 w-48 h-10 flex-shrink-0 flex-grow-0" (QuestionAnswerTypeUpdated id) answerTypeToString answerTypeFromString answerTypes (Just q.answerType) { showFilled = False }
+            [ Controls.textDropdown "mt-4 w-48 h-10 flex-shrink-0 flex-grow-0" (QuestionAnswerTypeUpdated id) answerTypeToString answerTypeFromString answerTypes Nothing (Just q.answerType) { showFilled = False }
             , Controls.colourDropdown "ml-auto flex-shrink-0 flex-grow-0" (QuestionColourUpdated id) (Just q.colour) { showFilled = False }
             ]
         ]

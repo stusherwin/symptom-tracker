@@ -95,9 +95,9 @@ update id updateEntity dict =
     Result.withDefault dict <| tryUpdate id (Ok << updateEntity) dict
 
 
-add : entity -> IdDict id entity -> IdDict id entity
+add : entity -> IdDict id entity -> ( Maybe id, IdDict id entity )
 add entity dict =
-    Result.withDefault dict <| Result.map Tuple.second <| tryAdd entity dict
+    Result.withDefault ( Nothing, dict ) <| Result.map (Tuple.mapFirst Just) <| tryAdd entity dict
 
 
 delete : id -> IdDict id entity -> IdDict id entity
