@@ -1,4 +1,4 @@
-module UserData exposing (UserData, activeChartables, activeLineCharts, activeTrackables, addChartable, addLineChart, addTrackable, chartables, decode, deleteChartable, deleteLineChart, deleteTrackable, encode, getChartable, getLineChart, getTrackable, getTrackableDataPoints, init, lineCharts, moveChartableDown, moveChartableUp, moveData, moveLineChartDown, moveLineChartUp, moveTrackableDown, moveTrackableUp, toggleChartableVisible, toggleTrackableVisible, trackables, updateChartable, updateLineChart, updateTrackable)
+module UserData exposing (UserData, activeChartables, activeLineCharts, activeTrackables, addChartable, addLineChart, addTrackable, chartables, decode, deleteChartable, deleteLineChart, deleteTrackable, encode, getChartable, getLineChart, getTrackable, init, lineCharts, moveChartableDown, moveChartableUp, moveData, moveLineChartDown, moveLineChartUp, moveTrackableDown, moveTrackableUp, toggleChartableVisible, toggleTrackableVisible, trackables, updateChartable, updateLineChart, updateTrackable)
 
 import Array
 import Colour exposing (Colour(..))
@@ -61,27 +61,6 @@ activeChartables (UserData data) =
 getChartable : ChartableId -> UserData -> Maybe Chartable
 getChartable id (UserData data) =
     IdDict.get id data.chartables
-
-
-getTrackableDataPoints : Float -> Bool -> Trackable -> Dict Int Float
-getTrackableDataPoints multiplier inverted trackable =
-    let
-        invert data =
-            case List.maximum <| Dict.values data of
-                Just max ->
-                    data |> Dict.map (\_ v -> max - v)
-
-                _ ->
-                    data
-    in
-    trackable
-        |> (Dict.map (\_ v -> v * multiplier) << Trackable.onlyFloatData)
-        |> (if inverted then
-                invert
-
-            else
-                identity
-           )
 
 
 lineCharts : UserData -> LineChartDict

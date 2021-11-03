@@ -4,7 +4,6 @@ import Array exposing (Array)
 import Arrayx
 import Browser.Dom as Dom
 import Browser.Events as E
-import Colour
 import Date exposing (Date, Unit(..))
 import Dict exposing (Dict)
 import Html exposing (..)
@@ -85,10 +84,10 @@ init today userData chartId (LineChart s p) =
                         (\( data, visible ) ->
                             case data of
                                 PresentationChartable { chartableId, chartable } ->
-                                    chartableToDataSet chartableId chartable visible
+                                    chartableToDataSet chartable visible
 
                                 PresentationTrackable { trackableId, trackable, multiplier, inverted } ->
-                                    trackableToDataSet trackableId trackable multiplier inverted visible
+                                    trackableToDataSet trackable multiplier inverted visible
                         )
             , selectedDataSet = Nothing
             , leavingDataSet = Nothing
@@ -139,8 +138,8 @@ init today userData chartId (LineChart s p) =
     )
 
 
-chartableToDataSet : ChartableId -> Chartable -> Bool -> Graph.DataSet
-chartableToDataSet chartableId (Chartable.Chartable s p) visible =
+chartableToDataSet : Chartable -> Bool -> Graph.DataSet
+chartableToDataSet (Chartable.Chartable s p) visible =
     { name = s.name
     , colour = p.colour
     , dataPoints = p.dataPoints
@@ -148,11 +147,11 @@ chartableToDataSet chartableId (Chartable.Chartable s p) visible =
     }
 
 
-trackableToDataSet : TrackableId -> Trackable -> Float -> Bool -> Bool -> Graph.DataSet
-trackableToDataSet trackableId trackable multiplier inverted visible =
+trackableToDataSet : Trackable -> Float -> Bool -> Bool -> Graph.DataSet
+trackableToDataSet trackable multiplier inverted visible =
     { name = trackable.question
     , colour = trackable.colour
-    , dataPoints = UserData.getTrackableDataPoints multiplier inverted trackable
+    , dataPoints = Trackable.getDataPoints multiplier inverted trackable
     , visible = visible
     }
 
@@ -355,7 +354,7 @@ updateTrackableData i userData trackableId multiplierM invertedM model =
             case ( trackableDataM, trackableListDataM ) of
                 ( Just { inverted }, Just ( _, _, multiplier ) ) ->
                     ( { model
-                        | graph = { graph | data = graph.data |> Arrayx.update i (\d -> { d | dataPoints = UserData.getTrackableDataPoints (Maybe.withDefault multiplier multiplierM) (Maybe.withDefault inverted invertedM) trackable }) }
+                        | graph = { graph | data = graph.data |> Arrayx.update i (\d -> { d | dataPoints = Trackable.getDataPoints (Maybe.withDefault multiplier multiplierM) (Maybe.withDefault inverted invertedM) trackable }) }
                         , data =
                             model.data
                                 |> Arrayx.update i
@@ -405,7 +404,7 @@ addChartableDataSet userData chartableId model =
         Just (Chartable.Chartable s p) ->
             let
                 dataSet =
-                    chartableToDataSet chartableId (Chartable.Chartable s p) True
+                    chartableToDataSet (Chartable.Chartable s p) True
 
                 graph =
                     model.graph
@@ -442,7 +441,7 @@ replaceDataSetWithChartable userData i chartableId model =
                     model.graph
 
                 dataSet =
-                    chartableToDataSet chartableId (Chartable.Chartable s p) True
+                    chartableToDataSet (Chartable.Chartable s p) True
             in
             ( { model
                 | graph = { graph | data = graph.data |> Array.set i dataSet }
@@ -473,7 +472,7 @@ replaceDataSetWithTrackable userData i trackableId multiplier inverted visible m
         Just trackable ->
             let
                 dataSet =
-                    trackableToDataSet trackableId trackable multiplier inverted visible
+                    trackableToDataSet trackable multiplier inverted visible
 
                 graph =
                     model.graph
@@ -502,7 +501,7 @@ addTrackableDataSet userData trackableId model =
         Just trackable ->
             let
                 dataSet =
-                    trackableToDataSet trackableId trackable 1 False True
+                    trackableToDataSet trackable 1 False True
 
                 graph =
                     model.graph

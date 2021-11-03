@@ -241,7 +241,6 @@ update msg model =
                     ( model
                         |> setUserData userData_
                         |> addChart newId newChartModel
-                      -- |> (\m -> { m | state = Chart newChartModel })
                     , Cmd.batch
                         [ Task.perform UserDataUpdated <| Task.succeed userData_
                         , Nav.pushUrl model.navKey ("/charts/" ++ LineChartId.toString newId)
