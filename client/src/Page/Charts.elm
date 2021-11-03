@@ -1,5 +1,7 @@
 module Page.Charts exposing (Model, Msg(..), init, update, view)
 
+import Array exposing (Array)
+import Arrayx
 import Browser.Dom as Dom
 import Colour exposing (Colour)
 import Controls
@@ -31,7 +33,7 @@ type alias Model =
 
 
 type alias ChartableModel =
-    { trackables : Dict Int TrackableModel
+    { trackables : Array TrackableModel
     , inverted : Bool
     }
 
@@ -86,8 +88,7 @@ toChartModel today chartables trackables chart =
                                 (\( trackableId, multiplier ) ->
                                     { trackableId = trackableId, multiplier = String.fromFloat multiplier, isValid = True }
                                 )
-                            |> List.indexedMap Tuple.pair
-                            |> Dict.fromList
+                            |> Array.fromList
                     , visible = Maybe.withDefault False <| Maybe.map .visible <| IdDict.get id chart.chartables
                     }
                 )
@@ -105,7 +106,7 @@ toColour trackables chartable =
             (List.head chartable.sum
                 |> Maybe.andThen ((\t -> IdDict.get t trackables) << Tuple.first)
                 |> Maybe.map .colour
-                |> Maybe.withDefault Colour.Blue
+                |> Maybe.withDefault Colour.Black
             )
 
 
@@ -153,6 +154,7 @@ type Msg
     | ChartableInvertedChanged LineChartId ChartableId Bool
     | TrackableChanged LineChartId ChartableId Int (Maybe TrackableId)
     | TrackableMultiplierUpdated LineChartId ChartableId Int String
+    | TrackableAddClicked LineChartId ChartableId
     | GraphMsg LineChartId (Graph.Msg ChartableId)
 
 
@@ -263,7 +265,7 @@ update msg model =
                                 updateChartableModel chartableId <|
                                     \c ->
                                         { c
-                                            | trackables = c.trackables |> Dict.update i (Maybe.map <| \t -> { t | trackableId = trackableId })
+                                            | trackables = c.trackables |> Arrayx.update i (\t -> { t | trackableId = trackableId })
                                             , colour =
                                                 case UserData.chartables userData |> IdDict.get chartableId of
                                                     Just chartable ->
@@ -312,7 +314,7 @@ update msg model =
                                 updateChartableModel chartableId <|
                                     \c ->
                                         { c
-                                            | trackables = c.trackables |> Dict.update i (Maybe.map <| \t -> { t | multiplier = stringValue, isValid = isValid })
+                                            | trackables = c.trackables |> Arrayx.update i (\t -> { t | multiplier = stringValue, isValid = isValid })
                                             , dataPoints =
                                                 case ( isValid, UserData.chartables userData |> IdDict.get chartableId ) of
                                                     ( True, Just chartable ) ->
@@ -325,6 +327,63 @@ update msg model =
               }
             , Cmd.none
             )
+
+        TrackableAddClicked chartId chartableId ->
+            let
+                trackableIds =
+                    UserData.trackables model.userData
+                        |> IdDict.filter
+                            (\tId _ ->
+                                not <|
+                                    List.member tId <|
+                                        (UserData.chartables model.userData
+                                            |> IdDict.get chartableId
+                                            |> Maybe.map (List.map Tuple.first << .sum)
+                                            |> Maybe.withDefault []
+                                        )
+                            )
+                        |> IdDict.keys
+            in
+            case List.head trackableIds of
+                Just trackableId ->
+                    let
+                        userData =
+                            model.userData
+                                |> (UserData.updateChartable chartableId <|
+                                        \c -> { c | sum = c.sum |> Array.fromList |> Array.push ( trackableId, 1.0 ) |> Array.toList }
+                                   )
+                    in
+                    ( { model
+                        | userData = userData
+                        , charts =
+                            model.charts
+                                |> (IdDict.update chartId <|
+                                        updateChartableModel chartableId <|
+                                            \c ->
+                                                { c
+                                                    | trackables = c.trackables |> Array.push { trackableId = trackableId, multiplier = "1", isValid = True }
+                                                    , colour =
+                                                        case UserData.chartables userData |> IdDict.get chartableId of
+                                                            Just chartable ->
+                                                                toColour (UserData.trackables userData) chartable
+
+                                                            _ ->
+                                                                c.colour
+                                                    , dataPoints =
+                                                        case UserData.chartables userData |> IdDict.get chartableId of
+                                                            Just chartable ->
+                                                                toDataPoints (UserData.trackables userData) chartable
+
+                                                            _ ->
+                                                                c.dataPoints
+                                                }
+                                   )
+                      }
+                    , Cmd.none
+                    )
+
+                _ ->
+                    ( model, Cmd.none )
 
         GraphMsg chartId graphMsg ->
             ( updateChartModel chartId <| Graph.update graphMsg, Cmd.none )
@@ -457,7 +516,7 @@ viewLineChart trackables chartId model =
                                         ]
                                     ]
                                         ++ (dataSet.trackables
-                                                |> Dict.map
+                                                |> Array.indexedMap
                                                     (\i t ->
                                                         div [ class "mt-4 flex" ]
                                                             [ icon "mt-3 w-4 h-4 flex-grow-0 flex-shrink-0" <|
@@ -470,17 +529,32 @@ viewLineChart trackables chartId model =
                                                                 (TrackableChanged chartId chartableId i)
                                                                 Trackable.idToString
                                                                 Trackable.idFromString
-                                                                (trackables |> IdDict.map (\tId { question } -> ( ( tId, True ), question )) |> IdDict.values)
+                                                                (trackables
+                                                                    |> IdDict.filter
+                                                                        (\tId _ ->
+                                                                            tId
+                                                                                == t.trackableId
+                                                                                || (not <|
+                                                                                        List.member tId <|
+                                                                                            (dataSet.trackables
+                                                                                                |> Array.map .trackableId
+                                                                                                |> Array.toList
+                                                                                            )
+                                                                                   )
+                                                                        )
+                                                                    |> IdDict.map (\tId { question } -> ( ( tId, True ), question ))
+                                                                    |> IdDict.values
+                                                                )
                                                                 (Just t.trackableId)
                                                                 { showFilled = False }
                                                             , icon "mt-3 ml-4 w-4 h-4 flex-grow-0 flex-shrink-0" SolidTimes
                                                             , Controls.textbox [ class "ml-4 w-20 flex-grow-0 flex-shrink-0" ] [] t.multiplier { isValid = t.isValid, isRequired = True } (TrackableMultiplierUpdated chartId chartableId i)
                                                             ]
                                                     )
-                                                |> Dict.values
+                                                |> Array.toList
                                            )
                                         ++ [ div [ class "mt-4 flex" ]
-                                                [ Controls.button "ml-8" Controls.ButtonGrey NoOp SolidPlusCircle "Add trackable" True ]
+                                                [ Controls.button "ml-8" Controls.ButtonGrey (TrackableAddClicked chartId chartableId) SolidPlusCircle "Add trackable" True ]
                                            ]
 
                               else

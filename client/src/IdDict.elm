@@ -1,4 +1,4 @@
-module IdDict exposing (IdDict(..), IdDictProps, add, decode, delete, encode, filter, fromList, get, insert, keys, map, toDict, tryAdd, tryDelete, tryUpdate, update, values)
+module IdDict exposing (IdDict(..), IdDictProps, add, decode, delete, encode, filter, fromList, get, insert, keys, map, toDict, toList, tryAdd, tryDelete, tryUpdate, update, values)
 
 import Dict exposing (Dict)
 import Json.Decode as D
@@ -44,6 +44,11 @@ keys (IdDict p dict) =
 toDict : (id -> entity -> a) -> IdDict id entity -> Dict Int a
 toDict fn (IdDict p dict) =
     Dict.map (\id e -> fn (p.toId id) e) dict
+
+
+toList : IdDict id entity -> List ( id, entity )
+toList (IdDict p dict) =
+    Dict.toList dict |> List.map (Tuple.mapFirst p.toId)
 
 
 tryUpdate : id -> (entity -> Result String entity) -> IdDict id entity -> Result String (IdDict id entity)
