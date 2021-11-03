@@ -10,7 +10,6 @@ import Dict exposing (Dict)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Htmlx
-import Listx
 import Maybe exposing (Maybe)
 import Ports exposing (fullScreenChanged, toggleElementFullScreen)
 import Svg.Graph as Graph exposing (Msg, viewJustYAxis, viewLineGraph)
@@ -32,13 +31,16 @@ type alias Model =
     , expandedValue : Bool
     , userData : UserData
     , fullScreen : Bool
-    , graph : Graph.Model DataSetId
+    , graph : Graph.Model
     , data : Array DataSet
     }
 
 
 type alias DataSet =
-    { id : DataSetId, name : String, inverted : Bool, data : List ( String, Dict Int Float, Float ) }
+    { name : String
+    , inverted : Bool
+    , data : List ( String, Dict Int Float, Float )
+    }
 
 
 type DataSetId
@@ -108,8 +110,7 @@ init today userData chartId chart =
                                     |> UserData.getChartable chartableId
                                     |> Maybe.map
                                         (\c ->
-                                            { id = ChartableId chartableId
-                                            , name = c.name
+                                            { name = c.name
                                             , inverted = c.inverted
                                             , data =
                                                 c.sum
@@ -120,8 +121,7 @@ init today userData chartId chart =
                                             }
                                         )
                                     |> Maybe.withDefault
-                                        { id = ChartableId chartableId
-                                        , name = ""
+                                        { name = ""
                                         , inverted = False
                                         , data = []
                                         }
@@ -131,15 +131,13 @@ init today userData chartId chart =
                                     |> UserData.getTrackable id
                                     |> Maybe.map
                                         (\t ->
-                                            { id = TrackableId id
-                                            , name = t.question
+                                            { name = t.question
                                             , inverted = inverted
                                             , data = [ ( t.question, Trackable.onlyFloatData t, multiplier ) ]
                                             }
                                         )
                                     |> Maybe.withDefault
-                                        { id = TrackableId id
-                                        , name = ""
+                                        { name = ""
                                         , inverted = False
                                         , data = []
                                         }
@@ -158,44 +156,40 @@ init today userData chartId chart =
     )
 
 
-chartableToDataSet : UserData -> ChartableId -> Bool -> Graph.DataSet DataSetId
+chartableToDataSet : UserData -> ChartableId -> Bool -> Graph.DataSet
 chartableToDataSet userData chartableId visible =
     userData
         |> UserData.getChartable chartableId
         |> (Maybe.map <|
                 \c ->
-                    { id = ChartableId chartableId
-                    , name = c.name
+                    { name = c.name
                     , colour = UserData.getChartableColour userData chartableId
                     , dataPoints = UserData.getChartableDataPoints userData c
                     , visible = visible
                     }
            )
         |> Maybe.withDefault
-            { id = ChartableId chartableId
-            , name = ""
+            { name = ""
             , colour = Colour.Gray
             , dataPoints = Dict.empty
             , visible = False
             }
 
 
-trackableToDataSet : UserData -> TrackableId -> Float -> Bool -> Bool -> Graph.DataSet DataSetId
+trackableToDataSet : UserData -> TrackableId -> Float -> Bool -> Bool -> Graph.DataSet
 trackableToDataSet userData id multiplier inverted visible =
     userData
         |> UserData.getTrackable id
         |> (Maybe.map <|
                 \t ->
-                    { id = TrackableId id
-                    , name = t.question
+                    { name = t.question
                     , colour = t.colour
                     , dataPoints = UserData.getTrackableDataPoints multiplier inverted t
                     , visible = visible
                     }
            )
         |> Maybe.withDefault
-            { id = TrackableId id
-            , name = ""
+            { name = ""
             , colour = Colour.Gray
             , dataPoints = Dict.empty
             , visible = False
@@ -460,8 +454,7 @@ addChartableDataSet userData chartableId model =
                 , data =
                     model.data
                         |> Array.push
-                            { id = ChartableId chartableId
-                            , name = chartable.name
+                            { name = chartable.name
                             , inverted = chartable.inverted
                             , data =
                                 chartable.sum
@@ -495,8 +488,7 @@ replaceDataSetWithChartable userData i chartableId model =
                 , data =
                     model.data
                         |> Array.set i
-                            { id = ChartableId chartableId
-                            , name = chartable.name
+                            { name = chartable.name
                             , inverted = chartable.inverted
                             , data =
                                 chartable.sum
@@ -530,8 +522,7 @@ replaceDataSetWithTrackable userData i trackableId multiplier inverted visible m
                 , data =
                     model.data
                         |> Array.set i
-                            { id = TrackableId trackableId
-                            , name = trackable.question
+                            { name = trackable.question
                             , inverted = inverted
                             , data = [ ( trackable.question, Trackable.onlyFloatData trackable, multiplier ) ]
                             }
@@ -560,8 +551,7 @@ addTrackableDataSet userData trackableId model =
                 , data =
                     model.data
                         |> Array.push
-                            { id = TrackableId trackableId
-                            , name = trackable.question
+                            { name = trackable.question
                             , inverted = False
                             , data = [ ( trackable.question, Trackable.onlyFloatData trackable, 1 ) ]
                             }

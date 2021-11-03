@@ -16,7 +16,7 @@ import Svg.Icon exposing (IconType(..), icon)
 import Task
 import Time exposing (Month(..))
 import UserData exposing (UserData)
-import UserData.Chartable as Chartable exposing (Chartable)
+import UserData.Chartable exposing (Chartable)
 import UserData.ChartableId as ChartableId exposing (ChartableId)
 import UserData.Trackable as Trackable exposing (TrackableData(..))
 import UserData.TrackableId as TrackableId exposing (TrackableId)
