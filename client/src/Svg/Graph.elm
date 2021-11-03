@@ -5,12 +5,11 @@ import Colour exposing (Colour(..))
 import Date exposing (Date, Unit(..))
 import Dict exposing (Dict)
 import Htmlx
-import IdDict exposing (IdDict)
 import Json.Decode as D
 import Listx
 import Svg as S exposing (..)
 import Svg.Attributes as A exposing (..)
-import Svg.Events as E exposing (onClick, onMouseOut, onMouseOver)
+import Svg.Events as E exposing (onMouseOut, onMouseOver)
 import Time exposing (Month(..))
 
 
@@ -33,6 +32,7 @@ type alias Model dataSetId =
     , fillLines : Bool
     , currentWidth : Float
     , minWidth : Float
+    , height : Float
     }
 
 
@@ -402,7 +402,7 @@ viewLineGraph svgId class m =
                 v.xStep * m.xScale * m.minWidth / m.currentWidth
 
         ( w, h ) =
-            ( xStep * toFloat xSteps, v.h )
+            ( Basics.max (m.minWidth * v.h / m.height) (xStep * toFloat xSteps), v.h )
 
         minX =
             0

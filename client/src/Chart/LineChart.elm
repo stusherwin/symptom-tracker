@@ -1,6 +1,7 @@
 module Chart.LineChart exposing (Model, Msg, addDataSet, hoverDataSet, init, moveDataSetBack, moveDataSetForward, removeDataSet, selectDataSet, subscriptions, toggleDataSetSelected, toggleDataSetVisible, update, updateDataSetColour, updateDataSetData, updateDataSetName, updateName, view)
 
 import Browser.Dom as Dom
+import Browser.Events as E
 import Date exposing (Date, Unit(..))
 import Dict exposing (Dict)
 import Html exposing (..)
@@ -43,6 +44,7 @@ type Msg
     | ChartExpandValueCloseClicked
     | FullScreenChanged Bool
     | ViewportUpdated (Result Dom.Error ( Dom.Viewport, Dom.Element ))
+    | WindowResized
     | UserDataUpdated UserData
     | GraphMsg (Graph.Msg ChartableId)
 
@@ -70,6 +72,7 @@ init today userData chartId chart =
             , xScale = 1
             , minWidth = 0
             , currentWidth = 0
+            , height = 0
             }
       , chartables =
             chart.chartables
@@ -183,10 +186,18 @@ update msg model =
         FullScreenChanged fullScreen ->
             ( { model | fullScreen = fullScreen }, Cmd.none )
 
+        WindowResized ->
+            ( model
+            , Task.map2 Tuple.pair
+                (Dom.getViewportOf <| "chart" ++ LineChartId.toString model.chartId ++ "-scrollable")
+                (Dom.getElement <| "chart" ++ LineChartId.toString model.chartId ++ "-svg")
+                |> Task.attempt ViewportUpdated
+            )
+
         ViewportUpdated (Ok ( scrollable, svg )) ->
             ( model
                 |> (\c -> { c | viewport = Just scrollable })
-                |> (updateGraph <| \c -> { c | currentWidth = svg.element.width, minWidth = scrollable.viewport.width })
+                |> (updateGraph <| \c -> { c | currentWidth = svg.element.width, minWidth = scrollable.viewport.width, height = svg.element.height })
             , Cmd.none
             )
 
@@ -375,7 +386,10 @@ moveDataSetForward chartableId model =
 
 subscriptions : Model -> Sub Msg
 subscriptions _ =
-    fullScreenChanged FullScreenChanged
+    Sub.batch
+        [ fullScreenChanged FullScreenChanged
+        , E.onResize (\_ _ -> WindowResized)
+        ]
 
 
 view : Model -> Html Msg
@@ -392,7 +406,18 @@ view model =
             , style "height" "300px"
             ]
             ([ viewJustYAxis "flex-grow-0 flex-shrink-0" model.graph
-             , viewScrollableContainer ("chart" ++ LineChartId.toString model.chartId ++ "-scrollable") [ Html.map GraphMsg <| viewLineGraph ("chart" ++ LineChartId.toString model.chartId ++ "-svg") "h-full" model.graph ]
+             , div [ class "relative flex-grow" ]
+                [ node "scrollable-container"
+                    [ id ("chart" ++ LineChartId.toString model.chartId ++ "-scrollable")
+                    , class "absolute overflow-x-scroll top-0 left-0 right-0 bottom-0"
+                    ]
+                    [ Html.map GraphMsg <| viewLineGraph ("chart" ++ LineChartId.toString model.chartId ++ "-svg") "h-full" model.graph ]
+                , if List.isEmpty model.chartables then
+                    div [ class "absolute inset-0 flex justify-center items-center" ] [ span [ class "mb-6" ] [ text "No data to display" ] ]
+
+                  else
+                    div [] []
+                ]
              , div [ class "absolute right-2 top-6 flex flex-col" ]
                 [ button
                     [ class "rounded shadow p-2 bg-white bg-opacity-80 text-black focus:outline-none text-opacity-70 hover:bg-opacity-100 hover:text-opacity-100 focus:text-opacity-100"
@@ -575,15 +600,4 @@ view model =
                             []
                    )
             )
-        ]
-
-
-viewScrollableContainer : String -> List (Html msg) -> Html msg
-viewScrollableContainer containerId children =
-    div [ class "relative flex-grow" ]
-        [ node "scrollable-container"
-            [ id containerId
-            , class "absolute overflow-x-scroll top-0 left-0 right-0 bottom-0"
-            ]
-            children
         ]
