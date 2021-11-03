@@ -256,15 +256,15 @@ update msg model =
         SettingsPageMsg (SettingsPage.UpdateTrackable fn id) ->
             case model.pageState of
                 Loaded _ userData _ ->
-                    updateUserData <| UserData.updateTrackable id fn userData
+                    updateUserData <| UserData.tryUpdateTrackable id fn userData
 
                 _ ->
                     ( model, Cmd.none )
 
-        SettingsPageMsg (SettingsPage.AddTrackable t id) ->
+        SettingsPageMsg (SettingsPage.AddTrackable t) ->
             case model.pageState of
                 Loaded _ userData _ ->
-                    updateUserData <| UserData.addTrackable id t userData
+                    updateUserData <| Result.map Tuple.second <| UserData.tryAddTrackable t userData
 
                 _ ->
                     ( model, Cmd.none )
@@ -272,7 +272,7 @@ update msg model =
         SettingsPageMsg (SettingsPage.DeleteTrackable id) ->
             case model.pageState of
                 Loaded _ userData _ ->
-                    updateUserData <| UserData.deleteTrackable id userData
+                    updateUserData <| UserData.tryDeleteTrackable id userData
 
                 _ ->
                     ( model, Cmd.none )

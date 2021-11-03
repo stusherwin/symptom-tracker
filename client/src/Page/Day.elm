@@ -10,13 +10,14 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick, onInput)
 import Icon exposing (IconType(..), icon)
+import IdDict exposing (IdDict)
 import Maybe exposing (Maybe)
 import Result
 import Task
 import Textarea
 import Textbox
 import Time exposing (Month(..))
-import Trackable exposing (Trackable, TrackableData(..))
+import Trackable exposing (Trackable, TrackableData(..), TrackableId)
 import UserData exposing (UserData)
 
 
@@ -24,7 +25,7 @@ type alias Model =
     { currentDay : Date
     , today : Date
     , userData : UserData
-    , textInputs : Dict Int ( String, Bool )
+    , textInputs : IdDict TrackableId ( String, Bool )
     }
 
 
@@ -34,8 +35,8 @@ init today currentDay userData =
     , currentDay = currentDay
     , userData = userData
     , textInputs =
-        Dict.map (\_ v -> ( v, True )) <|
-            Dict.map
+        IdDict.map (\_ v -> ( v, True )) <|
+            IdDict.map
                 (\_ t ->
                     Maybe.withDefault "" <|
                         Dict.get (Date.toRataDie currentDay) <|
@@ -52,12 +53,12 @@ init today currentDay userData =
 
 type Msg
     = NoOp
-    | YesNoAnswerClicked Int (Maybe Bool)
-    | IconAnswerClicked Int (Maybe Int)
-    | ScaleAnswerClicked Int (Maybe Int)
-    | IntAnswerUpdated Int String
-    | FloatAnswerUpdated Int String
-    | TextAnswerUpdated Int String
+    | YesNoAnswerClicked TrackableId (Maybe Bool)
+    | IconAnswerClicked TrackableId (Maybe Int)
+    | ScaleAnswerClicked TrackableId (Maybe Int)
+    | IntAnswerUpdated TrackableId String
+    | FloatAnswerUpdated TrackableId String
+    | TextAnswerUpdated TrackableId String
     | UpdateUserData (Result String UserData)
     | UserDataChanged UserData
 
@@ -68,7 +69,7 @@ update msg model =
         YesNoAnswerClicked id answer ->
             let
                 userData =
-                    UserData.updateTrackable id (Trackable.updateYesNoData model.currentDay answer) model.userData
+                    model.userData |> UserData.tryUpdateTrackable id (Trackable.updateYesNoData model.currentDay answer)
             in
             ( { model | userData = Result.withDefault model.userData userData }
             , Task.perform UpdateUserData <| Task.succeed userData
@@ -77,7 +78,7 @@ update msg model =
         IconAnswerClicked id answer ->
             let
                 userData =
-                    UserData.updateTrackable id (Trackable.updateIconData model.currentDay answer) model.userData
+                    model.userData |> UserData.tryUpdateTrackable id (Trackable.updateIconData model.currentDay answer)
             in
             ( { model | userData = Result.withDefault model.userData userData }
             , Task.perform UpdateUserData <| Task.succeed userData
@@ -86,7 +87,7 @@ update msg model =
         ScaleAnswerClicked id answer ->
             let
                 userData =
-                    UserData.updateTrackable id (Trackable.updateScaleData model.currentDay answer) model.userData
+                    model.userData |> UserData.tryUpdateTrackable id (Trackable.updateScaleData model.currentDay answer)
             in
             ( { model | userData = Result.withDefault model.userData userData }
             , Task.perform UpdateUserData <| Task.succeed userData
@@ -106,12 +107,12 @@ update msg model =
                             stringValue == ""
 
                 textInputs =
-                    Dict.insert id ( stringValue, isValid ) model.textInputs
+                    IdDict.insert id ( stringValue, isValid ) model.textInputs
             in
             if isValid then
                 let
                     userData =
-                        UserData.updateTrackable id (Trackable.updateIntData model.currentDay answer) model.userData
+                        model.userData |> UserData.tryUpdateTrackable id (Trackable.updateIntData model.currentDay answer)
                 in
                 ( { model | textInputs = textInputs, userData = Result.withDefault model.userData userData }
                 , Task.perform UpdateUserData <| Task.succeed userData
@@ -134,12 +135,12 @@ update msg model =
                             stringValue == ""
 
                 textInputs =
-                    Dict.insert id ( stringValue, isValid ) model.textInputs
+                    IdDict.insert id ( stringValue, isValid ) model.textInputs
             in
             if isValid then
                 let
                     userData =
-                        UserData.updateTrackable id (Trackable.updateFloatData model.currentDay answer) model.userData
+                        model.userData |> UserData.tryUpdateTrackable id (Trackable.updateFloatData model.currentDay answer)
                 in
                 ( { model | textInputs = textInputs, userData = Result.withDefault model.userData userData }
                 , Task.perform UpdateUserData <| Task.succeed userData
@@ -151,10 +152,10 @@ update msg model =
         TextAnswerUpdated id answer ->
             let
                 userData =
-                    UserData.updateTrackable id (Trackable.updateTextData model.currentDay answer) model.userData
+                    model.userData |> UserData.tryUpdateTrackable id (Trackable.updateTextData model.currentDay answer)
             in
             ( { model
-                | textInputs = Dict.insert id ( answer, True ) model.textInputs
+                | textInputs = IdDict.insert id ( answer, True ) model.textInputs
                 , userData = Result.withDefault model.userData userData
               }
             , Task.perform UpdateUserData <| Task.succeed userData
@@ -195,7 +196,7 @@ view { currentDay, today, userData, textInputs } =
         , h2 [ class "py-4 font-bold text-2xl text-center shadow-inner-t-md" ]
             [ text <| "How was " ++ dayText ++ "?" ]
         ]
-            ++ Dict.values (Dict.map (viewQuestion currentDay textInputs) <| UserData.trackables userData)
+            ++ IdDict.values (IdDict.map (viewQuestion currentDay textInputs) <| UserData.trackables userData)
 
 
 viewDayPicker : Date -> Date -> Html Msg
@@ -300,38 +301,38 @@ viewDayPicker currentDay today =
         ]
 
 
-viewQuestion : Date -> Dict Int ( String, Bool ) -> Int -> Trackable -> Html Msg
-viewQuestion currentDay textInputs qId { question, colour, data } =
+viewQuestion : Date -> IdDict TrackableId ( String, Bool ) -> TrackableId -> Trackable -> Html Msg
+viewQuestion currentDay textInputs id { question, colour, data } =
     let
         key =
             Date.toRataDie currentDay
 
         ( stringValue, isValid ) =
-            Maybe.withDefault ( "", True ) <| Dict.get qId textInputs
+            Maybe.withDefault ( "", True ) <| IdDict.get id textInputs
 
         viewAnswer =
             case data of
                 TIcon options values ->
-                    viewIconAnswer qId options <| Dict.get key values
+                    viewIconAnswer id options <| Dict.get key values
 
                 TYesNo values ->
-                    viewYesNoAnswer qId <| Dict.get key values
+                    viewYesNoAnswer id <| Dict.get key values
 
                 TScale min max values ->
                     if max - min + 1 <= 10 then
-                        viewScaleAnswerButtons min max qId <| Dict.get key values
+                        viewScaleAnswerButtons min max id <| Dict.get key values
 
                     else
-                        viewScaleAnswerSelect min max qId <| Dict.get key values
+                        viewScaleAnswerSelect min max id <| Dict.get key values
 
                 TInt _ ->
-                    viewIntAnswer qId stringValue isValid
+                    viewIntAnswer id stringValue isValid
 
                 TFloat _ ->
-                    viewFloatAnswer qId stringValue isValid
+                    viewFloatAnswer id stringValue isValid
 
                 TText _ ->
-                    viewTextAnswer qId stringValue
+                    viewTextAnswer id stringValue
     in
     div [ class "pt-6 pb-6 border-t-4", Colour.class "bg" colour, Colour.classUp "border" colour ]
         [ h2 [ class "font-bold text-xl text-center" ] [ text question ]
@@ -339,8 +340,8 @@ viewQuestion currentDay textInputs qId { question, colour, data } =
         ]
 
 
-viewIconAnswer : Int -> Array IconType -> Maybe Int -> List (Html Msg)
-viewIconAnswer qId options answer =
+viewIconAnswer : TrackableId -> Array IconType -> Maybe Int -> List (Html Msg)
+viewIconAnswer id options answer =
     let
         iconButton : Int -> IconType -> Html Msg
         iconButton value iconType =
@@ -353,7 +354,7 @@ viewIconAnswer qId options answer =
                             "btn-gray"
                        )
                 )
-                (IconAnswerClicked qId <|
+                (IconAnswerClicked id <|
                     if answer == Just value then
                         Nothing
 
@@ -365,8 +366,8 @@ viewIconAnswer qId options answer =
     List.indexedMap iconButton <| Array.toList options
 
 
-viewYesNoAnswer : Int -> Maybe Bool -> List (Html Msg)
-viewYesNoAnswer qId answer =
+viewYesNoAnswer : TrackableId -> Maybe Bool -> List (Html Msg)
+viewYesNoAnswer id answer =
     let
         buttonText value =
             if value then
@@ -392,7 +393,7 @@ viewYesNoAnswer qId answer =
                  else
                     Button.Grey
                 )
-                (YesNoAnswerClicked qId <|
+                (YesNoAnswerClicked id <|
                     if answer == Just value then
                         Nothing
 
@@ -408,8 +409,8 @@ viewYesNoAnswer qId answer =
     ]
 
 
-viewScaleAnswerButtons : Int -> Int -> Int -> Maybe Int -> List (Html Msg)
-viewScaleAnswerButtons min max qId answer =
+viewScaleAnswerButtons : Int -> Int -> TrackableId -> Maybe Int -> List (Html Msg)
+viewScaleAnswerButtons min max id answer =
     let
         scaleButton : Int -> Html Msg
         scaleButton level =
@@ -422,7 +423,7 @@ viewScaleAnswerButtons min max qId answer =
                             "btn-gray"
                        )
                 )
-                (ScaleAnswerClicked qId <|
+                (ScaleAnswerClicked id <|
                     if answer == Just level then
                         Nothing
 
@@ -435,11 +436,11 @@ viewScaleAnswerButtons min max qId answer =
         List.range min max
 
 
-viewScaleAnswerSelect : Int -> Int -> Int -> Maybe Int -> List (Html Msg)
-viewScaleAnswerSelect min max qId answer =
+viewScaleAnswerSelect : Int -> Int -> TrackableId -> Maybe Int -> List (Html Msg)
+viewScaleAnswerSelect min max id answer =
     [ Dropdown.viewText
         "mt-4 w-20"
-        (ScaleAnswerClicked qId)
+        (ScaleAnswerClicked id)
         String.fromInt
         String.toInt
         (List.map (\i -> ( ( i, True ), String.fromInt i )) <| List.range min max)
@@ -448,19 +449,19 @@ viewScaleAnswerSelect min max qId answer =
     ]
 
 
-viewIntAnswer : Int -> String -> Bool -> List (Html Msg)
-viewIntAnswer qId answer isValid =
-    [ Textbox.view "" "mt-4 w-20" answer (IntAnswerUpdated qId) isValid { showFilled = True }
+viewIntAnswer : TrackableId -> String -> Bool -> List (Html Msg)
+viewIntAnswer id answer isValid =
+    [ Textbox.view "" "mt-4 w-20" answer (IntAnswerUpdated id) isValid { showFilled = True }
     ]
 
 
-viewFloatAnswer : Int -> String -> Bool -> List (Html Msg)
-viewFloatAnswer qId answer isValid =
-    [ Textbox.view "" "mt-4 w-20" answer (FloatAnswerUpdated qId) isValid { showFilled = True }
+viewFloatAnswer : TrackableId -> String -> Bool -> List (Html Msg)
+viewFloatAnswer id answer isValid =
+    [ Textbox.view "" "mt-4 w-20" answer (FloatAnswerUpdated id) isValid { showFilled = True }
     ]
 
 
-viewTextAnswer : Int -> String -> List (Html Msg)
-viewTextAnswer qId answer =
-    [ Textarea.view "" "mt-4 w-96 h-36" answer (TextAnswerUpdated qId) True { showFilled = True }
+viewTextAnswer : TrackableId -> String -> List (Html Msg)
+viewTextAnswer id answer =
+    [ Textarea.view "" "mt-4 w-96 h-36" answer (TextAnswerUpdated id) True { showFilled = True }
     ]

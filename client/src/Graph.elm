@@ -1,64 +1,71 @@
-module Graph exposing (DataSet, Model, Msg, bringDataSetForward, bringDataSetToFront, hoverDataSet, init, pushDataSetBack, selectDataSet, setFillLines, setShowPoints, toggleDataSet, toggleDataSetSelected, update, viewJustYAxis, viewKey, viewLineGraph)
+module Graph exposing (DataPoint, DataSet, Model, Msg, bringDataSetForward, bringDataSetToFront, hoverDataSet, init, pushDataSetBack, selectDataSet, setFillLines, setShowPoints, toggleDataSet, toggleDataSetSelected, update, updateColour, updateMultiplier, viewJustYAxis, viewKey, viewLineGraph)
 
 import Array
 import Colour exposing (Colour(..))
 import Date exposing (Date, Unit(..))
 import Dict exposing (Dict)
+import IdDict exposing (IdDict)
 import Svg as S exposing (..)
 import Svg.Attributes as A exposing (..)
 import Svg.Events as E exposing (onClick, onMouseOut, onMouseOver)
 
 
-type Msg
-    = DataPointHovered (Maybe ( Int, Int ))
-    | DataPointClicked ( Int, Int )
-    | DataLineHovered (Maybe Int)
-    | DataLineClicked Int
+type Msg dataSetId
+    = DataPointHovered (Maybe ( dataSetId, Date ))
+    | DataPointClicked ( dataSetId, Date )
+    | DataLineHovered (Maybe dataSetId)
+    | DataLineClicked dataSetId
 
 
-type alias Model =
+type alias Model dataSetId =
     { today : Date
-    , data : Dict Int DataSet
-    , selectedDataPoint : Maybe ( Int, Int )
+    , data : IdDict dataSetId DataSet
+    , selectedDataPoint : Maybe ( dataSetId, Date )
     , fillLines : Bool
     , showPoints : Bool
-    , selectedDataSet : Maybe Int
-    , hoveredDataSet : Maybe Int
-    , dataOrder : List Int
+    , selectedDataSet : Maybe dataSetId
+    , hoveredDataSet : Maybe dataSetId
+    , dataOrder : List dataSetId
     }
 
 
 type alias DataSet =
     { name : String
     , colour : Colour
-    , dataPoints : Dict Int Float
+    , dataPoints : List DataPoint
+    , multiplier : Float
     , visible : Bool
     }
+
+
+type alias DataPoint =
+    ( Date, Float )
 
 
 
 -- INIT
 
 
-init : Date -> Bool -> Bool -> Dict Int { name : String, colour : Colour, dataPoints : Dict Int Float } -> List Int -> Model
-init today fillLines showPoints dataSets dataOrder =
+init : Date -> IdDict dataSetId { name : String, colour : Colour, dataPoints : List DataPoint, multiplier : Float } -> Model dataSetId
+init today dataSets =
     { today = today
     , data =
         dataSets
-            |> Dict.map
+            |> IdDict.map
                 (\_ ds ->
                     { name = ds.name
                     , colour = ds.colour
                     , dataPoints = ds.dataPoints
+                    , multiplier = ds.multiplier
                     , visible = True
                     }
                 )
     , selectedDataPoint = Nothing
     , selectedDataSet = Nothing
     , hoveredDataSet = Nothing
-    , fillLines = fillLines
-    , showPoints = showPoints
-    , dataOrder = dataOrder
+    , fillLines = True
+    , showPoints = False
+    , dataOrder = IdDict.keys dataSets
     }
 
 
@@ -66,7 +73,7 @@ init today fillLines showPoints dataSets dataOrder =
 -- UPDATE
 
 
-update : Msg -> Model -> Model
+update : Msg dataSetId -> Model dataSetId -> Model dataSetId
 update msg model =
     case msg of
         DataPointHovered (Just ( id, d )) ->
@@ -85,17 +92,27 @@ update msg model =
             toggleDataSetSelected id model
 
 
-setFillLines : Bool -> Model -> Model
+updateColour : dataSetId -> Colour -> Model dataSetId -> Model dataSetId
+updateColour dataSetId colour model =
+    { model | data = IdDict.update dataSetId (\ds -> { ds | colour = colour }) <| model.data }
+
+
+updateMultiplier : dataSetId -> Float -> Model dataSetId -> Model dataSetId
+updateMultiplier dataSetId multiplier model =
+    { model | data = IdDict.update dataSetId (\ds -> { ds | multiplier = multiplier }) <| model.data }
+
+
+setFillLines : Bool -> Model dataSetId -> Model dataSetId
 setFillLines fl model =
     { model | fillLines = fl }
 
 
-setShowPoints : Bool -> Model -> Model
+setShowPoints : Bool -> Model dataSetId -> Model dataSetId
 setShowPoints sp model =
     { model | showPoints = sp }
 
 
-toggleDataSetSelected : Int -> Model -> Model
+toggleDataSetSelected : dataSetId -> Model dataSetId -> Model dataSetId
 toggleDataSetSelected targetId model =
     let
         newSelectedDataSet =
@@ -116,28 +133,28 @@ toggleDataSetSelected targetId model =
     }
 
 
-selectDataPoint : Maybe ( Int, Int ) -> Model -> Model
+selectDataPoint : Maybe ( dataSetId, Date ) -> Model dataSetId -> Model dataSetId
 selectDataPoint p model =
     { model | selectedDataPoint = p }
 
 
-selectDataSet : Maybe Int -> Model -> Model
+selectDataSet : Maybe dataSetId -> Model dataSetId -> Model dataSetId
 selectDataSet id model =
     { model | selectedDataSet = id }
 
 
-hoverDataSet : Maybe Int -> Model -> Model
+hoverDataSet : Maybe dataSetId -> Model dataSetId -> Model dataSetId
 hoverDataSet id model =
     { model | hoveredDataSet = id }
 
 
-bringDataSetToFront : Int -> Model -> Model
+bringDataSetToFront : dataSetId -> Model dataSetId -> Model dataSetId
 bringDataSetToFront id model =
-    { model | dataOrder = List.reverse <| id :: List.filter (\i -> i /= id) model.dataOrder }
+    { model | dataOrder = id :: List.filter (\i -> i /= id) model.dataOrder }
 
 
-pushDataSetBack : Int -> Model -> Model
-pushDataSetBack id model =
+bringDataSetForward : dataSetId -> Model dataSetId -> Model dataSetId
+bringDataSetForward id model =
     let
         fn ids =
             case ids of
@@ -160,8 +177,8 @@ pushDataSetBack id model =
     { model | dataOrder = fn model.dataOrder }
 
 
-bringDataSetForward : Int -> Model -> Model
-bringDataSetForward id model =
+pushDataSetBack : dataSetId -> Model dataSetId -> Model dataSetId
+pushDataSetBack id model =
     let
         fn ids =
             case ids of
@@ -181,12 +198,12 @@ bringDataSetForward id model =
     { model | dataOrder = fn model.dataOrder }
 
 
-toggleDataSet : Int -> Model -> Model
+toggleDataSet : dataSetId -> Model dataSetId -> Model dataSetId
 toggleDataSet id model =
-    case Dict.get id model.data of
+    case IdDict.get id model.data of
         Just ds ->
             { model
-                | data = Dict.insert id { ds | visible = not ds.visible } model.data
+                | data = IdDict.insert id { ds | visible = not ds.visible } model.data
                 , selectedDataSet =
                     model.selectedDataSet
                         |> Maybe.andThen
@@ -208,7 +225,8 @@ toggleDataSet id model =
 
 
 type alias PlotPoint =
-    { date : Int
+    { date : Date
+    , dateRD : Int
     , value : Float
     , x : Float
     , y : Float
@@ -240,7 +258,7 @@ v =
     }
 
 
-viewJustYAxis : String -> Model -> Svg msg
+viewJustYAxis : String -> Model dataSetId -> Svg msg
 viewJustYAxis class { data } =
     let
         maxValue =
@@ -268,7 +286,7 @@ viewJustYAxis class { data } =
                 (List.range 0 5)
 
 
-viewLineGraph : String -> Model -> Svg Msg
+viewLineGraph : String -> Model dataSetId -> Svg (Msg dataSetId)
 viewLineGraph class { data, today, selectedDataPoint, selectedDataSet, hoveredDataSet, fillLines, showPoints, dataOrder } =
     let
         startDate =
@@ -340,18 +358,23 @@ viewLineGraph class { data, today, selectedDataPoint, selectedDataSet, hoveredDa
                 :: xAxis
                 ++ yAxis
 
-        dataLine : Int -> DataSet -> List (Svg Msg)
+        dataLine : dataSetId -> DataSet -> List (Svg (Msg dataSetId))
         dataLine id dataSet =
             let
                 plotPoints : List PlotPoint
                 plotPoints =
-                    Dict.values <|
-                        Dict.map
-                            (\date value ->
+                    List.sortBy .dateRD <|
+                        List.map
+                            (\( date, value ) ->
+                                let
+                                    dateRD =
+                                        Date.toRataDie date
+                                in
                                 { date = date
                                 , value = value
-                                , x = minX + toFloat (date - startDateRD) * v.xStep
-                                , y = minY + ((value / toFloat valueStep) * v.yStep)
+                                , dateRD = dateRD
+                                , x = minX + toFloat (dateRD - startDateRD) * v.xStep
+                                , y = minY + ((value * dataSet.multiplier / toFloat valueStep) * v.yStep)
                                 }
                             )
                             dataSet.dataPoints
@@ -361,22 +384,40 @@ viewLineGraph class { data, today, selectedDataPoint, selectedDataSet, hoveredDa
                 , strokeWidth = 2
                 , strokeLinecap = "round"
                 , strokeLinejoin = "round"
-                , strokeOpacity = 100
-                , fillCol =
-                    if fillLines then
-                        if selectedDataSet == Just id || hoveredDataSet == Just id then
-                            Opaque dataSet.colour
-
-                        else
-                            Transparent dataSet.colour
+                , strokeOpacity =
+                    if (selectedDataSet == Nothing && hoveredDataSet == Nothing) || selectedDataSet == Just id || hoveredDataSet == Just id then
+                        100
 
                     else
-                        None
-                , fillOpacity = 100
+                        30
+                , fillCol =
+                    if fillLines then
+                        Just dataSet.colour
+
+                    else
+                        Nothing
+                , fillOpacity =
+                    if (selectedDataSet == Nothing && hoveredDataSet == Nothing) || selectedDataSet == Just id || hoveredDataSet == Just id then
+                        100
+
+                    else
+                        30
                 , points = List.map (\{ x, y } -> ( x, y )) plotPoints
                 , onClick = Just (DataLineClicked id)
-                , onMouseOver = Just <| DataLineHovered <| Just id
-                , onMouseOut = Just <| DataLineHovered Nothing
+                , onMouseOver =
+                    case selectedDataSet of
+                        Just _ ->
+                            Nothing
+
+                        _ ->
+                            Just <| DataLineHovered <| Just id
+                , onMouseOut =
+                    case selectedDataSet of
+                        Just _ ->
+                            Nothing
+
+                        _ ->
+                            Just <| DataLineHovered Nothing
                 }
                 :: (if showPoints then
                         List.map
@@ -392,9 +433,25 @@ viewLineGraph class { data, today, selectedDataPoint, selectedDataSet, hoveredDa
                                             3
                                     , strokeCol = dataSet.colour
                                     , strokeWidth = 1
-                                    , strokeOpacity = 100
+                                    , strokeOpacity =
+                                        if (selectedDataSet == Nothing && hoveredDataSet == Nothing) || selectedDataSet == Just id || hoveredDataSet == Just id then
+                                            100
+
+                                        else if fillLines then
+                                            30
+
+                                        else
+                                            5
                                     , fillCol = dataSet.colour
-                                    , fillOpacity = 100
+                                    , fillOpacity =
+                                        if (selectedDataSet == Nothing && hoveredDataSet == Nothing) || selectedDataSet == Just id || hoveredDataSet == Just id then
+                                            80
+
+                                        else if fillLines then
+                                            50
+
+                                        else
+                                            30
                                     , onMouseOver = Just <| DataPointHovered <| Just ( id, date )
                                     , onMouseOut = Just <| DataPointHovered Nothing
                                     , onClick = Just (DataPointClicked ( id, date ))
@@ -407,26 +464,22 @@ viewLineGraph class { data, today, selectedDataPoint, selectedDataSet, hoveredDa
                    )
 
         dataLines =
-            Dict.map dataLine <| Dict.filter (\_ ds -> ds.visible) <| data
+            IdDict.map dataLine <| IdDict.filter (\_ ds -> ds.visible) <| data
     in
     svg [ viewBox w h, A.class class ] <|
         (defs [] <|
-            List.concatMap
-                (\( _, { colour } ) ->
-                    [ linearGradient [ id <| "gradient-opaque-" ++ Colour.toString colour, x1 "0", x2 "0", y1 "0", y2 "1" ]
-                        [ stop [ offset "0%", A.class <| "stop-" ++ Colour.toString colour, stopOpacity "100%" ] []
-                        , stop [ offset "100%", A.class <| "stop-" ++ Colour.toString colour, stopOpacity "90%" ] []
-                        ]
-                    , linearGradient [ id <| "gradient-transparent-" ++ Colour.toString colour, x1 "0", x2 "0", y1 "0", y2 "1" ]
-                        [ stop [ offset "0%", A.class <| "stop-" ++ Colour.toString colour, stopOpacity "80%" ] []
-                        , stop [ offset "100%", A.class <| "stop-" ++ Colour.toString colour, stopOpacity "60%" ] []
-                        ]
-                    ]
-                )
-                (Dict.toList data)
+            IdDict.values <|
+                IdDict.map
+                    (\_ { colour } ->
+                        linearGradient [ id <| "gradient-" ++ Colour.toString colour, x1 "0", x2 "0", y1 "0", y2 "1" ]
+                            [ stop [ offset "0%", A.class <| "stop-" ++ Colour.toString colour, stopOpacity "80%" ] []
+                            , stop [ offset "100%", A.class <| "stop-" ++ Colour.toString colour, stopOpacity "60%" ] []
+                            ]
+                    )
+                    data
         )
             :: axes
-            ++ (List.concatMap (\id -> Maybe.withDefault [] <| Dict.get id dataLines) <| dataOrder)
+            ++ (List.concatMap (\id -> Maybe.withDefault [] <| IdDict.get id dataLines) <| List.reverse dataOrder)
 
 
 viewKey : String -> DataSet -> Svg msg
@@ -459,15 +512,17 @@ viewKey class ds =
         ]
 
 
-findStartDate : Date -> Dict Int DataSet -> Date
+findStartDate : Date -> IdDict dataSetId DataSet -> Date
 findStartDate today data =
     let
         minDate =
             Date.fromRataDie
                 << Maybe.withDefault (Date.toRataDie today)
                 << List.minimum
-                << List.filterMap (List.head << Dict.keys << .dataPoints)
-                << Dict.values
+                << List.map Date.toRataDie
+                << concatMaybes
+                << List.map (List.head << List.map Tuple.first << .dataPoints)
+                << IdDict.values
             <|
                 data
 
@@ -477,12 +532,13 @@ findStartDate today data =
     Date.add Weeks -fullWeeks today
 
 
-findMaxValue : Dict Int DataSet -> Float
+findMaxValue : IdDict dataSetId DataSet -> Float
 findMaxValue =
     Maybe.withDefault 0
         << List.maximum
-        << List.filterMap (List.maximum << Dict.values << .dataPoints)
-        << Dict.values
+        << concatMaybes
+        << List.map (\{ multiplier, dataPoints } -> List.maximum <| List.map ((\val -> val * multiplier) << Tuple.second) dataPoints)
+        << IdDict.values
 
 
 concatMaybes : List (Maybe a) -> List a
@@ -629,7 +685,7 @@ type alias PathDefn msg =
     , strokeLinecap : String
     , strokeLinejoin : String
     , strokeOpacity : Int
-    , fillCol : FillColour
+    , fillCol : Maybe Colour
     , fillOpacity : Int
     , points : List ( Float, Float )
     , onClick : Maybe msg
@@ -803,11 +859,11 @@ smoothLinePath h p =
                             in
                             if i == 0 then
                                 case p.fillCol of
-                                    None ->
-                                        "M " ++ toString ( x, y )
+                                    Just _ ->
+                                        "M " ++ toString ( x, v.mb ) ++ " L " ++ toString ( x, y )
 
                                     _ ->
-                                        "M " ++ toString ( x, v.mb ) ++ " L " ++ toString ( x, y )
+                                        "M " ++ toString ( x, y )
 
                             else
                                 let
@@ -824,10 +880,7 @@ smoothLinePath h p =
                                     ++ " "
                                     ++ toString ( x, y )
                                     ++ (case ( p.fillCol, i == Array.length points - 1 ) of
-                                            ( None, _ ) ->
-                                                ""
-
-                                            ( _, True ) ->
+                                            ( Just _, True ) ->
                                                 " L "
                                                     ++ toString ( x, v.mb )
 
@@ -863,20 +916,11 @@ smoothLinePath h p =
         []
 
 
-type FillColour
-    = None
-    | Opaque Colour
-    | Transparent Colour
-
-
-gradient : FillColour -> String
+gradient : Maybe Colour -> String
 gradient maybeCol =
     case maybeCol of
-        Opaque c ->
-            "url(#gradient-opaque-" ++ Colour.toString c ++ ")"
-
-        Transparent c ->
-            "url(#gradient-transparent-" ++ Colour.toString c ++ ")"
+        Just c ->
+            "url(#gradient-" ++ Colour.toString c ++ ")"
 
         _ ->
             "none"

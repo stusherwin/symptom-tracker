@@ -10,15 +10,16 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onClick, onInput)
 import Icon exposing (IconType(..), icon)
+import IdDict exposing (IdDict)
 import Platform.Cmd as Cmd
 import Task
 import Textbox
-import Trackable exposing (Trackable, TrackableData(..))
+import Trackable exposing (Trackable, TrackableData(..), TrackableId)
 import UserData exposing (UserData)
 
 
 type alias Model =
-    { questions : Dict Int Question
+    { questions : IdDict TrackableId Question
     , selectedValue : Int
     }
 
@@ -216,7 +217,7 @@ init userData =
                 ]
             }
     in
-    { questions = Dict.map toQuestion <| UserData.trackables userData
+    { questions = IdDict.map toQuestion <| UserData.trackables userData
     , selectedValue = 4
     }
 
@@ -227,38 +228,38 @@ init userData =
 
 type Msg
     = NoOp
-    | QuestionColourUpdated Int (Maybe Colour)
-    | QuestionTextUpdated Int String
-    | QuestionAnswerTypeUpdated Int (Maybe AnswerType)
-    | QuestionDeleteClicked Int
+    | QuestionColourUpdated TrackableId (Maybe Colour)
+    | QuestionTextUpdated TrackableId String
+    | QuestionAnswerTypeUpdated TrackableId (Maybe AnswerType)
+    | QuestionDeleteClicked TrackableId
     | QuestionAddClicked
-    | ScaleFromUpdated Int (Maybe Int)
-    | ScaleToUpdated Int (Maybe Int)
-    | IconUpdated Int Int (Maybe IconType)
-    | IconAddClicked Int
-    | IconDeleteClicked Int Int
+    | ScaleFromUpdated TrackableId (Maybe Int)
+    | ScaleToUpdated TrackableId (Maybe Int)
+    | IconUpdated TrackableId Int (Maybe IconType)
+    | IconAddClicked TrackableId
+    | IconDeleteClicked TrackableId Int
     | ValueUpdated (Maybe Int)
-    | UpdateTrackable (Trackable -> Result String Trackable) Int
-    | AddTrackable Trackable Int
-    | DeleteTrackable Int
+    | UpdateTrackable (Trackable -> Result String Trackable) TrackableId
+    | AddTrackable Trackable
+    | DeleteTrackable TrackableId
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        QuestionColourUpdated qId (Just colour) ->
-            ( { model | questions = Dict.update qId (Maybe.map (\q -> { q | colour = colour })) model.questions }
-            , Task.perform (UpdateTrackable <| \t -> Ok { t | colour = colour }) <| Task.succeed qId
+        QuestionColourUpdated id (Just colour) ->
+            ( { model | questions = IdDict.update id (\q -> { q | colour = colour }) model.questions }
+            , Task.perform (UpdateTrackable <| \t -> Ok { t | colour = colour }) <| Task.succeed id
             )
 
-        QuestionTextUpdated qId question ->
-            ( { model | questions = Dict.update qId (Maybe.map (\q -> { q | question = question })) model.questions }
-            , Task.perform (UpdateTrackable <| \t -> Ok { t | question = question }) <| Task.succeed qId
+        QuestionTextUpdated id question ->
+            ( { model | questions = IdDict.update id (\q -> { q | question = question }) model.questions }
+            , Task.perform (UpdateTrackable <| \t -> Ok { t | question = question }) <| Task.succeed id
             )
 
-        QuestionAnswerTypeUpdated qId (Just answerType) ->
-            ( { model | questions = Dict.update qId (Maybe.map (\q -> { q | answerType = answerType })) model.questions }
-            , case Dict.get qId model.questions of
+        QuestionAnswerTypeUpdated id (Just answerType) ->
+            ( { model | questions = IdDict.update id (\q -> { q | answerType = answerType }) model.questions }
+            , case IdDict.get id model.questions of
                 Just q ->
                     Task.perform
                         (UpdateTrackable <|
@@ -282,7 +283,7 @@ update msg model =
                                     Trackable.convertToText
                         )
                     <|
-                        Task.succeed qId
+                        Task.succeed id
 
                 _ ->
                     Cmd.none
@@ -290,15 +291,8 @@ update msg model =
 
         QuestionAddClicked ->
             let
-                maxId =
-                    Maybe.withDefault 0 << List.maximum << Dict.keys <| model.questions
-
-                newId =
-                    maxId + 1
-            in
-            ( { model
-                | questions =
-                    Dict.insert newId
+                questions =
+                    IdDict.add
                         { question = ""
                         , colour = Colour.Red
                         , answerType = AYesNo
@@ -322,96 +316,107 @@ update msg model =
                             ]
                         }
                         model.questions
-              }
+
+                newId =
+                    List.head <| List.reverse <| IdDict.keys questions
+            in
+            ( { model | questions = questions }
             , Cmd.batch
                 [ Dom.getViewport
                     |> Task.andThen (\info -> Dom.setViewport 0 info.scene.height)
-                    |> Task.andThen (always <| Dom.focus ("q-" ++ String.fromInt newId))
+                    |> Task.andThen
+                        (always <|
+                            Dom.focus
+                                ("q-"
+                                    ++ (case newId of
+                                            Just id ->
+                                                Trackable.idToString id
+
+                                            _ ->
+                                                ""
+                                       )
+                                )
+                        )
                     |> Task.attempt (always NoOp)
                 , Task.perform
-                    (AddTrackable
-                        { question = ""
-                        , colour = Colour.Red
-                        , multiplier = 1.0
-                        , data = TYesNo Dict.empty
-                        }
+                    (\_ ->
+                        AddTrackable
+                            { question = ""
+                            , colour = Colour.Red
+                            , multiplier = 1.0
+                            , data = TYesNo Dict.empty
+                            }
                     )
                   <|
-                    Task.succeed newId
+                    Task.succeed ()
                 ]
             )
 
-        QuestionDeleteClicked qId ->
-            ( { model | questions = Dict.remove qId model.questions }
-            , Task.perform DeleteTrackable <| Task.succeed qId
+        QuestionDeleteClicked id ->
+            ( { model | questions = IdDict.delete id model.questions }
+            , Task.perform DeleteTrackable <| Task.succeed id
             )
 
-        ScaleFromUpdated qId (Just from) ->
+        ScaleFromUpdated id (Just from) ->
             ( { model
                 | questions =
-                    Dict.update qId
-                        (Maybe.map
-                            (\q ->
-                                let
-                                    scaleOptions =
-                                        q.scaleOptions
-                                in
-                                { q | scaleOptions = { scaleOptions | from = from } }
-                            )
+                    IdDict.update id
+                        (\q ->
+                            let
+                                scaleOptions =
+                                    q.scaleOptions
+                            in
+                            { q | scaleOptions = { scaleOptions | from = from } }
                         )
                         model.questions
               }
-            , Task.perform (UpdateTrackable <| Trackable.updateScaleFrom from) <| Task.succeed qId
+            , Task.perform (UpdateTrackable <| Trackable.updateScaleFrom from) <| Task.succeed id
             )
 
-        ScaleToUpdated qId (Just to) ->
+        ScaleToUpdated id (Just to) ->
             ( { model
                 | questions =
-                    Dict.update qId
-                        (Maybe.map
-                            (\q ->
-                                let
-                                    scaleOptions =
-                                        q.scaleOptions
-                                in
-                                { q | scaleOptions = { scaleOptions | to = to } }
-                            )
+                    IdDict.update id
+                        (\q ->
+                            let
+                                scaleOptions =
+                                    q.scaleOptions
+                            in
+                            { q | scaleOptions = { scaleOptions | to = to } }
                         )
                         model.questions
               }
-            , Task.perform (UpdateTrackable <| Trackable.updateScaleTo to) <| Task.succeed qId
+            , Task.perform (UpdateTrackable <| Trackable.updateScaleTo to) <| Task.succeed id
             )
 
-        IconUpdated qId i (Just iconType) ->
+        IconUpdated id i (Just iconType) ->
             ( { model
                 | questions =
-                    Dict.update qId
-                        (Maybe.map
-                            (\q ->
-                                { q
-                                    | iconOptions =
-                                        case Array.get i q.iconOptions of
-                                            Just o ->
-                                                Array.set i { o | iconType = iconType } q.iconOptions
+                    IdDict.update id
+                        (\q ->
+                            { q
+                                | iconOptions =
+                                    case Array.get i q.iconOptions of
+                                        Just o ->
+                                            Array.set i { o | iconType = iconType } q.iconOptions
 
-                                            _ ->
-                                                q.iconOptions
-                                }
-                            )
+                                        _ ->
+                                            q.iconOptions
+                            }
                         )
                         model.questions
               }
-            , Task.perform (UpdateTrackable <| Trackable.updateIcon i iconType) <| Task.succeed qId
+            , Task.perform (UpdateTrackable <| Trackable.updateIcon i iconType) <| Task.succeed id
             )
 
-        IconAddClicked qId ->
-            ( { model | questions = Dict.update qId (Maybe.map (\q -> { q | iconOptions = Array.push { iconType = SolidQuestionCircle, canDelete = True } q.iconOptions })) model.questions }
-            , Task.perform (UpdateTrackable <| Trackable.addIcon SolidQuestionCircle) <| Task.succeed qId
+        IconAddClicked id ->
+            ( { model | questions = IdDict.update id (\q -> { q | iconOptions = Array.push { iconType = SolidQuestionCircle, canDelete = True } q.iconOptions }) model.questions }
+            , Task.perform (UpdateTrackable <| Trackable.addIcon SolidQuestionCircle) <| Task.succeed id
             )
 
-        IconDeleteClicked qId i ->
-            ( { model | questions = Dict.update qId (Maybe.map (\q -> { q | iconOptions = Array.append (Array.slice 0 i q.iconOptions) (Array.slice (i + 1) (Array.length q.iconOptions) q.iconOptions) })) model.questions }
-            , Task.perform (UpdateTrackable <| Trackable.deleteIcon i) <| Task.succeed qId
+        IconDeleteClicked id i ->
+            ( { model | questions = IdDict.update id (\q -> { q | iconOptions = Array.append (Array.slice 0 i q.iconOptions) (Array.slice (i + 1) (Array.length q.iconOptions) q.iconOptions) }) model.questions }
+            , Task.perform (UpdateTrackable <| Trackable.deleteIcon i) <| Task.succeed id
             )
 
         ValueUpdated (Just v) ->
@@ -433,8 +438,8 @@ view { questions, selectedValue } =
 
         -- , viewTest selectedValue
         ]
-            ++ (Dict.values <|
-                    Dict.map viewQuestion questions
+            ++ (IdDict.values <|
+                    IdDict.map viewQuestion questions
                )
             ++ [ div [ class "bg-gray-200 border-t-4 border-gray-300 flex" ]
                     [ Button.view "m-4" Button.Grey QuestionAddClicked SolidPlusCircle "Add a question" True
@@ -464,8 +469,8 @@ viewTest selectedValue =
         { showFilled = False }
 
 
-viewQuestion : Int -> Question -> Html Msg
-viewQuestion qId q =
+viewQuestion : TrackableId -> Question -> Html Msg
+viewQuestion id q =
     let
         answerTypes =
             List.map
@@ -500,7 +505,7 @@ viewQuestion qId q =
                         [ span [ class "mr-2 py-1 border-4 border-transparent text-lg font-bold" ] [ text "From" ]
                         , Dropdown.viewText
                             "mr-2 w-20"
-                            (ScaleFromUpdated qId)
+                            (ScaleFromUpdated id)
                             String.fromInt
                             String.toInt
                             (List.range 0 19
@@ -514,7 +519,7 @@ viewQuestion qId q =
                         , span [ class "mr-2 py-1 border-4 border-transparent text-lg font-bold" ] [ text "to" ]
                         , Dropdown.viewText
                             "w-20"
-                            (ScaleToUpdated qId)
+                            (ScaleToUpdated id)
                             String.fromInt
                             String.toInt
                             (List.range 1 20
@@ -541,7 +546,7 @@ viewQuestion qId q =
                                 (\i { iconType, canDelete } ->
                                     li [ class "mt-4 mr-2 w-32 flex items-start" ]
                                         [ div [ class "flex flex-col items-center" ] <|
-                                            [ Dropdown.viewIcon "flex-shrink-0 flex-grow-0" (IconUpdated qId i) (Just iconType) { showFilled = False }
+                                            [ Dropdown.viewIcon "flex-shrink-0 flex-grow-0" (IconUpdated id i) (Just iconType) { showFilled = False }
                                             , div []
                                                 [ span [ class "text-lg text-opacity-70" ] [ text "value " ]
                                                 , span [ class "text-lg text-opacity-70" ] [ text <| String.fromInt i ]
@@ -553,7 +558,7 @@ viewQuestion qId q =
                                                 [ ( "text-opacity-30 cursor-default", not canDelete )
                                                 , ( "text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none", canDelete )
                                                 ]
-                                            , onClick (IconDeleteClicked qId i)
+                                            , onClick (IconDeleteClicked id i)
                                             , disabled (not canDelete)
                                             ]
                                             [ icon "w-6 h-6" <| SolidTrash
@@ -569,7 +574,7 @@ viewQuestion qId q =
                                 Array.toList q.iconOptions
                             )
                                 ++ [ li [ class "mt-4 flex items-start" ]
-                                        [ Button.view "mt-1" Button.Grey (IconAddClicked qId) SolidPlusCircle "Add" True
+                                        [ Button.view "mt-1" Button.Grey (IconAddClicked id) SolidPlusCircle "Add" True
                                         ]
                                    ]
                         ]
@@ -580,16 +585,16 @@ viewQuestion qId q =
     in
     div [ class "py-6 px-4 border-t-4", Colour.class "bg" q.colour, Colour.classUp "border" q.colour ] <|
         [ div [ class "flex justify-between items-end" ]
-            [ Textbox.view ("q-" ++ String.fromInt qId) "w-full" q.question (QuestionTextUpdated qId) True { showFilled = False }
+            [ Textbox.view ("q-" ++ Trackable.idToString id) "w-full" q.question (QuestionTextUpdated id) True { showFilled = False }
             ]
         , div [ class "flex justify-start items-end" ]
-            [ Dropdown.viewText "mt-4 w-48 flex-shrink-0 flex-grow-0" (QuestionAnswerTypeUpdated qId) answerTypeToString answerTypeFromString answerTypes (Just q.answerType) { showFilled = False }
-            , Dropdown.viewColour "ml-auto flex-shrink-0 flex-grow-0" (QuestionColourUpdated qId) (Just q.colour) { showFilled = False }
+            [ Dropdown.viewText "mt-4 w-48 flex-shrink-0 flex-grow-0" (QuestionAnswerTypeUpdated id) answerTypeToString answerTypeFromString answerTypes (Just q.answerType) { showFilled = False }
+            , Dropdown.viewColour "ml-auto flex-shrink-0 flex-grow-0" (QuestionColourUpdated id) (Just q.colour) { showFilled = False }
             ]
         ]
             ++ viewScaleOptions
             ++ viewIconOptions
-            ++ [ Button.view "mt-6 w-24" Button.Grey (QuestionDeleteClicked qId) SolidTrash "Delete" q.canDelete
+            ++ [ Button.view "mt-6 w-24" Button.Grey (QuestionDeleteClicked id) SolidTrash "Delete" q.canDelete
                ]
 
 

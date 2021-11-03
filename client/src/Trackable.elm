@@ -1,10 +1,11 @@
-module Trackable exposing (Trackable, TrackableData(..), addIcon, convertToFloat, convertToIcon, convertToInt, convertToScale, convertToText, convertToYesNo, decode, deleteIcon, encode, hasData, maybeFloatData, onlyFloatData, textData, toString, updateFloatData, updateIcon, updateIconData, updateIntData, updateScaleData, updateScaleFrom, updateScaleTo, updateTextData, updateYesNoData)
+module Trackable exposing (Trackable, TrackableData(..), TrackableDict, TrackableId, addIcon, convertToFloat, convertToIcon, convertToInt, convertToScale, convertToText, convertToYesNo, decode, decodeDict, deleteIcon, encode, encodeDict, hasData, idToString, maybeFloatData, onlyFloatData, textData, toDict, toString, updateFloatData, updateIcon, updateIconData, updateIntData, updateScaleData, updateScaleFrom, updateScaleTo, updateTextData, updateYesNoData)
 
 import Array exposing (Array)
 import Colour exposing (Colour(..))
 import Date exposing (Date, Unit(..))
 import Dict exposing (Dict)
 import Icon exposing (IconType(..))
+import IdDict exposing (IdDict(..), IdDictProps)
 import Json.Decode as D
 import Json.Encode as E
 import Time exposing (Month(..))
@@ -432,6 +433,42 @@ toString data =
 
         TText _ ->
             "text"
+
+
+type TrackableId
+    = TrackableId Int
+
+
+fromId (TrackableId id) =
+    id
+
+
+idToString (TrackableId id) =
+    String.fromInt id
+
+
+type alias TrackableDict =
+    IdDict TrackableId Trackable
+
+
+dictProps : IdDictProps TrackableId
+dictProps =
+    { name = "Trackable", fromId = fromId, toId = TrackableId }
+
+
+toDict : List Trackable -> TrackableDict
+toDict trackables =
+    IdDict dictProps <| Dict.fromList <| List.map2 Tuple.pair (List.range 1 (List.length trackables)) trackables
+
+
+decodeDict : D.Decoder TrackableDict
+decodeDict =
+    IdDict.decode dictProps decode
+
+
+encodeDict : TrackableDict -> E.Value
+encodeDict =
+    IdDict.encode encode
 
 
 decode : D.Decoder Trackable
