@@ -7,10 +7,8 @@ import Date exposing (Date, Unit(..))
 import Dict
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Events exposing (onClick, onInput)
 import IdDict exposing (IdDict)
 import Maybe exposing (Maybe)
-import Result
 import Svg.Icon exposing (IconType(..), icon)
 import Task
 import Time exposing (Month(..))

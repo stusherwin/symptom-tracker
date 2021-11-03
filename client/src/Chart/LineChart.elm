@@ -3,9 +3,9 @@ module Chart.LineChart exposing (Model, Msg, addChartableDataSet, addTrackableDa
 import Array
 import Browser.Dom as Dom
 import Browser.Events as E
-import DataSet exposing (DataSet)
+import DataSet
 import Date exposing (Date, Unit(..))
-import Dict exposing (Dict)
+import Dict
 import Extra.Array as Array
 import Extra.Html exposing (..)
 import Html exposing (..)
@@ -17,11 +17,10 @@ import Svg.Icon exposing (IconType(..), fillIcon, icon)
 import Task
 import Time exposing (Month(..))
 import UserData exposing (UserData)
-import UserData.Chartable as C exposing (Chartable)
 import UserData.ChartableId exposing (ChartableId)
 import UserData.LineChart as LC exposing (LineChart(..))
 import UserData.LineChartId as LCId exposing (LineChartId)
-import UserData.Trackable as T exposing (Responses(..), Trackable)
+import UserData.Trackable exposing (Responses(..))
 import UserData.TrackableId exposing (TrackableId)
 
 
@@ -37,8 +36,7 @@ type alias Model =
 
 
 type Msg
-    = NoOp
-    | ChartFillLinesChecked Bool
+    = ChartFillLinesChecked Bool
     | ChartFullScreenClicked
     | ChartZoomOutClicked
     | ChartZoomInClicked
@@ -435,8 +433,8 @@ view model =
                     [ fillIcon "w-5 h-5" model.graph.fillLines ]
                 ]
              ]
-                ++ (case ( model.graph.selectedDataSet, model.graph.selectedDataSet |> Maybe.andThen (\i -> Array.get i model.graph.data) ) of
-                        ( Just i, Just { name, isInverted, expandedData } ) ->
+                ++ (case model.graph.selectedDataSet |> Maybe.andThen (\i -> Array.get i model.graph.data) of
+                        Just { name, isInverted, expandedData } ->
                             [ div
                                 [ class "absolute left-14 top-6 rounded bg-white bg-opacity-80 p-2 min-w-44 max-w-xs" ]
                                 ([ button

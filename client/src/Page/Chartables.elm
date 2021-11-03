@@ -3,24 +3,21 @@ module Page.Chartables exposing (Model, Msg(..), init, update, view)
 import Array exposing (Array)
 import Browser.Dom as Dom
 import Chart.Chartable
-import Chart.LineChart as Chart
 import Colour exposing (Colour(..))
 import Controls
 import Extra.Array as Array
 import Extra.List as List
 import Html exposing (..)
-import Html.Attributes as A exposing (..)
-import Html.Events exposing (onClick)
+import Html.Attributes exposing (..)
 import IdDict
 import Platform.Cmd as Cmd
-import Svg.Icon exposing (IconType(..), icon)
+import Svg.Icon exposing (IconType(..))
 import Task
 import UserData exposing (UserData)
-import UserData.Chartable as C exposing (Chartable)
+import UserData.Chartable as C
 import UserData.ChartableId as CId exposing (ChartableId)
 import UserData.LineChart as LC exposing (LineChart(..))
-import UserData.Trackable as T exposing (Responses(..), Trackable)
-import UserData.TrackableId as TId exposing (TrackableId)
+import UserData.Trackable as T exposing (Responses(..))
 
 
 type alias Model =
@@ -251,16 +248,6 @@ update msg model =
 
                         Chart.Chartable.TrackableAddClicked (Just newTrackableId) ->
                             let
-                                trackableM =
-                                    model.chartables
-                                        |> Array.get i
-                                        |> Maybe.map (Tuple.second >> .trackableOptions)
-                                        |> Maybe.withDefault []
-                                        |> List.filter (\( _, ( _, visible ) ) -> visible)
-                                        |> List.map Tuple.first
-                                        |> List.head
-                                        |> Maybe.map (\tId -> ( tId, 1.0 ))
-
                                 newTrackableM =
                                     model.userData |> UserData.getTrackable newTrackableId
 
