@@ -1,7 +1,7 @@
 module Chart exposing (Chart(..), ChartDict, ChartId(..), decode, decodeDict, encode, encodeDict, fromList, toDict)
 
 import Chartable exposing (ChartableId)
-import Dict exposing (Dict)
+import Dict
 import IdDict exposing (IdDict(..), IdDictProps)
 import Json.Decode as D
 import Json.Encode as E

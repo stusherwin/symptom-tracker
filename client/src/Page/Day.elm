@@ -2,9 +2,9 @@ module Page.Day exposing (Model, Msg(..), init, update, view)
 
 import Array exposing (Array)
 import Button
-import Colour exposing (Colour)
+import Colour
 import Date exposing (Date, Unit(..))
-import Dict exposing (Dict)
+import Dict
 import Dropdown
 import Html exposing (..)
 import Html.Attributes exposing (..)

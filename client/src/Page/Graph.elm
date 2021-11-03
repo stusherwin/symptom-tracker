@@ -1,9 +1,8 @@
 module Page.Graph exposing (Model, Msg(..), init, update, view)
 
 import Browser.Dom as Dom
-import Button
 import Chart exposing (Chart(..))
-import Chartable exposing (ChartableDict, ChartableId)
+import Chartable exposing (ChartableId)
 import Date exposing (Date, Unit(..))
 import Dict
 import Graph exposing (Msg, viewJustYAxis, viewLineGraph)
@@ -16,7 +15,7 @@ import Json.Decode as Decode
 import Maybe exposing (Maybe)
 import Task
 import Time exposing (Month(..))
-import Trackable exposing (Trackable, TrackableData(..), TrackableId)
+import Trackable exposing (TrackableData(..))
 import UserData exposing (UserData)
 
 

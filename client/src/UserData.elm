@@ -39,11 +39,6 @@ charts (UserData data) =
 
 init : UserData
 init =
-    let
-        answersFromList : List ( Date, a ) -> Dict Int a
-        answersFromList =
-            Dict.fromList << List.map (Tuple.mapFirst Date.toRataDie)
-    in
     UserData
         { trackables =
             Trackable.fromList
@@ -160,15 +155,6 @@ tryDeleteTrackable id (UserData data) =
 decode : D.Decoder UserData
 decode =
     let
-        listInt v =
-            D.list <|
-                D.map2 Tuple.pair
-                    (D.field "id" D.int)
-                    (D.field "value" v)
-
-        dictInt v =
-            D.map Dict.fromList (listInt v)
-
         v0 =
             D.map (\ts -> UserData { trackables = ts, chartables = Chartable.toDict [], charts = Chart.toDict [] })
                 Trackable.decodeDict
@@ -198,20 +184,6 @@ decode =
 
 encode : UserData -> E.Value
 encode (UserData data) =
-    let
-        listInt f =
-            E.list
-                (\( id, v ) ->
-                    E.object
-                        [ ( "id", E.int id )
-                        , ( "value", f v )
-                        ]
-                )
-
-        dictInt f =
-            listInt f
-                << Dict.toList
-    in
     E.object
         [ ( "version", E.int 1 )
         , ( "data"

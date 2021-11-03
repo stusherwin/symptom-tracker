@@ -4,7 +4,7 @@ import Array exposing (Array)
 import Browser.Dom as Dom
 import Button
 import Colour exposing (Colour(..))
-import Dict exposing (Dict)
+import Dict
 import Dropdown
 import Html exposing (..)
 import Html.Attributes exposing (..)
