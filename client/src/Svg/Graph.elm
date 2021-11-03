@@ -1,4 +1,4 @@
-module Svg.Graph exposing (DataSet, Model, Msg, hoverDataSet, selectDataSet, toggleDataSetSelected, toggleDataSetVisible, update, viewJustYAxis, viewKey, viewLineGraph)
+module Svg.Graph exposing (DataSet, Model, Msg, hoverDataSet, selectDataSet, toggleDataSetSelected, toggleDataSetVisible, update, viewJustYAxis, viewLineGraph)
 
 import Array
 import Colour exposing (Colour(..))
@@ -268,15 +268,23 @@ viewJustYAxis class { data } =
 
         ( minY, maxY ) =
             ( v.mb, h - v.mt )
+
+        f_ : (String -> S.Attribute msg) -> Float -> S.Attribute msg
+        f_ attr x =
+            attr (String.fromFloat x)
+
+        fh_ : (String -> S.Attribute msg) -> Float -> S.Attribute msg
+        fh_ attr y =
+            attr (String.fromFloat (h - y))
     in
     svg
         [ viewBox w h, A.class class ]
     <|
-        line h { axisLine | x1 = w - 1, y1 = minY, x2 = w - 1, y2 = maxY }
+        axisLine [ f_ x1 (w - 1), fh_ y1 minY, f_ x2 (w - 1), fh_ y2 maxY ]
             :: List.concatMap
                 (\n ->
-                    [ line h { axisLine | x1 = v.ml, y1 = minY + toFloat n * v.yStep, x2 = v.ml + v.longDash, y2 = minY + toFloat n * v.yStep }
-                    , text_ h { x = v.ml - 5.0, y = minY + toFloat n * v.yStep, dominantBaseline = "middle", textAnchor = "end", text = String.fromInt (n * valueStep) }
+                    [ axisLine [ f_ x1 v.ml, fh_ y1 <| minY + toFloat n * v.yStep, f_ x2 <| v.ml + v.longDash, fh_ y2 <| minY + toFloat n * v.yStep ]
+                    , text_ [ f_ x <| v.ml - 5.0, fh_ y <| minY + toFloat n * v.yStep, fontSize "10px", dominantBaseline "middle", textAnchor "end" ] [ text <| String.fromInt (n * valueStep) ]
                     ]
                 )
                 (List.range 0 5)
@@ -312,60 +320,61 @@ viewLineGraph class { data, today, selectedDataPoint, hoveredDataPoint, selected
         ( minY, maxY ) =
             ( v.mb, h - v.mt )
 
+        f_ : (String -> S.Attribute msg) -> Float -> S.Attribute msg
+        f_ attr x =
+            attr (String.fromFloat x)
+
+        fh_ : (String -> S.Attribute msg) -> Float -> S.Attribute msg
+        fh_ attr y =
+            attr (String.fromFloat (h - y))
+
         xAxis =
-            line h { axisLine | x1 = 0, y1 = minY, x2 = w, y2 = minY }
+            axisLine [ f_ x1 0, fh_ y1 minY, f_ x2 w, fh_ y2 minY ]
                 :: List.concatMap
                     (\n ->
                         if n == 0 then
-                            [ line h { axisLine | x1 = minX + toFloat n * v.xStep + 1, y1 = minY, x2 = minX + toFloat n * v.xStep + 1, y2 = minY - v.longDash }
-                            , text_ h { x = minX + toFloat n * v.xStep, y = minY - v.longDash - 5.0, dominantBaseline = "hanging", textAnchor = "start", text = Date.format "d MMM" <| Date.add Days n startDate }
+                            [ axisLine [ f_ x1 <| minX + toFloat n * v.xStep + 1, fh_ y1 minY, f_ x2 <| minX + toFloat n * v.xStep + 1, fh_ y2 <| minY - v.longDash ]
+                            , text_ [ f_ x <| minX + toFloat n * v.xStep, fh_ y <| minY - v.longDash - 5.0, fontSize "10px", dominantBaseline "hanging", textAnchor "start" ] [ text <| Date.format "d MMM" <| Date.add Days n startDate ]
                             ]
 
                         else if n == xSteps then
-                            [ line h { axisLine | x1 = minX + toFloat n * v.xStep - 1, y1 = minY, x2 = minX + toFloat n * v.xStep - 1, y2 = minY - v.longDash }
-                            , text_ h { x = minX + toFloat n * v.xStep, y = minY - v.longDash - 5.0, dominantBaseline = "hanging", textAnchor = "end", text = Date.format "d MMM" <| Date.add Days n startDate }
+                            [ axisLine [ f_ x1 <| minX + toFloat n * v.xStep - 1, fh_ y1 minY, f_ x2 <| minX + toFloat n * v.xStep - 1, fh_ y2 <| minY - v.longDash ]
+                            , text_ [ f_ x <| minX + toFloat n * v.xStep, fh_ y <| minY - v.longDash - 5.0, fontSize "10px", dominantBaseline "hanging", textAnchor "end" ] [ text <| Date.format "d MMM" <| Date.add Days n startDate ]
                             ]
 
                         else if xSteps <= 7 || n == xSteps || modBy 7 n == 0 then
-                            [ line h { axisLine | x1 = minX + toFloat n * v.xStep, y1 = minY, x2 = minX + toFloat n * v.xStep, y2 = minY - v.longDash }
-                            , text_ h { x = minX + toFloat n * v.xStep, y = minY - v.longDash - 5.0, dominantBaseline = "hanging", textAnchor = "middle", text = Date.format "d MMM" <| Date.add Days n startDate }
+                            [ axisLine [ f_ x1 <| minX + toFloat n * v.xStep, fh_ y1 minY, f_ x2 <| minX + toFloat n * v.xStep, fh_ y2 <| minY - v.longDash ]
+                            , text_ [ f_ x <| minX + toFloat n * v.xStep, fh_ y <| minY - v.longDash - 5.0, fontSize "10px", dominantBaseline "hanging", textAnchor "middle" ] [ text <| Date.format "d MMM" <| Date.add Days n startDate ]
                             ]
 
                         else
-                            [ line h { axisLine | x1 = minX + toFloat n * v.xStep, y1 = minY, x2 = minX + toFloat n * v.xStep, y2 = minY - v.shortDash } ]
+                            [ axisLine [ f_ x1 <| minX + toFloat n * v.xStep, fh_ y1 minY, f_ x2 <| minX + toFloat n * v.xStep, fh_ y2 <| minY - v.shortDash ] ]
                     )
                     (List.range 0 xSteps)
 
         xLines =
-            List.map (\n -> line h { dottedLine | x1 = minX + toFloat n * v.xStep, y1 = minY, x2 = minX + toFloat n * v.xStep, y2 = maxY })
+            List.map (\n -> dottedLine [ f_ x1 <| minX + toFloat n * v.xStep, fh_ y1 minY, f_ x2 <| minX + toFloat n * v.xStep, fh_ y2 maxY ])
                 (List.range 0 xSteps)
 
         yLines =
             List.map
-                (\n -> line h { dottedLine | x1 = 0, y1 = minY + toFloat n * v.yStep, x2 = w, y2 = minY + toFloat n * v.yStep })
+                (\n -> dottedLine [ f_ x1 0, fh_ y1 <| minY + toFloat n * v.yStep, f_ x2 w, fh_ y2 <| minY + toFloat n * v.yStep ])
                 (List.range 1 5)
 
         background =
-            rect h
-                { fillCol = LighterGray
-                , x = 0
-                , y = minY
-                , width = w
-                , height = maxY - minY
-                }
+            rect
+                [ fillColour_ LighterGray
+                , f_ x 0
+                , fh_ y maxY
+                , f_ width w
+                , f_ height (maxY - minY)
+                ]
+                []
                 :: xLines
                 ++ yLines
 
         axes =
             xAxis
-
-        featuredDataSet =
-            case selectedDataSet of
-                Just id ->
-                    Just id
-
-                Nothing ->
-                    hoveredDataSet
 
         featuredDataPoint =
             case selectedDataPoint of
@@ -375,8 +384,8 @@ viewLineGraph class { data, today, selectedDataPoint, hoveredDataPoint, selected
                 Nothing ->
                     hoveredDataPoint
 
-        dataLine : ( Order, ( dataSetId, DataSet dataSet ) ) -> List (Svg (Msg dataSetId))
-        dataLine ( order, ( id, dataSet ) ) =
+        dataLine : ( dataSetId, DataSet dataSet ) -> List (Svg (Msg dataSetId))
+        dataLine ( id, dataSet ) =
             let
                 plotPoints : List PlotPoint
                 plotPoints =
@@ -391,103 +400,72 @@ viewLineGraph class { data, today, selectedDataPoint, hoveredDataPoint, selected
                             )
                             dataSet.dataPoints
             in
-            (--if fillLines then
-             smoothLinePath h
-                { strokeCol = dataSet.colour
-                , strokeWidth = 0
-                , strokeLinecap = "round"
-                , strokeLinejoin = "round"
-                , strokeOpacity = 0
-                , fillCol = Normal dataSet.colour
+            S.path
+                [ strokeColour_ dataSet.colour
+                , strokeWidth_ 0
+                , strokeLinecap "round"
+                , strokeLinejoin "round"
+                , strokeOpacity_ 0
+                , fillGradient_ <|
+                    if fillLines then
+                        Normal dataSet.colour
 
-                -- case order of
-                --     EQ ->
-                --         Opaque dataSet.colour
-                --     LT ->
-                --         Normal dataSet.colour
-                --     GT ->
-                --         Transparent dataSet.colour
-                , filter =
-                    --NoFilter
+                    else
+                        Transparent dataSet.colour
+                , filter_ <|
                     if (selectedDataSet == Nothing && hoveredDataSet == Nothing) || selectedDataSet == Just id || hoveredDataSet == Just id then
-                        -- if featuredDataSet == Nothing || featuredDataSet == Just id then
                         NoFilter
 
                     else
                         Grayscale
-                , fillOpacity =
-                    if fillLines then
-                        100
-
-                    else
-                        10
-                , points = List.map (\{ x, y } -> ( x, y )) plotPoints
-                , onClick = Just (DataLineClicked id)
-                , onMouseOver = Just <| DataLineHovered <| Just id
-                , onMouseOut = Just <| DataLineHovered Nothing
-                }
-             --else
-             --   S.path [] []
-            )
-                :: smoothLinePath h
-                    { strokeCol = dataSet.colour
-                    , strokeWidth = 2
-                    , strokeLinecap = "round"
-                    , strokeLinejoin = "round"
-                    , strokeOpacity = 100
-
-                    -- if order == GT then
-                    --     30
-                    -- else
-                    --     100
-                    , fillCol =
-                        -- if fillLines then
-                        --     Opaque dataSet.colour
-                        -- else
-                        NoFill
-                    , filter =
-                        --NoFilter
+                , dSmoothLine h Closed <| List.map (\{ x, y } -> ( x, y )) plotPoints
+                , Htmlx.onClickStopPropagation <| DataLineClicked id
+                , onMouseOver <| DataLineHovered <| Just id
+                , onMouseOut <| DataLineHovered Nothing
+                ]
+                []
+                :: S.path
+                    [ strokeColour_ dataSet.colour
+                    , strokeWidth_ 2
+                    , strokeLinecap "round"
+                    , strokeLinejoin "round"
+                    , strokeOpacity_ 100
+                    , filter_ <|
                         if (selectedDataSet == Nothing && hoveredDataSet == Nothing) || selectedDataSet == Just id || hoveredDataSet == Just id then
-                            -- if featuredDataSet == Nothing || featuredDataSet == Just id then
                             NoFilter
 
                         else
                             Grayscale
-                    , fillOpacity = 100
-                    , points = List.map (\{ x, y } -> ( x, y )) plotPoints
-                    , onClick = Just (DataLineClicked id)
-                    , onMouseOver = Just <| DataLineHovered <| Just id
-                    , onMouseOut = Just <| DataLineHovered Nothing
-                    }
+                    , fill "none"
+                    , dSmoothLine h Open <| List.map (\{ x, y } -> ( x, y )) plotPoints
+                    , Htmlx.onClickStopPropagation <| DataLineClicked id
+                    , onMouseOver <| DataLineHovered <| Just id
+                    , onMouseOut <| DataLineHovered Nothing
+                    ]
+                    []
                 :: (if showPoints then
                         List.map
                             (\{ date, x, y } ->
-                                circle h
-                                    { cx = x
-                                    , cy = y
-                                    , r = 3
-                                    , strokeCol = dataSet.colour
-                                    , strokeWidth = 0
-                                    , strokeOpacity = 100
-                                    , fillCol = dataSet.colour
-                                    , filter =
-                                        -- NoFilter
+                                circle
+                                    [ f_ cx x
+                                    , fh_ cy y
+                                    , f_ r 3
+                                    , strokeColour_ dataSet.colour
+                                    , strokeWidth_ 0
+                                    , strokeOpacity_ 100
+                                    , fillColour_ dataSet.colour
+                                    , filter_ <|
                                         if (selectedDataSet == Nothing && hoveredDataSet == Nothing) || selectedDataSet == Just id || hoveredDataSet == Just id then
-                                            -- if featuredDataSet == Nothing || featuredDataSet == Just id then
                                             NoFilter
 
                                         else
                                             Grayscale
-                                    , fillOpacity = 100
-
-                                    -- if order == GT then
-                                    --     50
-                                    -- else
-                                    --     100
-                                    , onMouseOver = Just <| DataPointHovered <| Just ( id, date )
-                                    , onMouseOut = Just <| DataPointHovered Nothing
-                                    , onClick = Just (DataPointClicked ( id, date ))
-                                    }
+                                    , fillOpacity_ 100
+                                    , onMouseOver <| DataPointHovered <| Just ( id, date )
+                                    , onMouseOut <| DataPointHovered Nothing
+                                    , Htmlx.onClickStopPropagation <| DataPointClicked ( id, date )
+                                    ]
+                                    []
                             )
                             plotPoints
 
@@ -523,8 +501,8 @@ viewLineGraph class { data, today, selectedDataPoint, hoveredDataPoint, selected
                             , stop [ offset "100%", A.class <| "stop-" ++ Colour.toString colour, stopOpacity "60%" ] []
                             ]
                         , linearGradient [ id <| "gradient-transparent-" ++ Colour.toString colour, x1 "0", x2 "0", y1 "0", y2 "1" ]
-                            [ stop [ offset "0%", A.class <| "stop-" ++ Colour.toString colour, stopOpacity "40%" ] []
-                            , stop [ offset "100%", A.class <| "stop-" ++ Colour.toString colour, stopOpacity "20%" ] []
+                            [ stop [ offset "0%", A.class <| "stop-" ++ Colour.toString colour, stopOpacity "20%" ] []
+                            , stop [ offset "100%", A.class <| "stop-" ++ Colour.toString colour, stopOpacity "0%" ] []
                             ]
                         ]
                     )
@@ -538,37 +516,15 @@ viewLineGraph class { data, today, selectedDataPoint, hoveredDataPoint, selected
                     _ ->
                         []
                 )
-                    ++ (let
-                            data_ =
-                                data
-                                    |> List.filter (.visible << Tuple.second)
-                                    |> List.foldl
-                                        (\( id, d ) t ->
-                                            if hoveredDataSet == Just id then
-                                                ( EQ, ( id, d ) ) :: t
-
-                                            else
-                                                case t of
-                                                    ( EQ, x ) :: xs ->
-                                                        ( GT, ( id, d ) ) :: ( EQ, x ) :: xs
-
-                                                    ( o, x ) :: xs ->
-                                                        ( o, ( id, d ) ) :: ( o, x ) :: xs
-
-                                                    [] ->
-                                                        [ ( LT, ( id, d ) ) ]
-                                        )
-                                        []
-                                    |> List.reverse
-                        in
-                        (data_
-                            |> List.filter ((\id -> selectedDataSet /= Just id) << Tuple.first << Tuple.second)
+                    ++ (data
+                            |> List.filter (.visible << Tuple.second)
+                            |> List.filter ((\id -> selectedDataSet /= Just id) << Tuple.first)
                             |> List.concatMap dataLine
-                        )
-                            ++ (data_
-                                    |> List.filter ((\id -> selectedDataSet == Just id) << Tuple.first << Tuple.second)
-                                    |> List.concatMap dataLine
-                               )
+                       )
+                    ++ (data
+                            |> List.filter (.visible << Tuple.second)
+                            |> List.filter ((\id -> selectedDataSet == Just id) << Tuple.first)
+                            |> List.concatMap dataLine
                        )
                     ++ (case featuredDataPoint of
                             Just ( id, date ) ->
@@ -581,38 +537,36 @@ viewLineGraph class { data, today, selectedDataPoint, hoveredDataPoint, selected
                                             y =
                                                 minY + ((value / toFloat valueStep) * v.yStep)
                                         in
-                                        [ line h { highlightLine | strokeOpacity = 60, x1 = x, y1 = minY + 1, x2 = x, y2 = y - 1.5 }
-                                        , circle h
-                                            { cx = x
-                                            , cy = y
-                                            , r = 4
-                                            , strokeCol = Colour.White
-                                            , strokeWidth = 0
-                                            , strokeOpacity = 0
-                                            , fillCol = Colour.White
-                                            , filter = NoFilter
-                                            , fillOpacity = 60
-                                            , onMouseOver = Just <| DataPointHovered <| Just ( id, date )
-                                            , onMouseOut = Just <| DataPointHovered Nothing
-                                            , onClick = Just (DataPointClicked ( id, date ))
-                                            }
+                                        [ highlightLine [ strokeOpacity_ 60, f_ x1 x, fh_ y1 <| minY + 1, f_ x2 x, fh_ y2 <| y - 1.5 ]
+                                        , circle
+                                            [ f_ cx x
+                                            , fh_ cy y
+                                            , f_ r 4
+                                            , strokeColour_ Colour.White
+                                            , strokeWidth_ 0
+                                            , strokeOpacity_ 0
+                                            , fillColour_ Colour.White
+                                            , fillOpacity_ 60
+                                            , onMouseOver <| DataPointHovered <| Just ( id, date )
+                                            , onMouseOut <| DataPointHovered Nothing
+                                            , Htmlx.onClickStopPropagation <| DataPointClicked ( id, date )
+                                            ]
+                                            []
                                         ]
                                             ++ axes
-                                            ++ [ line h { axisLine | x1 = x, y1 = minY - 3, x2 = x, y2 = y - 1.5 }
-                                               , circle h
-                                                    { cx = x
-                                                    , cy = y
-                                                    , r = 3
-                                                    , strokeCol = Colour.Black
-                                                    , strokeWidth = 0
-                                                    , strokeOpacity = 100
-                                                    , fillCol = Colour.Black
-                                                    , fillOpacity = 100
-                                                    , filter = NoFilter
-                                                    , onMouseOver = Just <| DataPointHovered <| Just ( id, date )
-                                                    , onMouseOut = Just <| DataPointHovered Nothing
-                                                    , onClick = Just (DataPointClicked ( id, date ))
-                                                    }
+                                            ++ [ axisLine [ f_ x1 x, fh_ y1 <| minY - 3, f_ x2 x, fh_ y2 <| y - 1.5 ]
+                                               , circle
+                                                    [ f_ cx x
+                                                    , fh_ cy y
+                                                    , f_ r 3
+                                                    , strokeColour_ Colour.Black
+                                                    , strokeWidth_ 0
+                                                    , fillColour_ Colour.Black
+                                                    , onMouseOver <| DataPointHovered <| Just ( id, date )
+                                                    , onMouseOut <| DataPointHovered Nothing
+                                                    , Htmlx.onClickStopPropagation <| DataPointClicked ( id, date )
+                                                    ]
+                                                    []
                                                ]
 
                                     _ ->
@@ -622,38 +576,6 @@ viewLineGraph class { data, today, selectedDataPoint, hoveredDataPoint, selected
                                 []
                        )
                )
-
-
-viewKey : String -> Colour -> Svg msg
-viewKey class colour =
-    let
-        ( w, h ) =
-            ( 20, 10 )
-    in
-    svg
-        [ viewBox w h
-        , A.class class
-        ]
-        [ rect h
-            { fillCol = LighterGray
-            , x = 0
-            , y = 0
-            , width = w
-            , height = h
-            }
-        , line h
-            { strokeCol = colour
-            , strokeWidth = 2
-            , strokeDasharray = Nothing
-            , strokeLinecap = "square"
-            , strokeOpacity = 100
-            , filter = NoFilter
-            , x1 = 0
-            , y1 = h / 2
-            , x2 = w
-            , y2 = h / 2
-            }
-        ]
 
 
 findStartDate : Date -> List ( dataSetId, DataSet dataSet ) -> Date
@@ -682,407 +604,211 @@ findMaxValue =
         << List.map Tuple.second
 
 
-type alias LineDefn =
-    { strokeCol : Colour
-    , strokeWidth : Float
-    , strokeLinecap : String
-    , strokeDasharray : Maybe String
-    , strokeOpacity : Int
-    , filter : Filter
-    , x1 : Float
-    , y1 : Float
-    , x2 : Float
-    , y2 : Float
-    }
+axisLine : List (S.Attribute msg) -> S.Svg msg
+axisLine attrs =
+    line ([ strokeColour_ Black, strokeWidth_ 1, strokeLinecap "square" ] ++ attrs) []
 
 
-axisLine : LineDefn
-axisLine =
-    { strokeCol = Black, filter = NoFilter, strokeWidth = 1, strokeLinecap = "square", strokeOpacity = 100, strokeDasharray = Nothing, x1 = 0, y1 = 0, x2 = 0, y2 = 0 }
+highlightLine : List (S.Attribute msg) -> S.Svg msg
+highlightLine attrs =
+    line ([ strokeColour_ White, strokeWidth_ 3, strokeLinecap "square" ] ++ attrs) []
 
 
-highlightLine : LineDefn
-highlightLine =
-    { strokeCol = White, filter = NoFilter, strokeWidth = 3, strokeOpacity = 100, strokeLinecap = "square", strokeDasharray = Nothing, x1 = 0, y1 = 0, x2 = 0, y2 = 0 }
+dottedLine : List (S.Attribute msg) -> S.Svg msg
+dottedLine attrs =
+    line ([ strokeColour_ LightGray, strokeWidth_ 1, strokeLinecap "square", strokeDasharray "4" ] ++ attrs) []
 
 
-dottedLine : LineDefn
-dottedLine =
-    { strokeCol = LightGray
-    , strokeWidth = 1
-    , strokeDasharray = Just "4"
-    , strokeLinecap = "square"
-    , strokeOpacity = 100
-    , filter = NoFilter
-    , x1 = 0
-    , y1 = 0
-    , x2 = 0
-    , y2 = 0
-    }
+strokeColour_ : Colour -> S.Attribute msg
+strokeColour_ col =
+    class <| "stroke-" ++ Colour.toString col
 
 
-line : Float -> LineDefn -> Svg msg
-line h l =
-    S.line
-        ([ class <| "stroke-" ++ Colour.toString l.strokeCol
-         , A.filter <| filter l.filter
-         , strokeWidth <| String.fromFloat l.strokeWidth
-         , strokeOpacity <| String.fromInt l.strokeOpacity ++ "%"
-         , strokeLinecap l.strokeLinecap
-         , x1 (String.fromFloat l.x1)
-         , y1 (String.fromFloat (h - l.y1))
-         , x2 (String.fromFloat l.x2)
-         , y2 (String.fromFloat (h - l.y2))
-         ]
-            ++ (case l.strokeDasharray of
-                    Just sda ->
-                        [ strokeDasharray sda ]
-
-                    Nothing ->
-                        []
-               )
-        )
-        []
+strokeWidth_ : Float -> S.Attribute msg
+strokeWidth_ w =
+    strokeWidth <| String.fromFloat w
 
 
-type alias RectDefn =
-    { fillCol : Colour
-    , x : Float
-    , y : Float
-    , width : Float
-    , height : Float
-    }
+strokeOpacity_ : Int -> S.Attribute msg
+strokeOpacity_ o =
+    strokeOpacity <| String.fromInt o ++ "%"
 
 
-rect : Float -> RectDefn -> Svg msg
-rect h r =
-    S.rect
-        [ class <| "fill-" ++ Colour.toString r.fillCol
-        , x (String.fromFloat r.x)
-        , y (String.fromFloat (h - r.y - r.height))
-        , width (String.fromFloat r.width)
-        , height (String.fromFloat r.height)
-        ]
-        []
+fillOpacity_ : Int -> S.Attribute msg
+fillOpacity_ o =
+    fillOpacity <| String.fromInt o ++ "%"
 
 
-type alias CircleDefn msg =
-    { cx : Float
-    , cy : Float
-    , r : Float
-    , fillCol : Colour
-    , fillOpacity : Int
-    , filter : Filter
-    , strokeCol : Colour
-    , strokeWidth : Float
-    , strokeOpacity : Int
-    , onMouseOver : Maybe msg
-    , onMouseOut : Maybe msg
-    , onClick : Maybe msg
-    }
+fillColour_ : Colour -> S.Attribute msg
+fillColour_ col =
+    class <| "fill-" ++ Colour.toString col
 
 
-circle : Float -> CircleDefn msg -> Svg msg
-circle h c =
-    S.circle
-        ([ cx (String.fromFloat c.cx)
-         , cy (String.fromFloat (h - c.cy))
-         , r (String.fromFloat c.r)
-         , class <| "fill-" ++ Colour.toString c.fillCol
-         , A.filter <| filter c.filter
-         , fillOpacity <| String.fromInt c.fillOpacity ++ "%"
-         , class <| "stroke-" ++ Colour.toString c.strokeCol
-         , strokeWidth (String.fromFloat c.strokeWidth)
-         , strokeOpacity <| String.fromInt c.strokeOpacity ++ "%"
-         ]
-            ++ (case c.onMouseOver of
-                    Just msg ->
-                        [ onMouseOver msg ]
-
-                    _ ->
-                        []
-               )
-            ++ (case c.onMouseOut of
-                    Just msg ->
-                        [ onMouseOut msg ]
-
-                    _ ->
-                        []
-               )
-            ++ (case c.onClick of
-                    Just msg ->
-                        [ Htmlx.onClickStopPropagation msg ]
-
-                    _ ->
-                        []
-               )
-        )
-        []
+points_ : Float -> List ( Float, Float ) -> S.Attribute msg
+points_ h pts =
+    points <| String.join " " <| List.map (\( x, y ) -> String.fromFloat x ++ "," ++ String.fromFloat (h - y)) pts
 
 
-type alias TextDefn =
-    { x : Float
-    , y : Float
-    , dominantBaseline : String
-    , textAnchor : String
-    , text : String
-    }
+type LineType
+    = Closed
+    | Open
 
 
-text_ : Float -> TextDefn -> Svg msg
-text_ h t =
-    S.text_ [ x (String.fromFloat t.x), y (String.fromFloat (h - t.y)), fontSize "10px", dominantBaseline t.dominantBaseline, textAnchor t.textAnchor ] [ text t.text ]
-
-
-type alias PathDefn msg =
-    { strokeCol : Colour
-    , strokeWidth : Float
-    , strokeLinecap : String
-    , strokeLinejoin : String
-    , strokeOpacity : Int
-    , fillCol : FillColour
-    , fillOpacity : Int
-    , filter : Filter
-    , points : List ( Float, Float )
-    , onClick : Maybe msg
-    , onMouseOver : Maybe msg
-    , onMouseOut : Maybe msg
-    }
-
-
-polyLine : Float -> PathDefn msg -> Svg msg
-polyLine h p =
-    S.polyline
-        ([ fill <| gradient p.fillCol
-         , A.filter <| filter p.filter
-         , fillOpacity <| String.fromInt p.fillOpacity ++ "%"
-         , class <| "stroke-" ++ Colour.toString p.strokeCol
-         , strokeWidth (String.fromFloat p.strokeWidth)
-         , strokeLinecap p.strokeLinecap
-         , strokeLinejoin p.strokeLinejoin
-         , strokeOpacity <| String.fromInt p.strokeOpacity ++ "%"
-         , points <| String.join " " <| List.map (\( x, y ) -> String.fromFloat x ++ "," ++ String.fromFloat (h - y)) p.points
-         ]
-            ++ (case p.onClick of
-                    Just msg ->
-                        [ Htmlx.onClickStopPropagation msg ]
-
-                    _ ->
-                        []
-               )
-            ++ (case p.onMouseOver of
-                    Just msg ->
-                        [ onMouseOver msg ]
-
-                    _ ->
-                        []
-               )
-            ++ (case p.onMouseOut of
-                    Just msg ->
-                        [ onMouseOut msg ]
-
-                    _ ->
-                        []
-               )
-        )
-        []
-
-
-straightLinePath : Float -> PathDefn msg -> Svg msg
-straightLinePath h p =
+dStraightLine : Float -> LineType -> List ( Float, Float ) -> S.Attribute msg
+dStraightLine h lineType pts =
     let
+        toString ( x_, y_ ) =
+            String.fromFloat x_ ++ "," ++ String.fromFloat (h - y_)
+
         pointsToPath =
             List.indexedMap <|
                 \i ( x, y ) ->
-                    let
-                        x_ =
-                            String.fromFloat x
-
-                        y_ =
-                            String.fromFloat (h - y)
-                    in
                     if i == 0 then
-                        "M " ++ x_ ++ "," ++ y_
+                        case lineType of
+                            Open ->
+                                "M " ++ toString ( x, y )
+
+                            Closed ->
+                                "M " ++ toString ( x, v.mb ) ++ " L " ++ toString ( x, y )
 
                     else
-                        "L " ++ x_ ++ "," ++ y_
-    in
-    S.path
-        ([ fill <| gradient p.fillCol
-         , A.filter <| filter p.filter
-         , fillOpacity <| String.fromInt p.fillOpacity ++ "%"
-         , class <| "stroke-" ++ Colour.toString p.strokeCol
-         , strokeWidth (String.fromFloat p.strokeWidth)
-         , strokeLinecap p.strokeLinecap
-         , strokeLinejoin p.strokeLinejoin
-         , strokeOpacity <| String.fromInt p.strokeOpacity ++ "%"
-         , d <| String.join " " <| pointsToPath p.points
-         ]
-            ++ (case p.onClick of
-                    Just msg ->
-                        [ Htmlx.onClickStopPropagation msg ]
+                        " L "
+                            ++ toString ( x, y )
+                            ++ (case ( lineType, i == List.length pts - 1 ) of
+                                    ( Open, _ ) ->
+                                        ""
 
-                    _ ->
-                        []
-               )
-            ++ (case p.onMouseOver of
-                    Just msg ->
-                        [ onMouseOver msg ]
-
-                    _ ->
-                        []
-               )
-            ++ (case p.onMouseOut of
-                    Just msg ->
-                        [ onMouseOut msg ]
-
-                    _ ->
-                        []
-               )
-        )
-        []
-
-
-smoothLinePath : Float -> PathDefn msg -> Svg msg
-smoothLinePath h p =
-    let
-        points =
-            Array.fromList p.points
-    in
-    S.path
-        ([ class <| "stroke-" ++ Colour.toString p.strokeCol
-         , A.filter <| filter p.filter
-         , fill <| gradient p.fillCol
-         , fillOpacity <| String.fromInt p.fillOpacity ++ "%"
-         , strokeWidth (String.fromFloat p.strokeWidth)
-         , strokeLinecap p.strokeLinecap
-         , strokeLinejoin p.strokeLinejoin
-         , strokeOpacity <| String.fromInt p.strokeOpacity ++ "%"
-         , d <|
-            String.join " " <|
-                Array.toList <|
-                    (Array.indexedMap <|
-                        \i ( x, y ) ->
-                            let
-                                prev2 =
-                                    Maybe.withDefault ( x, y ) <| Array.get (i - 2) points
-
-                                prev1 =
-                                    Maybe.withDefault ( x, y ) <| Array.get (i - 1) points
-
-                                next =
-                                    Maybe.withDefault ( x, y ) <| Array.get (i + 1) points
-
-                                line_ ( x1, y1 ) ( x2, y2 ) =
-                                    let
-                                        lengthX =
-                                            x2 - x1
-
-                                        lengthY =
-                                            y2 - y1
-                                    in
-                                    { length = sqrt <| (lengthX ^ 2) + (lengthY ^ 2)
-                                    , angle = atan2 lengthY lengthX
-                                    }
-
-                                controlPoint ( x_, y_ ) prev_ next_ reverse =
-                                    let
-                                        smoothing =
-                                            0.1
-
-                                        opposed =
-                                            line_ prev_ next_
-
-                                        toHere =
-                                            line_ prev_ ( x_, y_ )
-
-                                        fromHere =
-                                            line_ ( x_, y_ ) next_
-
-                                        angle =
-                                            opposed.angle
-                                                + (if reverse then
-                                                    pi
-
-                                                   else
-                                                    0
-                                                  )
-
-                                        length =
-                                            Basics.min toHere.length fromHere.length * smoothing
-                                    in
-                                    ( x_ + cos angle * length, y_ + sin angle * length )
-
-                                toString ( x_, y_ ) =
-                                    String.fromFloat x_ ++ "," ++ String.fromFloat (h - y_)
-                            in
-                            if i == 0 then
-                                case p.fillCol of
-                                    NoFill ->
-                                        "M " ++ toString ( x, y )
+                                    ( Closed, True ) ->
+                                        " L "
+                                            ++ toString ( x, v.mb )
 
                                     _ ->
-                                        "M " ++ toString ( x, v.mb ) ++ " L " ++ toString ( x, y )
-
-                            else
-                                let
-                                    start =
-                                        controlPoint prev1 prev2 ( x, y ) False
-
-                                    end =
-                                        controlPoint ( x, y ) prev1 next True
-                                in
-                                "C "
-                                    ++ toString start
-                                    ++ " "
-                                    ++ toString end
-                                    ++ " "
-                                    ++ toString ( x, y )
-                                    ++ (case ( p.fillCol, i == Array.length points - 1 ) of
-                                            ( NoFill, _ ) ->
-                                                ""
-
-                                            ( _, True ) ->
-                                                " L "
-                                                    ++ toString ( x, v.mb )
-
-                                            _ ->
-                                                ""
-                                       )
-                    )
-                    <|
-                        points
-         ]
-            ++ (case p.onClick of
-                    Just msg ->
-                        [ Htmlx.onClickStopPropagation msg ]
-
-                    _ ->
-                        []
-               )
-            ++ (case p.onMouseOver of
-                    Just msg ->
-                        [ onMouseOver msg ]
-
-                    _ ->
-                        []
-               )
-            ++ (case p.onMouseOut of
-                    Just msg ->
-                        [ onMouseOut msg ]
-
-                    _ ->
-                        []
-               )
-        )
-        []
+                                        ""
+                               )
+    in
+    d <| String.join " " <| pointsToPath pts
 
 
-type FillColour
-    = NoFill
-    | Opaque Colour
+dSmoothLine : Float -> LineType -> List ( Float, Float ) -> S.Attribute msg
+dSmoothLine h lineType pts =
+    let
+        points =
+            Array.fromList pts
+
+        line_ ( x1, y1 ) ( x2, y2 ) =
+            let
+                lengthX =
+                    x2 - x1
+
+                lengthY =
+                    y2 - y1
+            in
+            { length = sqrt <| (lengthX ^ 2) + (lengthY ^ 2)
+            , angle = atan2 lengthY lengthX
+            }
+
+        controlPoint ( x_, y_ ) prev_ next_ reverse =
+            let
+                smoothing =
+                    0.1
+
+                opposed =
+                    line_ prev_ next_
+
+                toHere =
+                    line_ prev_ ( x_, y_ )
+
+                fromHere =
+                    line_ ( x_, y_ ) next_
+
+                angle =
+                    opposed.angle
+                        + (if reverse then
+                            pi
+
+                           else
+                            0
+                          )
+
+                length =
+                    Basics.min toHere.length fromHere.length * smoothing
+            in
+            ( x_ + cos angle * length, y_ + sin angle * length )
+
+        toString ( x_, y_ ) =
+            String.fromFloat x_ ++ "," ++ String.fromFloat (h - y_)
+    in
+    d <|
+        String.join " " <|
+            Array.toList <|
+                (Array.indexedMap <|
+                    \i ( x, y ) ->
+                        let
+                            prev2 =
+                                Maybe.withDefault ( x, y ) <| Array.get (i - 2) points
+
+                            prev1 =
+                                Maybe.withDefault ( x, y ) <| Array.get (i - 1) points
+
+                            next =
+                                Maybe.withDefault ( x, y ) <| Array.get (i + 1) points
+                        in
+                        if i == 0 then
+                            case lineType of
+                                Open ->
+                                    "M " ++ toString ( x, y )
+
+                                Closed ->
+                                    "M " ++ toString ( x, v.mb ) ++ " L " ++ toString ( x, y )
+
+                        else
+                            let
+                                start =
+                                    controlPoint prev1 prev2 ( x, y ) False
+
+                                end =
+                                    controlPoint ( x, y ) prev1 next True
+                            in
+                            "C "
+                                ++ toString start
+                                ++ " "
+                                ++ toString end
+                                ++ " "
+                                ++ toString ( x, y )
+                                ++ (case ( lineType, i == Array.length points - 1 ) of
+                                        ( Open, _ ) ->
+                                            ""
+
+                                        ( Closed, True ) ->
+                                            " L "
+                                                ++ toString ( x, v.mb )
+
+                                        _ ->
+                                            ""
+                                   )
+                )
+                <|
+                    points
+
+
+type Gradient
+    = Opaque Colour
     | Normal Colour
     | Transparent Colour
+
+
+fillGradient_ : Gradient -> S.Attribute msg
+fillGradient_ grad =
+    fill <|
+        case grad of
+            Opaque c ->
+                "url(#gradient-opaque-" ++ Colour.toString c ++ ")"
+
+            Normal c ->
+                "url(#gradient-normal-" ++ Colour.toString c ++ ")"
+
+            Transparent c ->
+                "url(#gradient-transparent-" ++ Colour.toString c ++ ")"
 
 
 type Filter
@@ -1090,30 +816,15 @@ type Filter
     | Grayscale
 
 
-gradient : FillColour -> String
-gradient maybeCol =
-    case maybeCol of
-        Opaque c ->
-            "url(#gradient-opaque-" ++ Colour.toString c ++ ")"
+filter_ : Filter -> S.Attribute msg
+filter_ f =
+    A.filter <|
+        case f of
+            Grayscale ->
+                "url(#grayscale) url(#brighten)"
 
-        Normal c ->
-            "url(#gradient-normal-" ++ Colour.toString c ++ ")"
-
-        Transparent c ->
-            "url(#gradient-transparent-" ++ Colour.toString c ++ ")"
-
-        _ ->
-            "none"
-
-
-filter : Filter -> String
-filter f =
-    case f of
-        Grayscale ->
-            "url(#grayscale) url(#brighten)"
-
-        _ ->
-            ""
+            _ ->
+                "none"
 
 
 viewBox : Float -> Float -> Attribute msg

@@ -790,7 +790,7 @@ viewLineChart fullScreen chartableOptions trackableOptions ( chartId, model ) =
                             ]
                         , if dataSet.visible then
                             span [ class "ml-4 w-full", Htmlx.onClickStopPropagation NoOp ]
-                                [ a [ class "block w-full font-bold flex items-center", href "#", target "_self", Htmlx.onClickPreventDefault (ChartableClicked chartId chartableId) ]
+                                [ a [ class "block w-full font-bold flex items-center relative text-opacity-70 hover:text-opacity-100 text-black", href "#", target "_self", Htmlx.onClickPreventDefault (ChartableClicked chartId chartableId) ]
                                     [ if model.selectedDataSet == Just chartableId then
                                         icon "w-5 h-5 relative -ml-1 mr-0.5" SolidCaretRight
 
@@ -804,6 +804,7 @@ viewLineChart fullScreen chartableOptions trackableOptions ( chartId, model ) =
                                             else
                                                 dataSet.name
                                         ]
+                                    , icon "absolute right-0 w-5 h-5" SolidPencilAlt
                                     ]
                                 ]
 
@@ -959,9 +960,9 @@ viewLineChart fullScreen chartableOptions trackableOptions ( chartId, model ) =
                 ]
                 [ viewJustYAxis "flex-grow-0 flex-shrink-0" model
                 , viewScrollableContainer ("chart" ++ LineChartId.toString chartId ++ "-scrollable") [ Html.map (GraphMsg chartId) <| viewLineGraph "h-full" model ]
-                , div [ class "absolute right-4 top-8 flex flex-col" ]
+                , div [ class "absolute right-2 top-6 flex flex-col" ]
                     [ button
-                        [ class "text-black text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
+                        [ class "rounded bg-white bg-opacity-50 hover:bg-opacity-80 p-2 text-black text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
                         , Htmlx.onClickStopPropagation (ChartFullScreenClicked chartId)
                         ]
                         [ icon "w-5 h-5" <|
@@ -972,16 +973,16 @@ viewLineChart fullScreen chartableOptions trackableOptions ( chartId, model ) =
                                 SolidExpand
                         ]
                     , button
-                        [ class "text-black text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
+                        [ class "mt-2 rounded bg-white bg-opacity-50 hover:bg-opacity-80 p-2 text-black text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
                         , Htmlx.onClickStopPropagation (ChartZoomInClicked chartId)
                         ]
-                        [ icon "mt-4 w-5 h-5" SolidPlus
+                        [ icon "w-5 h-5" SolidPlus
                         ]
                     , button
-                        [ class "text-black text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
+                        [ class "mt-2 rounded bg-white bg-opacity-50 hover:bg-opacity-80 p-2 text-black text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
                         , Htmlx.onClickStopPropagation (ChartZoomOutClicked chartId)
                         ]
-                        [ icon "mt-4 w-5 h-5" SolidMinus
+                        [ icon "w-5 h-5" SolidMinus
                         ]
                     ]
                 ]
