@@ -77,6 +77,12 @@ type Msg
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
+    let
+        setUserData userData_ ( m, cmd ) =
+            ( { m | userData = userData_ }
+            , Cmd.batch [ cmd, Task.perform UserDataUpdated <| Task.succeed userData_ ]
+            )
+    in
     case msg of
         ChartableAddClicked ->
             let
@@ -92,18 +98,25 @@ update msg model =
             in
             case idM of
                 Just ( id, chartable ) ->
-                    ( { model
-                        | chartables = model.chartables |> Array.push ( id, Chart.Chartable.init userData_ True id ( chartable, True ) )
-                        , editState = EditingChartable id
-                      }
-                    , Cmd.batch
-                        [ Task.perform UserDataUpdated <| Task.succeed userData_
-                        , Dom.getViewport
-                            |> Task.andThen (\info -> Dom.setViewport 0 info.scene.height)
-                            |> (Task.andThen <| always <| Dom.focus ("chartable" ++ CId.toString id ++ "-name"))
-                            |> Task.attempt (always NoOp)
-                        ]
-                    )
+                    ( model, Cmd.none )
+                        |> setUserData userData_
+                        |> (Tuple.mapFirst <|
+                                \m ->
+                                    { m
+                                        | chartables = model.chartables |> Array.push ( id, Chart.Chartable.init userData_ True id ( chartable, True ) )
+                                        , editState = EditingChartable id
+                                    }
+                           )
+                        |> (Tuple.mapSecond <|
+                                \c ->
+                                    Cmd.batch
+                                        [ c
+                                        , Dom.getViewport
+                                            |> Task.andThen (\info -> Dom.setViewport 0 info.scene.height)
+                                            |> (Task.andThen <| always <| Dom.focus ("chartable" ++ CId.toString id ++ "-name"))
+                                            |> Task.attempt (always NoOp)
+                                        ]
+                           )
 
                 _ ->
                     ( model, Cmd.none )
@@ -120,11 +133,6 @@ update msg model =
                             in
                             ( { m | chartables = m.chartables |> Array.set i ( chartableId, chartable_ ) }
                             , Cmd.batch [ c, Cmd.map (ChartableMsg i) c_ ]
-                            )
-
-                        setUserData userData_ ( m, cmd ) =
-                            ( { m | userData = userData_ }
-                            , Cmd.batch [ cmd, Task.perform UserDataUpdated <| Task.succeed userData_ ]
                             )
                     in
                     case chartableMsg of

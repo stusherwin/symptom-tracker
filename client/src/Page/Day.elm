@@ -63,33 +63,35 @@ type Msg
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
+    let
+        updateUserData fn ( m, cmd ) =
+            let
+                userData_ =
+                    model.userData |> fn
+            in
+            ( { m | userData = userData_ }
+            , Cmd.batch [ cmd, Task.perform UserDataUpdated <| Task.succeed userData_ ]
+            )
+
+        when cond fn =
+            if cond then
+                fn
+
+            else
+                identity
+    in
     case msg of
         YesNoAnswerClicked id answer ->
-            let
-                userData_ =
-                    model.userData |> UserData.updateTrackable id (T.updateYesNoData model.currentDay answer)
-            in
-            ( { model | userData = userData_ }
-            , Task.perform UserDataUpdated <| Task.succeed userData_
-            )
+            ( model, Cmd.none )
+                |> (updateUserData <| UserData.updateTrackable id <| T.updateYesNoData model.currentDay answer)
 
         IconAnswerClicked id answer ->
-            let
-                userData_ =
-                    model.userData |> UserData.updateTrackable id (T.updateIconData model.currentDay answer)
-            in
-            ( { model | userData = userData_ }
-            , Task.perform UserDataUpdated <| Task.succeed userData_
-            )
+            ( model, Cmd.none )
+                |> (updateUserData <| UserData.updateTrackable id <| T.updateIconData model.currentDay answer)
 
         ScaleAnswerClicked id answer ->
-            let
-                userData_ =
-                    model.userData |> UserData.updateTrackable id (T.updateScaleData model.currentDay answer)
-            in
-            ( { model | userData = userData_ }
-            , Task.perform UserDataUpdated <| Task.succeed userData_
-            )
+            ( model, Cmd.none )
+                |> (updateUserData <| UserData.updateTrackable id <| T.updateScaleData model.currentDay answer)
 
         IntAnswerUpdated id stringValue ->
             let
@@ -107,17 +109,9 @@ update msg model =
                 textInputs =
                     IdDict.insert id ( stringValue, isValid ) model.textInputs
             in
-            if isValid then
-                let
-                    userData_ =
-                        model.userData |> UserData.updateTrackable id (T.updateIntData model.currentDay answer)
-                in
-                ( { model | textInputs = textInputs, userData = userData_ }
-                , Task.perform UserDataUpdated <| Task.succeed userData_
-                )
-
-            else
-                ( { model | textInputs = textInputs }, Cmd.none )
+            ( model, Cmd.none )
+                |> (Tuple.mapFirst <| \m -> { m | textInputs = textInputs })
+                |> (when isValid <| updateUserData <| UserData.updateTrackable id <| T.updateIntData model.currentDay answer)
 
         FloatAnswerUpdated id stringValue ->
             let
@@ -135,29 +129,14 @@ update msg model =
                 textInputs =
                     IdDict.insert id ( stringValue, isValid ) model.textInputs
             in
-            if isValid then
-                let
-                    userData_ =
-                        model.userData |> UserData.updateTrackable id (T.updateFloatData model.currentDay answer)
-                in
-                ( { model | textInputs = textInputs, userData = userData_ }
-                , Task.perform UserDataUpdated <| Task.succeed userData_
-                )
-
-            else
-                ( { model | textInputs = textInputs }, Cmd.none )
+            ( model, Cmd.none )
+                |> (Tuple.mapFirst <| \m -> { m | textInputs = textInputs })
+                |> (when isValid <| updateUserData <| UserData.updateTrackable id <| T.updateFloatData model.currentDay answer)
 
         TextAnswerUpdated id answer ->
-            let
-                userData_ =
-                    model.userData |> UserData.updateTrackable id (T.updateTextData model.currentDay answer)
-            in
-            ( { model
-                | textInputs = IdDict.insert id ( answer, True ) model.textInputs
-                , userData = userData_
-              }
-            , Task.perform UserDataUpdated <| Task.succeed userData_
-            )
+            ( model, Cmd.none )
+                |> (Tuple.mapFirst <| \m -> { m | textInputs = IdDict.insert id ( answer, True ) m.textInputs })
+                |> (updateUserData <| UserData.updateTrackable id <| T.updateTextData model.currentDay answer)
 
         _ ->
             ( model, Cmd.none )

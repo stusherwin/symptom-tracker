@@ -117,79 +117,98 @@ type Msg
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     let
-        updateChart chartId fn m =
-            { m
-                | state =
-                    case m.state of
-                        Charts charts ->
-                            Charts (charts |> List.updateLookup chartId fn)
+        updateChart chartId fn =
+            Tuple.mapFirst <|
+                \m ->
+                    { m
+                        | state =
+                            case m.state of
+                                Charts charts ->
+                                    Charts (charts |> List.updateLookup chartId fn)
 
-                        Chart chart ->
-                            Chart { chart | chart = fn chart.chart }
-            }
+                                Chart chart ->
+                                    Chart { chart | chart = fn chart.chart }
+                    }
 
-        addChart chartId chart m =
-            { m
-                | state =
-                    case m.state of
-                        Charts charts ->
-                            Charts (charts |> List.insertLookup chartId chart)
+        addChart chartId chart =
+            Tuple.mapFirst <|
+                \m ->
+                    { m
+                        | state =
+                            case m.state of
+                                Charts charts ->
+                                    Charts (charts |> List.insertLookup chartId chart)
 
-                        _ ->
-                            m.state
-            }
+                                _ ->
+                                    m.state
+                    }
 
-        deleteChart chartId m =
-            { m
-                | state =
-                    case m.state of
-                        Charts charts ->
-                            Charts (charts |> List.filter (\( id, _ ) -> id /= chartId))
+        deleteChart chartId =
+            Tuple.mapFirst <|
+                \m ->
+                    { m
+                        | state =
+                            case m.state of
+                                Charts charts ->
+                                    Charts (charts |> List.filter (\( id, _ ) -> id /= chartId))
 
-                        _ ->
-                            m.state
-            }
+                                _ ->
+                                    m.state
+                    }
 
-        moveChartUp chartId m =
-            { m
-                | state =
-                    case m.state of
-                        Charts charts ->
-                            Charts (charts |> List.moveHeadwardsBy Tuple.first chartId)
+        moveChartUp chartId =
+            Tuple.mapFirst <|
+                \m ->
+                    { m
+                        | state =
+                            case m.state of
+                                Charts charts ->
+                                    Charts (charts |> List.moveHeadwardsBy Tuple.first chartId)
 
-                        _ ->
-                            m.state
-            }
+                                _ ->
+                                    m.state
+                    }
 
-        moveChartDown chartId m =
-            { m
-                | state =
-                    case m.state of
-                        Charts charts ->
-                            Charts (charts |> List.moveTailwardsBy Tuple.first chartId)
+        moveChartDown chartId =
+            Tuple.mapFirst <|
+                \m ->
+                    { m
+                        | state =
+                            case m.state of
+                                Charts charts ->
+                                    Charts (charts |> List.moveTailwardsBy Tuple.first chartId)
 
-                        _ ->
-                            m.state
-            }
+                                _ ->
+                                    m.state
+                    }
 
-        setUserData userData_ m =
-            { m | userData = userData_ }
+        setUserData userData_ ( m, cmd ) =
+            ( { m | userData = userData_ }
+            , Cmd.batch [ cmd, Task.perform UserDataUpdated <| Task.succeed userData_ ]
+            )
+
+        updateUserData fn ( m, cmd ) =
+            let
+                userData_ =
+                    model.userData |> fn
+            in
+            ( { m | userData = userData_ }
+            , Cmd.batch [ cmd, Task.perform UserDataUpdated <| Task.succeed userData_ ]
+            )
     in
     case msg of
         ChartMsg chartId chartMsg ->
             case model.state of
                 Charts charts ->
-                    let
-                        chartM =
-                            charts |> List.lookup chartId
-                    in
-                    case chartM of
+                    case charts |> List.lookup chartId of
                         Just chart ->
                             let
                                 ( chart_, cmd ) =
                                     Chart.update chartMsg chart
                             in
-                            ( model |> updateChart chartId (always chart_), Cmd.map (ChartMsg chartId) cmd )
+                            ( model, Cmd.none )
+                                |> updateChart chartId (always chart_)
+                                |> (Tuple.mapSecond <| \c -> Cmd.batch [ c, Cmd.map (ChartMsg chartId) cmd ])
 
                         _ ->
                             ( model, Cmd.none )
@@ -199,12 +218,13 @@ update msg model =
                         ( chart_, cmd ) =
                             Chart.update chartMsg chart.chart
                     in
-                    ( model |> updateChart chart.chartId (always chart_), Cmd.map (ChartMsg chart.chartId) cmd )
+                    ( model, Cmd.none )
+                        |> updateChart chart.chartId (always chart_)
+                        |> (Tuple.mapSecond <| \c -> Cmd.batch [ c, Cmd.map (ChartMsg chart.chartId) cmd ])
 
         ChartPageMsg (ChartPage.UserDataUpdated userData_) ->
-            ( { model | userData = userData_ }
-            , Task.perform UserDataUpdated <| Task.succeed userData_
-            )
+            ( model, Cmd.none )
+                |> setUserData userData_
 
         ChartPageMsg chartPageMsg ->
             case model.state of
@@ -213,7 +233,9 @@ update msg model =
                         ( chart_, cmd ) =
                             ChartPage.update chartPageMsg chartModel
                     in
-                    ( { model | state = Chart chart_ }, Cmd.map ChartPageMsg cmd )
+                    ( model, Cmd.none )
+                        |> (Tuple.mapFirst <| \m -> { m | state = Chart chart_ })
+                        |> (Tuple.mapSecond <| \c -> Cmd.batch [ c, Cmd.map ChartPageMsg cmd ])
 
                 _ ->
                     ( model, Cmd.none )
@@ -238,51 +260,35 @@ update msg model =
                         ( newChartModel, cmd ) =
                             Chart.init model.today userData_ newId newChart
                     in
-                    ( model
+                    ( model, Cmd.none )
                         |> setUserData userData_
                         |> addChart newId newChartModel
-                    , Cmd.batch
-                        [ Task.perform UserDataUpdated <| Task.succeed userData_
-                        , Nav.pushUrl model.navKey ("/charts/" ++ LCId.toString newId)
-                        , Cmd.map (ChartMsg newId) cmd
-                        ]
-                    )
+                        |> (Tuple.mapSecond <|
+                                \c ->
+                                    Cmd.batch
+                                        [ c
+                                        , Nav.pushUrl model.navKey ("/charts/" ++ LCId.toString newId)
+                                        , Cmd.map (ChartMsg newId) cmd
+                                        ]
+                           )
 
                 _ ->
                     ( model, Cmd.none )
 
         ChartDeleteClicked chartId ->
-            let
-                userData_ =
-                    model.userData |> UserData.deleteLineChart chartId
-            in
-            ( model
-                |> setUserData userData_
+            ( model, Cmd.none )
+                |> (updateUserData <| UserData.deleteLineChart chartId)
                 |> deleteChart chartId
-            , Task.perform UserDataUpdated <| Task.succeed userData_
-            )
 
         ChartUpClicked chartId ->
-            let
-                userData_ =
-                    model.userData |> UserData.moveLineChartUp chartId
-            in
-            ( model
-                |> setUserData userData_
+            ( model, Cmd.none )
+                |> (updateUserData <| UserData.moveLineChartUp chartId)
                 |> moveChartUp chartId
-            , Task.perform UserDataUpdated <| Task.succeed userData_
-            )
 
         ChartDownClicked chartId ->
-            let
-                userData_ =
-                    model.userData |> UserData.moveLineChartDown chartId
-            in
-            ( model
-                |> setUserData userData_
+            ( model, Cmd.none )
+                |> (updateUserData <| UserData.moveLineChartDown chartId)
                 |> moveChartDown chartId
-            , Task.perform UserDataUpdated <| Task.succeed userData_
-            )
 
         _ ->
             ( model, Cmd.none )

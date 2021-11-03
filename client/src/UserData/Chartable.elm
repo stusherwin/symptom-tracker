@@ -172,49 +172,61 @@ setInverted inv (Chartable c) =
 
 addTrackable : TrackableId -> Trackable -> Float -> Chartable -> Result String Chartable
 addTrackable trackableId trackable multiplier (Chartable c) =
-    let
-        sum_ =
-            c.sum ++ [ ( trackableId, ( trackable, multiplier ) ) ]
-    in
-    Ok <| Chartable { c | colour = buildColour sum_ c.ownColour }
+    case c.sum |> List.lookup trackableId of
+        Just _ -> Err <| "Trackable " ++ TId.toString trackableId ++ " already exists in Chartable"
+        _ ->   
+            let
+                sum_ =
+                    c.sum ++ [ ( trackableId, ( trackable, multiplier ) ) ]
+            in
+                Ok <| Chartable { c | colour = buildColour sum_ c.ownColour }
 
 
 deleteTrackable : TrackableId -> Chartable -> Result String Chartable
 deleteTrackable trackableId (Chartable c) =
-    let
-        sum_ =
-            c.sum |> List.deleteBy Tuple.first trackableId
-    in
-    Ok <| Chartable
-        { c
-            | sum = sum_
-            , colour = buildColour sum_ c.ownColour
-        }
+    case c.sum |> List.lookup trackableId of
+        Nothing -> Err <| "Trackable " ++ TId.toString trackableId ++ " does not exist in Chartable"
+        Just _ ->
+            let
+                sum_ =
+                    c.sum |> List.deleteBy Tuple.first trackableId
+            in
+            Ok <| Chartable
+                { c
+                    | sum = sum_
+                    , colour = buildColour sum_ c.ownColour
+                }
 
 
 replaceTrackable : TrackableId -> TrackableId -> Trackable -> Chartable -> Result String Chartable
 replaceTrackable oldTrackableId newTrackableId newTrackable (Chartable c) =
-    let
-        sum_ =
-            c.sum |> List.updateLookupWithKey oldTrackableId (\( _, ( _, multiplier ) ) -> ( newTrackableId, ( newTrackable, multiplier ) ))
-    in
-    Ok <| Chartable
-        { c
-            | sum = sum_
-            , colour = buildColour sum_ c.ownColour
-        }
+    case c.sum |> List.lookup oldTrackableId of
+        Nothing -> Err <| "Trackable " ++ TId.toString oldTrackableId ++ " does not exist in Chartable"
+        Just _ ->
+            let
+                sum_ =
+                    c.sum |> List.updateLookupWithKey oldTrackableId (\( _, ( _, multiplier ) ) -> ( newTrackableId, ( newTrackable, multiplier ) ))
+            in
+            Ok <| Chartable
+                { c
+                    | sum = sum_
+                    , colour = buildColour sum_ c.ownColour
+                }
 
 
 setMultiplier : TrackableId -> Float -> Chartable -> Result String Chartable
 setMultiplier trackableId multiplier (Chartable c) =
-    let
-        sum_ =
-            c.sum |> List.updateLookup trackableId (Tuple.mapSecond <| always multiplier)
-    in
-    Ok <| Chartable
-        { c
-            | sum = sum_
-        }
+    case c.sum |> List.lookup trackableId of
+        Nothing -> Err <| "Trackable " ++ TId.toString trackableId ++ " does not exist in Chartable"
+        Just _ ->
+            let
+                sum_ =
+                    c.sum |> List.updateLookup trackableId (Tuple.mapSecond <| always multiplier)
+            in
+            Ok <| Chartable
+                { c
+                    | sum = sum_
+                }
 
 
 decode : D.Decoder State

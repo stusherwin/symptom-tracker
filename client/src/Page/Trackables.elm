@@ -280,249 +280,197 @@ type Msg
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
+    let
+        setUserData userData_ ( m, cmd ) =
+            ( { m | userData = userData_ }
+            , Cmd.batch [ cmd, Task.perform UserDataUpdated <| Task.succeed userData_ ]
+            )
+
+        updateUserData fn ( m, cmd ) =
+            let
+                userData_ =
+                    model.userData |> fn
+            in
+            ( { m | userData = userData_ }
+            , Cmd.batch [ cmd, Task.perform UserDataUpdated <| Task.succeed userData_ ]
+            )
+    in
     case msg of
         TrackableEditClicked id ->
-            ( { model | editState = EditingTrackable id }, Cmd.none )
+            ( model, Cmd.none )
+                |> (Tuple.mapFirst <| \m -> { m | editState = EditingTrackable id })
 
         TrackableCloseClicked ->
-            ( { model | editState = NotEditing }, Cmd.none )
+            ( model, Cmd.none )
+                |> (Tuple.mapFirst <| \m -> { m | editState = NotEditing })
 
         TrackableUpClicked id ->
-            let
-                userData_ =
-                    model.userData
-                        |> UserData.moveTrackableUp id
-            in
-            ( { model
-                | userData = userData_
-                , trackables = model.trackables |> List.moveHeadwardsBy Tuple.first id
-              }
-            , Task.perform UserDataUpdated <| Task.succeed userData_
-            )
+            ( model, Cmd.none )
+                |> (updateUserData <| UserData.moveTrackableUp id)
+                |> (Tuple.mapFirst <| \m -> { m | trackables = model.trackables |> List.moveHeadwardsBy Tuple.first id })
 
         TrackableDownClicked id ->
-            let
-                userData_ =
-                    model.userData
-                        |> UserData.moveTrackableDown id
-            in
-            ( { model
-                | userData = userData_
-                , trackables = model.trackables |> List.moveTailwardsBy Tuple.first id
-              }
-            , Task.perform UserDataUpdated <| Task.succeed userData_
-            )
+            ( model, Cmd.none )
+                |> (updateUserData <| UserData.moveTrackableDown id)
+                |> (Tuple.mapFirst <| \m -> { m | trackables = model.trackables |> List.moveTailwardsBy Tuple.first id })
 
         TrackableVisibleClicked id ->
-            let
-                userData_ =
-                    model.userData
-                        |> UserData.toggleTrackableVisible id
-            in
-            ( { model
-                | userData = userData_
-                , trackables = model.trackables |> List.updateLookup id (\t -> { t | isVisible = not t.isVisible })
-              }
-            , Task.perform UserDataUpdated <| Task.succeed userData_
-            )
+            ( model, Cmd.none )
+                |> (updateUserData <| UserData.toggleTrackableVisible id)
+                |> (Tuple.mapFirst <| \m -> { m | trackables = model.trackables |> List.updateLookup id (\t -> { t | isVisible = not t.isVisible }) })
 
         TrackableColourUpdated id (Just colour) ->
-            let
-                userData_ =
-                    model.userData
-                        |> UserData.updateTrackable id (T.setColour colour)
-            in
-            ( { model
-                | userData = userData_
-                , trackables = model.trackables |> List.updateLookup id (\q -> { q | colour = colour })
-              }
-            , Task.perform UserDataUpdated <| Task.succeed userData_
-            )
+            ( model, Cmd.none )
+                |> (updateUserData <| UserData.updateTrackable id <| T.setColour colour)
+                |> (Tuple.mapFirst <| \m -> { m | trackables = model.trackables |> List.updateLookup id (\q -> { q | colour = colour }) })
 
         TrackableQuestionUpdated id question ->
-            let
-                userData_ =
-                    model.userData
-                        |> UserData.updateTrackable id (T.setQuestion question)
-            in
-            ( { model
-                | userData = userData_
-                , trackables = model.trackables |> List.updateLookup id (\q -> { q | question = question })
-              }
-            , Task.perform UserDataUpdated <| Task.succeed userData_
-            )
+            ( model, Cmd.none )
+                |> (updateUserData <| UserData.updateTrackable id <| T.setQuestion question)
+                |> (Tuple.mapFirst <| \m -> { m | trackables = model.trackables |> List.updateLookup id (\q -> { q | question = question }) })
 
         TrackableAnswerTypeUpdated id (Just answerType) ->
-            let
-                userData_ =
-                    case model.trackables |> List.lookup id of
-                        Just q ->
-                            model.userData
-                                |> (UserData.updateTrackable id <|
-                                        case answerType of
-                                            AYesNo ->
-                                                T.convertToYesNo
+            ( model, Cmd.none )
+                |> (setUserData <|
+                        case model.trackables |> List.lookup id of
+                            Just q ->
+                                model.userData
+                                    |> (UserData.updateTrackable id <|
+                                            case answerType of
+                                                AYesNo ->
+                                                    T.convertToYesNo
 
-                                            AIcon ->
-                                                T.convertToIcon (Array.map .iconType q.iconOptions)
+                                                AIcon ->
+                                                    T.convertToIcon (Array.map .iconType q.iconOptions)
 
-                                            AScale ->
-                                                T.convertToScale q.scaleOptions.from q.scaleOptions.to
+                                                AScale ->
+                                                    T.convertToScale q.scaleOptions.from q.scaleOptions.to
 
-                                            AInt ->
-                                                T.convertToInt
+                                                AInt ->
+                                                    T.convertToInt
 
-                                            AFloat ->
-                                                T.convertToFloat
+                                                AFloat ->
+                                                    T.convertToFloat
 
-                                            AText ->
-                                                T.convertToText
-                                   )
+                                                AText ->
+                                                    T.convertToText
+                                       )
 
-                        _ ->
-                            model.userData
-            in
-            ( { model
-                | userData = userData_
-                , trackables = model.trackables |> List.updateLookup id (\q -> { q | answerType = answerType })
-              }
-            , Task.perform UserDataUpdated <| Task.succeed userData_
-            )
+                            _ ->
+                                model.userData
+                   )
+                |> (Tuple.mapFirst <| \m -> { m | trackables = model.trackables |> List.updateLookup id (\q -> { q | answerType = answerType }) })
 
         TrackableAddClicked ->
             let
-                newTrackable =
-                    { question = ""
-                    , colour = Colour.Red
-                    , responses = TYesNo Dict.empty
-                    }
-
                 ( idM, userData_ ) =
-                    model.userData |> UserData.addTrackable newTrackable
+                    model.userData
+                        |> UserData.addTrackable
+                            { question = ""
+                            , colour = Colour.Red
+                            , responses = TYesNo Dict.empty
+                            }
             in
             case idM of
                 Just ( id, trackable ) ->
-                    ( { model
-                        | trackables = model.trackables |> List.insertLookup id (toModel userData_ id ( trackable, True ))
-                        , editState = EditingTrackable id
-                      }
-                    , Cmd.batch
-                        [ Task.perform UserDataUpdated <| Task.succeed userData_
-                        , Dom.getViewport
-                            |> Task.andThen (\info -> Dom.setViewport 0 info.scene.height)
-                            |> (Task.andThen <| always <| Dom.focus ("q-" ++ TId.toString id))
-                            |> Task.attempt (always NoOp)
-                        ]
-                    )
+                    ( model, Cmd.none )
+                        |> setUserData userData_
+                        |> (Tuple.mapFirst <|
+                                \m ->
+                                    { m
+                                        | trackables = model.trackables |> List.insertLookup id (toModel userData_ id ( trackable, True ))
+                                        , editState = EditingTrackable id
+                                    }
+                           )
+                        |> (Tuple.mapSecond <|
+                                \c ->
+                                    Cmd.batch
+                                        [ c
+                                        , Dom.getViewport
+                                            |> Task.andThen (\info -> Dom.setViewport 0 info.scene.height)
+                                            |> (Task.andThen <| always <| Dom.focus ("q-" ++ TId.toString id))
+                                            |> Task.attempt (always NoOp)
+                                        ]
+                           )
 
                 _ ->
                     ( model, Cmd.none )
 
         TrackableDeleteClicked id ->
-            let
-                userData_ =
-                    model.userData
-                        |> UserData.deleteTrackable id
-            in
-            ( { model | userData = userData_, trackables = model.trackables |> List.deleteLookup id }
-            , Task.perform UserDataUpdated <| Task.succeed userData_
-            )
+            ( model, Cmd.none )
+                |> (updateUserData <| UserData.deleteTrackable id)
+                |> (Tuple.mapFirst <| \m -> { m | trackables = model.trackables |> List.deleteLookup id })
 
         ScaleFromUpdated id (Just from) ->
-            let
-                userData_ =
-                    model.userData
-                        |> UserData.updateTrackable id (T.updateScaleFrom from)
-            in
-            ( { model
-                | userData = userData_
-                , trackables =
-                    model.trackables
-                        |> List.updateLookup id
-                            (\q ->
-                                let
-                                    scaleOptions =
-                                        q.scaleOptions
-                                in
-                                { q | scaleOptions = { scaleOptions | from = from } }
-                            )
-              }
-            , Task.perform UserDataUpdated <| Task.succeed userData_
-            )
+            ( model, Cmd.none )
+                |> (updateUserData <| UserData.updateTrackable id <| T.updateScaleFrom from)
+                |> (Tuple.mapFirst <|
+                        \m ->
+                            { m
+                                | trackables =
+                                    model.trackables
+                                        |> List.updateLookup id
+                                            (\q ->
+                                                let
+                                                    scaleOptions =
+                                                        q.scaleOptions
+                                                in
+                                                { q | scaleOptions = { scaleOptions | from = from } }
+                                            )
+                            }
+                   )
 
         ScaleToUpdated id (Just to) ->
-            let
-                userData_ =
-                    model.userData
-                        |> UserData.updateTrackable id (T.updateScaleTo to)
-            in
-            ( { model
-                | userData = userData_
-                , trackables =
-                    model.trackables
-                        |> List.updateLookup id
-                            (\q ->
-                                let
-                                    scaleOptions =
-                                        q.scaleOptions
-                                in
-                                { q | scaleOptions = { scaleOptions | to = to } }
-                            )
-              }
-            , Task.perform UserDataUpdated <| Task.succeed userData_
-            )
+            ( model, Cmd.none )
+                |> (updateUserData <| UserData.updateTrackable id <| T.updateScaleTo to)
+                |> (Tuple.mapFirst <|
+                        \m ->
+                            { m
+                                | trackables =
+                                    model.trackables
+                                        |> List.updateLookup id
+                                            (\q ->
+                                                let
+                                                    scaleOptions =
+                                                        q.scaleOptions
+                                                in
+                                                { q | scaleOptions = { scaleOptions | to = to } }
+                                            )
+                            }
+                   )
 
         IconUpdated id i (Just iconType) ->
-            let
-                userData_ =
-                    model.userData
-                        |> UserData.updateTrackable id (T.updateIcon i iconType)
-            in
-            ( { model
-                | userData = userData_
-                , trackables =
-                    model.trackables
-                        |> List.updateLookup id
-                            (\q ->
-                                { q
-                                    | iconOptions =
-                                        case Array.get i q.iconOptions of
-                                            Just o ->
-                                                Array.set i { o | iconType = iconType } q.iconOptions
+            ( model, Cmd.none )
+                |> (updateUserData <| UserData.updateTrackable id <| T.updateIcon i iconType)
+                |> (Tuple.mapFirst <|
+                        \m ->
+                            { m
+                                | trackables =
+                                    model.trackables
+                                        |> List.updateLookup id
+                                            (\q ->
+                                                { q
+                                                    | iconOptions =
+                                                        case Array.get i q.iconOptions of
+                                                            Just o ->
+                                                                Array.set i { o | iconType = iconType } q.iconOptions
 
-                                            _ ->
-                                                q.iconOptions
-                                }
-                            )
-              }
-            , Task.perform UserDataUpdated <| Task.succeed userData_
-            )
+                                                            _ ->
+                                                                q.iconOptions
+                                                }
+                                            )
+                            }
+                   )
 
         IconAddClicked id ->
-            let
-                userData_ =
-                    model.userData
-                        |> UserData.updateTrackable id (T.addIcon SolidQuestionCircle)
-            in
-            ( { model
-                | userData = userData_
-                , trackables = model.trackables |> List.updateLookup id (\q -> { q | iconOptions = Array.push { iconType = SolidQuestionCircle, canDelete = True } q.iconOptions })
-              }
-            , Task.perform UserDataUpdated <| Task.succeed userData_
-            )
+            ( model, Cmd.none )
+                |> (updateUserData <| UserData.updateTrackable id <| T.addIcon SolidQuestionCircle)
+                |> (Tuple.mapFirst <| \m -> { m | trackables = model.trackables |> List.updateLookup id (\q -> { q | iconOptions = Array.push { iconType = SolidQuestionCircle, canDelete = True } q.iconOptions }) })
 
         IconDeleteClicked id i ->
-            let
-                userData_ =
-                    model.userData
-                        |> UserData.updateTrackable id (T.deleteIcon i)
-            in
-            ( { model
-                | userData = userData_
-                , trackables = model.trackables |> List.updateLookup id (\q -> { q | iconOptions = Array.append (Array.slice 0 i q.iconOptions) (Array.slice (i + 1) (Array.length q.iconOptions) q.iconOptions) })
-              }
-            , Task.perform UserDataUpdated <| Task.succeed userData_
-            )
+            ( model, Cmd.none )
+                |> (updateUserData <| UserData.updateTrackable id <| T.deleteIcon i)
+                |> (Tuple.mapFirst <| \m -> { m | trackables = model.trackables |> List.updateLookup id (\q -> { q | iconOptions = Array.append (Array.slice 0 i q.iconOptions) (Array.slice (i + 1) (Array.length q.iconOptions) q.iconOptions) }) })
 
         _ ->
             ( model, Cmd.none )
