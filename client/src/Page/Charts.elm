@@ -31,7 +31,9 @@ type alias Model =
 
 
 type alias ChartableModel =
-    { trackables : Dict Int TrackableModel }
+    { trackables : Dict Int TrackableModel
+    , inverted : Bool
+    }
 
 
 type alias TrackableModel =
@@ -77,6 +79,7 @@ toChartModel today chartables trackables chart =
                     { name = chartable.name
                     , colour = toColour trackables chartable
                     , dataPoints = toDataPoints trackables chartable
+                    , inverted = chartable.inverted
                     , trackables =
                         chartable.sum
                             |> List.map
@@ -146,6 +149,8 @@ type Msg
     | DataSetVisibleClicked LineChartId ChartableId
     | DataSetBringForwardClicked LineChartId ChartableId
     | DataSetPushBackClicked LineChartId ChartableId
+    | ChartableNameUpdated LineChartId ChartableId String
+    | ChartableInvertedChanged LineChartId ChartableId Bool
     | TrackableChanged LineChartId ChartableId Int (Maybe TrackableId)
     | TrackableMultiplierUpdated LineChartId ChartableId Int String
     | GraphMsg LineChartId (Graph.Msg ChartableId)
@@ -184,6 +189,62 @@ update msg model =
 
         DataSetPushBackClicked chartId chartableId ->
             ( updateChartModel chartId <| \c -> { c | dataOrder = c.dataOrder |> Listx.moveHeadwards chartableId }, Cmd.none )
+
+        ChartableNameUpdated chartId chartableId name ->
+            let
+                userData =
+                    if not <| String.isEmpty name then
+                        model.userData
+                            |> (UserData.updateChartable chartableId <|
+                                    \c ->
+                                        { c | name = name }
+                               )
+
+                    else
+                        model.userData
+            in
+            ( { model
+                | userData = userData
+                , charts =
+                    model.charts
+                        |> (IdDict.update chartId <|
+                                updateChartableModel chartableId <|
+                                    \c -> { c | name = name }
+                           )
+              }
+            , Cmd.none
+            )
+
+        ChartableInvertedChanged chartId chartableId inverted ->
+            let
+                userData =
+                    model.userData
+                        |> (UserData.updateChartable chartableId <|
+                                \c ->
+                                    { c | inverted = inverted }
+                           )
+            in
+            ( { model
+                | userData = userData
+                , charts =
+                    model.charts
+                        |> (IdDict.update chartId <|
+                                updateChartableModel chartableId <|
+                                    \c ->
+                                        { c
+                                            | inverted = inverted
+                                            , dataPoints =
+                                                case UserData.chartables userData |> IdDict.get chartableId of
+                                                    Just chartable ->
+                                                        toDataPoints (UserData.trackables userData) chartable
+
+                                                    _ ->
+                                                        c.dataPoints
+                                        }
+                           )
+              }
+            , Cmd.none
+            )
 
         TrackableChanged chartId chartableId i (Just trackableId) ->
             let
@@ -344,7 +405,12 @@ viewLineChart trackables chartId model =
                                         , ( "text-opacity-100", dataSet.visible )
                                         ]
                                     ]
-                                    [ text dataSet.name
+                                    [ text <|
+                                        if String.isEmpty dataSet.name then
+                                            "[no name]"
+
+                                        else
+                                            dataSet.name
                                     , icon "ml-1 w-5 h-5" <|
                                         if model.selectedDataSet == Just chartableId then
                                             SolidAngleUp
@@ -377,31 +443,44 @@ viewLineChart trackables chartId model =
                                 ]
                             , if model.selectedDataSet == Just chartableId then
                                 div [ class "mt-4" ] <|
-                                    (dataSet.trackables
-                                        |> Dict.map
-                                            (\i t ->
-                                                div [ class "ml-1 mt-4 flex" ]
-                                                    [ icon "mt-3 w-4 h-4 flex-grow-0 flex-shrink-0" <|
-                                                        if i == 0 then
-                                                            SolidEquals
+                                    [ div [ class "mt-4 ml-8 flex items-center" ]
+                                        [ Controls.textbox [ class "w-72" ] [] dataSet.name { isValid = True, isRequired = True } (ChartableNameUpdated chartId chartableId)
+                                        , label [ class "ml-auto font-bold text-right whitespace-nowrap", for "inverted" ] [ text "Invert data" ]
+                                        , input
+                                            [ type_ "checkbox"
+                                            , id "inverted"
+                                            , class "ml-2"
+                                            , onCheck (ChartableInvertedChanged chartId chartableId)
+                                            , checked dataSet.inverted
+                                            ]
+                                            []
+                                        ]
+                                    ]
+                                        ++ (dataSet.trackables
+                                                |> Dict.map
+                                                    (\i t ->
+                                                        div [ class "mt-4 flex" ]
+                                                            [ icon "mt-3 w-4 h-4 flex-grow-0 flex-shrink-0" <|
+                                                                if i == 0 then
+                                                                    SolidEquals
 
-                                                        else
-                                                            SolidPlus
-                                                    , Controls.textDropdown "ml-5 w-full h-10"
-                                                        (TrackableChanged chartId chartableId i)
-                                                        Trackable.idToString
-                                                        Trackable.idFromString
-                                                        (trackables |> IdDict.map (\tId { question } -> ( ( tId, True ), question )) |> IdDict.values)
-                                                        (Just t.trackableId)
-                                                        { showFilled = False }
-                                                    , icon "mt-3 ml-4 w-4 h-4 flex-grow-0 flex-shrink-0" SolidTimes
-                                                    , Controls.textbox [ class "ml-4 w-20 flex-grow-0 flex-shrink-0" ] [] t.multiplier { isValid = t.isValid, isRequired = True } (TrackableMultiplierUpdated chartId chartableId i)
-                                                    ]
-                                            )
-                                        |> Dict.values
-                                    )
-                                        ++ [ div [ class "ml-10 mt-4 flex" ]
-                                                [ Controls.button "" Controls.ButtonGrey NoOp SolidPlusCircle "Add trackable" True ]
+                                                                else
+                                                                    SolidPlus
+                                                            , Controls.textDropdown "ml-4 w-full h-10"
+                                                                (TrackableChanged chartId chartableId i)
+                                                                Trackable.idToString
+                                                                Trackable.idFromString
+                                                                (trackables |> IdDict.map (\tId { question } -> ( ( tId, True ), question )) |> IdDict.values)
+                                                                (Just t.trackableId)
+                                                                { showFilled = False }
+                                                            , icon "mt-3 ml-4 w-4 h-4 flex-grow-0 flex-shrink-0" SolidTimes
+                                                            , Controls.textbox [ class "ml-4 w-20 flex-grow-0 flex-shrink-0" ] [] t.multiplier { isValid = t.isValid, isRequired = True } (TrackableMultiplierUpdated chartId chartableId i)
+                                                            ]
+                                                    )
+                                                |> Dict.values
+                                           )
+                                        ++ [ div [ class "mt-4 flex" ]
+                                                [ Controls.button "ml-8" Controls.ButtonGrey NoOp SolidPlusCircle "Add trackable" True ]
                                            ]
 
                               else
@@ -435,7 +514,7 @@ viewLineChart trackables chartId model =
                 ]
                 []
             ]
-        , div [ class "mt-4 bg-gray-200" ] <|
+        , div [ class "mt-4 bg-white" ] <|
             List.concat viewChartables
         ]
 
