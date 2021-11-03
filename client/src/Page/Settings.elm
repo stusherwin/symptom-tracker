@@ -639,7 +639,7 @@ viewTrackable first last ( id, q ) =
                 ]
             ]
             [ button
-                [ class "text-black focus:outline-none flex-grow-0 flex-shrink-0"
+                [ class "text-black focus:outline-none flex-grow-0 flex-shrink-0 text-opacity-70 hover:text-opacity-100 focus:text-opacity-100"
                 , onClick <| TrackableVisibleClicked id
                 ]
                 [ icon "w-5 h-5" <|

@@ -1,4 +1,4 @@
-module UserData.Chartable exposing (Chartable, ChartableDict, addTrackable, decode, deleteTrackable, encode, replaceTrackable, setInverted, setMultiplier, setName)
+module UserData.Chartable exposing (Chartable, ChartableDict, addTrackable, decode, deleteTrackable, encode, replaceTrackable, setColour, setInverted, setMultiplier, setName)
 
 import Colour exposing (Colour)
 import IdDict exposing (IdDict(..))
@@ -24,6 +24,11 @@ type alias ChartableDict =
 setName : String -> Chartable -> Chartable
 setName name c =
     { c | name = name }
+
+
+setColour : Maybe Colour -> Chartable -> Chartable
+setColour colour c =
+    { c | colour = colour }
 
 
 setInverted : Bool -> Chartable -> Chartable

@@ -3,8 +3,8 @@ module Svg.Icon exposing (IconType(..), all, decode, encode, fromString, icon, i
 import Html exposing (p)
 import Json.Decode as D
 import Json.Encode as E
-import Svg exposing (Svg, g, path, svg, symbol, use, node, filter, defs)
-import Svg.Attributes exposing (class, d, id, style, transform, viewBox, xlinkHref, stdDeviation, dx, dy)
+import Svg exposing (Svg, defs, filter, g, node, path, svg, symbol, use)
+import Svg.Attributes exposing (class, d, dx, dy, id, stdDeviation, style, transform, viewBox, xlinkHref)
 
 
 logo : String -> Svg msg
@@ -71,6 +71,8 @@ type IconType
     | SolidEquals
     | SolidPencilAlt
     | SolidTrashAlt
+    | SolidExpand
+    | SolidCompress
 
 
 toString : IconType -> String
@@ -172,6 +174,12 @@ toString iconType =
         SolidTrashAlt ->
             "solid-trash-alt"
 
+        SolidExpand ->
+            "solid-expand"
+
+        SolidCompress ->
+            "solid-compress"
+
 
 fromString : String -> Maybe IconType
 fromString str =
@@ -272,11 +280,17 @@ fromString str =
         "solid-trash-alt" ->
             Just SolidTrashAlt
 
+        "solid-expand" ->
+            Just SolidExpand
+
+        "solid-compress" ->
+            Just SolidCompress
+
         _ ->
             Nothing
 
 
-iconSymbol : List (Svg.Attribute msg) ->IconType -> Svg msg
+iconSymbol : List (Svg.Attribute msg) -> IconType -> Svg msg
 iconSymbol attrs iconType =
     case iconType of
         SolidCheckCircle ->
@@ -439,6 +453,16 @@ iconSymbol attrs iconType =
                 [ path ([ d "M32 464a48 48 0 0 0 48 48h288a48 48 0 0 0 48-48V128H32zm272-256a16 16 0 0 1 32 0v224a16 16 0 0 1-32 0zm-96 0a16 16 0 0 1 32 0v224a16 16 0 0 1-32 0zm-96 0a16 16 0 0 1 32 0v224a16 16 0 0 1-32 0zM432 32H312l-9.4-18.7A24 24 0 0 0 281.1 0H166.8a23.72 23.72 0 0 0-21.4 13.3L136 32H16A16 16 0 0 0 0 48v32a16 16 0 0 0 16 16h416a16 16 0 0 0 16-16V48a16 16 0 0 0-16-16z" ] ++ attrs) []
                 ]
 
+        SolidExpand ->
+            symbol [ id <| toString iconType, viewBox "0 0 448 512" ]
+                [ path ([ d "M0 180V56c0-13.3 10.7-24 24-24h124c6.6 0 12 5.4 12 12v40c0 6.6-5.4 12-12 12H64v84c0 6.6-5.4 12-12 12H12c-6.6 0-12-5.4-12-12zM288 44v40c0 6.6 5.4 12 12 12h84v84c0 6.6 5.4 12 12 12h40c6.6 0 12-5.4 12-12V56c0-13.3-10.7-24-24-24H300c-6.6 0-12 5.4-12 12zm148 276h-40c-6.6 0-12 5.4-12 12v84h-84c-6.6 0-12 5.4-12 12v40c0 6.6 5.4 12 12 12h124c13.3 0 24-10.7 24-24V332c0-6.6-5.4-12-12-12zM160 468v-40c0-6.6-5.4-12-12-12H64v-84c0-6.6-5.4-12-12-12H12c-6.6 0-12 5.4-12 12v124c0 13.3 10.7 24 24 24h124c6.6 0 12-5.4 12-12z" ] ++ attrs) []
+                ]
+
+        SolidCompress ->
+            symbol [ id <| toString iconType, viewBox "0 0 448 512" ]
+                [ path ([ d "M436 192H312c-13.3 0-24-10.7-24-24V44c0-6.6 5.4-12 12-12h40c6.6 0 12 5.4 12 12v84h84c6.6 0 12 5.4 12 12v40c0 6.6-5.4 12-12 12zm-276-24V44c0-6.6-5.4-12-12-12h-40c-6.6 0-12 5.4-12 12v84H12c-6.6 0-12 5.4-12 12v40c0 6.6 5.4 12 12 12h124c13.3 0 24-10.7 24-24zm0 300V344c0-13.3-10.7-24-24-24H12c-6.6 0-12 5.4-12 12v40c0 6.6 5.4 12 12 12h84v84c0 6.6 5.4 12 12 12h40c6.6 0 12-5.4 12-12zm192 0v-84h84c6.6 0 12-5.4 12-12v-40c0-6.6-5.4-12-12-12H312c-13.3 0-24 10.7-24 24v124c0 6.6 5.4 12 12 12h40c6.6 0 12-5.4 12-12z" ] ++ attrs) []
+                ]
+
 
 all : List IconType
 all =
@@ -474,6 +498,8 @@ all =
     , SolidEquals
     , SolidPencilAlt
     , SolidTrashAlt
+    , SolidExpand
+    , SolidCompress
     ]
 
 
@@ -490,12 +516,14 @@ userSelectable =
 
 iconSymbols : Svg msg
 iconSymbols =
-    svg [ style "width: 0; height: 0;" ] <| [ defs [] [
-        -- filter [ id "shadow" ] [
-        --     node "feDropShadow" [dx "0.2", dy "0.4", stdDeviation "0.2" ] []
-        -- ]
-    ]] ++
-        List.map (iconSymbol [ {-style "filter: url(#shadow);"-}]) all
+    svg [ style "width: 0; height: 0;" ] <|
+        [ defs []
+            [-- filter [ id "shadow" ] [
+             --     node "feDropShadow" [dx "0.2", dy "0.4", stdDeviation "0.2" ] []
+             -- ]
+            ]
+        ]
+            ++ List.map (iconSymbol [{- style "filter: url(#shadow);" -}]) all
 
 
 decode : D.Decoder IconType

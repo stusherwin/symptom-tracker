@@ -202,6 +202,7 @@ type Msg
     | ChartableDownClicked LineChartId ChartableId
     | ChartableChanged LineChartId ChartableId (Maybe ChartableId)
     | ChartableNameUpdated LineChartId ChartableId String
+    | ChartableColourUpdated LineChartId ChartableId (Maybe Colour)
     | ChartableInvertedChanged LineChartId ChartableId Bool
     | ChartableAddClicked LineChartId
     | ChartableToAddChanged LineChartId (Maybe ChartableId)
@@ -329,6 +330,29 @@ update msg model =
                 |> (updateChartableOptions <| Listx.insertLookup chartableId (Stringx.withDefault "[no name]" name))
             , Task.perform UserDataUpdated <| Task.succeed userData_
             )
+
+        ChartableColourUpdated chartId chartableId colour ->
+            let
+                userData_ =
+                    model.userData
+                        |> UserData.updateChartable chartableId (Chartable.setColour colour)
+
+                chartableM_ =
+                    userData_ |> UserData.getChartable chartableId
+            in
+            case chartableM_ of
+                Just chartable_ ->
+                    ( model
+                        |> setUserData userData_
+                        |> (updateChartModel chartId <|
+                                updateChartableModel chartableId <|
+                                    \c -> { c | colour = toColour userData_ chartable_ }
+                           )
+                    , Task.perform UserDataUpdated <| Task.succeed userData_
+                    )
+
+                _ ->
+                    ( model, Cmd.none )
 
         ChartableInvertedChanged chartId chartableId inverted ->
             let
@@ -660,6 +684,9 @@ viewLineChart chartableOptions trackableOptions ( chartId, model ) =
 
                 canMoveDown =
                     (Maybe.map Tuple.first << List.head << List.reverse) model.data /= Just chartableId
+
+                canEditColour =
+                    List.length dataSet.trackables > 1
             in
             [ div
                 [ class "border-t-4"
@@ -671,48 +698,8 @@ viewLineChart chartableOptions trackableOptions ( chartId, model ) =
                 , onMouseEnter <| ChartableHovered chartId (Just chartableId)
                 , onMouseLeave <| ChartableHovered chartId Nothing
                 ]
-                [ if model.editState == EditingChartable chartableId True || model.editState == EditingChartable chartableId False then
-                    div
-                        [ class "px-4 py-2 flex items-center"
-                        ]
-                        [ button
-                            [ class "text-black focus:outline-none flex-grow-0 flex-shrink-0 text-opacity-70 hover:text-opacity-100 focus:text-opacity-100"
-                            , Htmlx.onClickStopPropagation <| ChartableVisibleClicked chartId chartableId
-                            ]
-                            [ icon "w-5 h-5" <|
-                                if dataSet.visible then
-                                    SolidEye
-
-                                else
-                                    SolidEyeSlash
-                            ]
-                        , Controls.textbox [ class "ml-4 w-72" ]
-                            [ id <| "chart" ++ LineChartId.toString chartId ++ "-chartable" ++ ChartableId.toString chartableId ++ "-name"
-                            , placeholder "Name"
-                            ]
-                            dataSet.name
-                            { isValid = True, isRequired = True, isPristine = dataSet.nameIsPristine }
-                            (ChartableNameUpdated chartId chartableId)
-                        , label [ class "ml-auto font-bold text-right whitespace-nowrap", for "inverted" ] [ text "Invert data" ]
-                        , input
-                            [ type_ "checkbox"
-                            , id "inverted"
-                            , class "ml-2"
-                            , onCheck (ChartableInvertedChanged chartId chartableId)
-                            , checked dataSet.inverted
-                            ]
-                            []
-                        , button
-                            [ class "ml-4 rounded text-black text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
-                            , onClick (ChartableCloseClicked chartId)
-                            ]
-                            [ icon "w-5 h-5" <| SolidTimes ]
-                        ]
-
-                  else
-                    div
-                        [ class "p-4 flex items-center"
-                        ]
+                [ if model.editState /= EditingChartable chartableId True && model.editState /= EditingChartable chartableId False then
+                    div [ class "p-4 flex items-center" ]
                         [ button
                             [ class "text-black focus:outline-none flex-grow-0 flex-shrink-0 text-opacity-70 hover:text-opacity-100 focus:text-opacity-100"
                             , Htmlx.onClickStopPropagation <| ChartableVisibleClicked chartId chartableId
@@ -733,7 +720,17 @@ viewLineChart chartableOptions trackableOptions ( chartId, model ) =
                                     dataSet.name
                             ]
                         , button
-                            [ class "ml-auto flex-grow-0 flex-shrink-0 text-black focus:outline-none"
+                            [ class "ml-auto rounded text-black text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
+                            , onClick (ChartableEditClicked chartId chartableId)
+                            ]
+                            [ icon "w-5 h-5" <| SolidPencilAlt ]
+                        , button
+                            [ class "ml-4 rounded text-black text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
+                            , onClick (ChartableDeleteClicked chartId chartableId)
+                            ]
+                            [ icon "w-5 h-5" <| SolidTrashAlt ]
+                        , button
+                            [ class "ml-4 flex-grow-0 flex-shrink-0 text-black focus:outline-none"
                             , classList
                                 [ ( "text-opacity-0 cursor-default", not canMoveUp )
                                 , ( "text-opacity-70 hover:text-opacity-100 focus:text-opacity-100", canMoveUp )
@@ -754,16 +751,53 @@ viewLineChart chartableOptions trackableOptions ( chartId, model ) =
                             ]
                             [ icon "w-5 h-5" <| SolidArrowDown
                             ]
+                        ]
+
+                  else
+                    div
+                        [ class "px-4 flex items-center"
+                        , classList
+                            [ ( "py-1", canEditColour )
+                            , ( "py-2", not canEditColour )
+                            ]
+                        ]
+                        [ button
+                            [ class "text-black focus:outline-none flex-grow-0 flex-shrink-0 text-opacity-70 hover:text-opacity-100 focus:text-opacity-100"
+                            , Htmlx.onClickStopPropagation <| ChartableVisibleClicked chartId chartableId
+                            ]
+                            [ icon "w-5 h-5" <|
+                                if dataSet.visible then
+                                    SolidEye
+
+                                else
+                                    SolidEyeSlash
+                            ]
+                        , Controls.textbox [ class "ml-4 w-72" ]
+                            [ id <| "chart" ++ LineChartId.toString chartId ++ "-chartable" ++ ChartableId.toString chartableId ++ "-name"
+                            , placeholder "Name"
+                            ]
+                            dataSet.name
+                            { isValid = True, isRequired = True, isPristine = dataSet.nameIsPristine }
+                            (ChartableNameUpdated chartId chartableId)
+                        , label [ class "ml-12 font-bold text-right whitespace-nowrap", for "inverted" ] [ text "Invert data" ]
+                        , input
+                            [ type_ "checkbox"
+                            , id "inverted"
+                            , class "ml-2"
+                            , onCheck (ChartableInvertedChanged chartId chartableId)
+                            , checked dataSet.inverted
+                            ]
+                            []
+                        , if canEditColour then
+                            Controls.colourDropdown "ml-auto flex-shrink-0 flex-grow-0" (ChartableColourUpdated chartId chartableId) (Just dataSet.colour) { showFilled = False }
+
+                          else
+                            span [ class "ml-auto" ] []
                         , button
                             [ class "ml-4 rounded text-black text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
-                            , onClick (ChartableDeleteClicked chartId chartableId)
+                            , onClick (ChartableCloseClicked chartId)
                             ]
-                            [ icon "w-5 h-5" <| SolidTrashAlt ]
-                        , button
-                            [ class "ml-4 rounded text-black text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
-                            , onClick (ChartableEditClicked chartId chartableId)
-                            ]
-                            [ icon "w-5 h-5" <| SolidPencilAlt ]
+                            [ icon "w-5 h-5" <| SolidTimes ]
                         ]
                 ]
             , if model.editState == EditingChartable chartableId True || model.editState == EditingChartable chartableId False then
