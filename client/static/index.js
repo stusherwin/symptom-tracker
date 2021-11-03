@@ -400,6 +400,7 @@ customElements.define('dropdown-list', DropdownList);
 
 var storedData = localStorage.getItem('symptrack-data');
 var flags = storedData ? JSON.parse(storedData) : null;
+console.log(flags);
 
 var { Elm } = require('../src/Main');
 var app = Elm.Main.init({

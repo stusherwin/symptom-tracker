@@ -38,6 +38,43 @@ moveTailwards item list =
                 x :: moveTailwards item (y :: rest)
 
 
+moveHeadwardsBy : (a -> b) -> b -> List a -> List a
+moveHeadwardsBy fn item list =
+    case list of
+        [] ->
+            []
+
+        [ x ] ->
+            [ x ]
+
+        x :: y :: rest ->
+            if fn x == item then
+                x :: y :: rest
+
+            else if fn y == item then
+                y :: x :: rest
+
+            else
+                x :: moveHeadwardsBy fn item (y :: rest)
+
+
+moveTailwardsBy : (a -> b) -> b -> List a -> List a
+moveTailwardsBy fn item list =
+    case list of
+        [] ->
+            []
+
+        [ x ] ->
+            [ x ]
+
+        x :: y :: rest ->
+            if fn x == item then
+                y :: x :: rest
+
+            else
+                x :: moveTailwardsBy fn item (y :: rest)
+
+
 concatMaybes : List (Maybe a) -> List a
 concatMaybes list =
     case list of

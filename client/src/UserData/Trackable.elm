@@ -1,4 +1,4 @@
-module UserData.Trackable exposing (Trackable, TrackableData(..), TrackableDict, TrackableId(..), addIcon, convertToFloat, convertToIcon, convertToInt, convertToScale, convertToText, convertToYesNo, decode, decodeDict, decodeId, deleteIcon, encode, encodeDict, encodeId, fromList, hasData, idFromString, idToString, maybeFloatData, onlyFloatData, textData, toDict, toString, updateFloatData, updateIcon, updateIconData, updateIntData, updateScaleData, updateScaleFrom, updateScaleTo, updateTextData, updateYesNoData)
+module UserData.Trackable exposing (Trackable, TrackableData(..), TrackableDict, addIcon, convertToFloat, convertToIcon, convertToInt, convertToScale, convertToText, convertToYesNo, decode, deleteIcon, encode, hasData, maybeFloatData, onlyFloatData, textData, updateFloatData, updateIcon, updateIconData, updateIntData, updateScaleData, updateScaleFrom, updateScaleTo, updateTextData, updateYesNoData)
 
 import Array exposing (Array)
 import Colour exposing (Colour(..))
@@ -10,6 +10,7 @@ import Json.Decode as D
 import Json.Encode as E
 import Svg.Icon as Icon exposing (IconType(..))
 import Time exposing (Month(..))
+import UserData.TrackableId exposing (TrackableId)
 
 
 type alias Trackable =
@@ -436,59 +437,8 @@ toString data =
             "text"
 
 
-type TrackableId
-    = TrackableId Int
-
-
-fromId (TrackableId id) =
-    id
-
-
-idToString (TrackableId id) =
-    String.fromInt id
-
-
-idFromString =
-    Maybe.map TrackableId << String.toInt
-
-
-encodeId : TrackableId -> E.Value
-encodeId (TrackableId id) =
-    E.int id
-
-
-decodeId : D.Decoder TrackableId
-decodeId =
-    D.map TrackableId D.int
-
-
 type alias TrackableDict =
     IdDict TrackableId Trackable
-
-
-dictProps : IdDictProps TrackableId
-dictProps =
-    { name = "Trackable", fromId = fromId, toId = TrackableId }
-
-
-toDict : List Trackable -> TrackableDict
-toDict trackables =
-    IdDict dictProps <| Dict.fromList <| List.map2 Tuple.pair (List.range 1 (List.length trackables)) trackables
-
-
-fromList : List ( TrackableId, a ) -> IdDict TrackableId a
-fromList list =
-    IdDict dictProps (Dict.fromList <| List.map (Tuple.mapFirst dictProps.fromId) list)
-
-
-decodeDict : D.Decoder TrackableDict
-decodeDict =
-    IdDict.decode dictProps decode
-
-
-encodeDict : TrackableDict -> E.Value
-encodeDict =
-    IdDict.encode encode
 
 
 decode : D.Decoder Trackable

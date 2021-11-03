@@ -15,7 +15,8 @@ import Svg.Icon exposing (IconType(..), icon)
 import Task
 import Time exposing (Month(..))
 import UserData exposing (UserData)
-import UserData.Trackable as Trackable exposing (Trackable, TrackableData(..), TrackableId)
+import UserData.Trackable as Trackable exposing (Trackable, TrackableData(..))
+import UserData.TrackableId as TrackableId exposing (TrackableId)
 
 
 type alias Model =

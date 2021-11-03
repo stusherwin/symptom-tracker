@@ -11,7 +11,7 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onCheck, onClick, onMouseEnter, onMouseLeave)
 import Htmlx
-import IdDict exposing (IdDict)
+import IdDict
 import Listx
 import Maybe exposing (Maybe)
 import Stringx
@@ -20,9 +20,12 @@ import Svg.Icon exposing (IconType(..), icon)
 import Task
 import Time exposing (Month(..))
 import UserData exposing (UserData)
-import UserData.Chartable as Chartable exposing (Chartable, ChartableDict, ChartableId)
-import UserData.LineChart as LineChart exposing (LineChart, LineChartId)
-import UserData.Trackable as Trackable exposing (TrackableData(..), TrackableDict, TrackableId)
+import UserData.Chartable as Chartable exposing (Chartable, ChartableDict)
+import UserData.ChartableId as ChartableId exposing (ChartableId)
+import UserData.LineChart as LineChart exposing (LineChart)
+import UserData.LineChartId as LineChartId exposing (LineChartId)
+import UserData.Trackable as Trackable exposing (TrackableData(..), TrackableDict)
+import UserData.TrackableId as TrackableId exposing (TrackableId)
 
 
 type alias Model =
@@ -64,7 +67,7 @@ init today userData =
     ( { today = today
       , charts =
             UserData.lineCharts userData
-                |> IdDict.map (\_ chart -> toChartModel today (UserData.chartables userData) (UserData.trackables userData) chart)
+                |> IdDict.map (\_ chart -> toChartModel today userData chart)
                 |> IdDict.toList
       , trackableOptions =
             UserData.trackables userData
@@ -83,7 +86,7 @@ init today userData =
                 (\id ->
                     let
                         chartId =
-                            "chart" ++ LineChart.idToString id
+                            "chart" ++ LineChartId.toString id
                     in
                     Dom.getViewportOf chartId
                         |> Task.andThen (\info -> Dom.setViewportOf chartId info.scene.width 0)
@@ -93,16 +96,20 @@ init today userData =
     )
 
 
-toChartModel : Date -> ChartableDict -> TrackableDict -> LineChart -> Graph.Model LineChartModel ChartableId ChartableModel
-toChartModel today chartables trackables chart =
+toChartModel : Date -> UserData -> LineChart -> Graph.Model LineChartModel ChartableId ChartableModel
+toChartModel today userData chart =
+    let
+        toChartableModel_ ( chartableId, visible ) =
+            userData
+                |> UserData.getChartable chartableId
+                |> Maybe.map (\c -> ( chartableId, toChartableModel userData visible c ))
+    in
     { today = today
     , fillLines = chart.fillLines
     , showPoints = chart.showPoints
     , data =
         chart.chartables
-            |> IdDict.map (toChartableModel chartables trackables)
-            |> IdDict.concatMaybes
-    , dataOrder = chart.chartableOrder
+            |> List.filterMap toChartableModel_
     , selectedDataSet = Nothing
     , hoveredDataSet = Nothing
     , selectedDataPoint = Nothing
@@ -110,27 +117,22 @@ toChartModel today chartables trackables chart =
     }
 
 
-toChartableModel : ChartableDict -> TrackableDict -> ChartableId -> { visible : Bool } -> Maybe (Graph.DataSet ChartableModel)
-toChartableModel chartables trackables chartableId { visible } =
-    chartables
-        |> IdDict.get chartableId
-        |> Maybe.map
-            (\chartable ->
-                { name = chartable.name
-                , colour = toColour trackables chartable
-                , dataPoints = toDataPoints trackables chartable
-                , inverted = chartable.inverted
-                , trackables = chartable.sum |> List.filterMap (toTrackableModel trackables)
-                , visible = visible
-                , nameIsPristine = True
-                }
-            )
+toChartableModel : UserData -> Bool -> Chartable -> Graph.DataSet ChartableModel
+toChartableModel userData visible chartable =
+    { name = chartable.name
+    , colour = toColour userData chartable
+    , dataPoints = toDataPoints userData chartable
+    , inverted = chartable.inverted
+    , trackables = chartable.sum |> List.filterMap (toTrackableModel userData)
+    , visible = visible
+    , nameIsPristine = True
+    }
 
 
-toTrackableModel : TrackableDict -> ( TrackableId, Float ) -> Maybe ( TrackableId, TrackableModel )
-toTrackableModel trackables ( trackableId, multiplier ) =
-    trackables
-        |> IdDict.get trackableId
+toTrackableModel : UserData -> ( TrackableId, Float ) -> Maybe ( TrackableId, TrackableModel )
+toTrackableModel userData ( trackableId, multiplier ) =
+    userData
+        |> UserData.getTrackable trackableId
         |> Maybe.map
             (\{ question } ->
                 ( trackableId
@@ -142,19 +144,19 @@ toTrackableModel trackables ( trackableId, multiplier ) =
             )
 
 
-toColour : TrackableDict -> Chartable -> Colour
-toColour trackables chartable =
+toColour : UserData -> Chartable -> Colour
+toColour userData chartable =
     chartable.colour
         |> Maybe.withDefault
             (List.head chartable.sum
-                |> Maybe.andThen ((\t -> IdDict.get t trackables) << Tuple.first)
+                |> Maybe.andThen ((\tId -> UserData.getTrackable tId userData) << Tuple.first)
                 |> Maybe.map .colour
                 |> Maybe.withDefault Colour.Gray
             )
 
 
-toDataPoints : TrackableDict -> Chartable -> Dict Int Float
-toDataPoints trackables chartable =
+toDataPoints : UserData -> Chartable -> Dict Int Float
+toDataPoints userData chartable =
     let
         invert data =
             case List.maximum <| Dict.values data of
@@ -167,7 +169,8 @@ toDataPoints trackables chartable =
     chartable.sum
         |> List.filterMap
             (\( trackableId, multiplier ) ->
-                IdDict.get trackableId trackables
+                userData
+                    |> UserData.getTrackable trackableId
                     |> Maybe.map
                         (Dict.map (\_ v -> v * multiplier) << Trackable.onlyFloatData)
             )
@@ -190,7 +193,7 @@ type Msg
     | ShowPointsChecked LineChartId Bool
     | ChartableHovered LineChartId (Maybe ChartableId)
     | ChartableEditClicked LineChartId ChartableId
-    | ChartableCloseClicked LineChartId ChartableId
+    | ChartableCloseClicked LineChartId
     | ChartableVisibleClicked LineChartId ChartableId
     | ChartableUpClicked LineChartId ChartableId
     | ChartableDownClicked LineChartId ChartableId
@@ -215,17 +218,17 @@ update msg model =
         trackables =
             UserData.trackables model.userData
 
-        chartables =
-            UserData.chartables model.userData
-
         updateChartModel chartId fn m =
             { m | charts = m.charts |> Listx.updateLookup chartId fn }
 
         updateChartableModel chartableId fn c =
-            { c | data = c.data |> IdDict.update chartableId fn }
+            { c | data = c.data |> Listx.updateLookup chartableId fn }
 
-        updateUserData fn m =
-            { m | userData = m.userData |> fn }
+        setUserData userData m =
+            { m | userData = userData }
+
+        updateChartableOptions fn m =
+            { m | chartableOptions = m.chartableOptions |> fn }
 
         updateSelectedDataSet c =
             { c
@@ -250,64 +253,63 @@ update msg model =
 
         ChartableEditClicked chartId chartableId ->
             ( model |> (updateChartModel chartId <| updateSelectedDataSet << (\c -> { c | editState = EditingChartable chartableId False }))
-            , Task.attempt (always NoOp) <| Dom.focus <| "chart" ++ LineChart.idToString chartId ++ "-chartable" ++ Chartable.idToString chartableId ++ "-name"
+            , Task.attempt (always NoOp) <| Dom.focus <| "chart" ++ LineChartId.toString chartId ++ "-chartable" ++ ChartableId.toString chartableId ++ "-name"
             )
 
-        ChartableCloseClicked chartId chartableId ->
+        ChartableCloseClicked chartId ->
             ( model |> (updateChartModel chartId <| updateSelectedDataSet << (\c -> { c | editState = NotEditing })), Cmd.none )
 
         ChartableVisibleClicked chartId chartableId ->
             ( model |> (updateChartModel chartId <| Graph.toggleDataSet chartableId), Cmd.none )
 
         ChartableUpClicked chartId chartableId ->
-            ( model |> (updateChartModel chartId <| \c -> { c | dataOrder = c.dataOrder |> Listx.moveHeadwards chartableId }), Cmd.none )
+            ( model |> (updateChartModel chartId <| \c -> { c | data = c.data |> Listx.moveHeadwardsBy Tuple.first chartableId }), Cmd.none )
 
         ChartableDownClicked chartId chartableId ->
-            ( model |> (updateChartModel chartId <| \c -> { c | dataOrder = c.dataOrder |> Listx.moveTailwards chartableId }), Cmd.none )
+            ( model |> (updateChartModel chartId <| \c -> { c | data = c.data |> Listx.moveTailwardsBy Tuple.first chartableId }), Cmd.none )
 
         ChartableNameUpdated chartId chartableId name ->
-            ( model
-                |> (updateUserData <|
-                        if not <| String.isEmpty name then
-                            UserData.updateChartable chartableId <| \c -> { c | name = name }
+            let
+                userData_ =
+                    model.userData
+                        |> (if not <| String.isEmpty name then
+                                UserData.updateChartable chartableId <| \c -> { c | name = name }
 
-                        else
-                            identity
-                   )
+                            else
+                                identity
+                           )
+            in
+            ( model
+                |> setUserData userData_
                 |> (updateChartModel chartId <|
                         updateChartableModel chartableId <|
                             \c -> { c | name = name, nameIsPristine = False }
                    )
-                |> (\m -> { m | chartableOptions = m.chartableOptions |> Listx.insertLookup chartableId (Stringx.withDefault "[no name]" name) })
+                |> (updateChartableOptions <| Listx.insertLookup chartableId (Stringx.withDefault "[no name]" name))
             , Cmd.none
             )
 
         ChartableInvertedChanged chartId chartableId inverted ->
             let
-                chartableUM =
-                    UserData.chartables model.userData
-                        |> IdDict.get chartableId
-                        |> (Maybe.map <|
-                                \c -> { c | inverted = inverted }
-                           )
+                userData_ =
+                    model.userData |> (UserData.updateChartable chartableId <| \c -> { c | inverted = inverted })
             in
-            case chartableUM of
-                Just chartableU ->
-                    ( model
-                        |> (updateUserData <| UserData.insertChartable chartableId chartableU)
-                        |> (updateChartModel chartId <|
-                                updateChartableModel chartableId <|
-                                    \c ->
-                                        { c
-                                            | inverted = inverted
-                                            , dataPoints = toDataPoints trackables chartableU
-                                        }
-                           )
-                    , Cmd.none
-                    )
-
-                _ ->
-                    ( model, Cmd.none )
+            ( model
+                |> setUserData userData_
+                |> (updateChartModel chartId <|
+                        updateChartableModel chartableId <|
+                            \c ->
+                                { c
+                                    | inverted = inverted
+                                    , dataPoints =
+                                        userData_
+                                            |> UserData.getChartable chartableId
+                                            |> Maybe.map (toDataPoints userData_)
+                                            |> Maybe.withDefault c.dataPoints
+                                }
+                   )
+            , Cmd.none
+            )
 
         ChartableAddClicked chartId ->
             ( model
@@ -319,7 +321,7 @@ update msg model =
                                             AddingChartable
                                                 (model.chartableOptions
                                                     |> List.map Tuple.first
-                                                    |> List.filter (\tId -> not (List.member tId <| IdDict.keys c.data))
+                                                    |> List.filter (\tId -> not (List.member tId <| List.map Tuple.first c.data))
                                                     |> List.head
                                                 )
                                     }
@@ -343,7 +345,7 @@ update msg model =
 
         ChartableAddConfirmClicked chartId ->
             let
-                ( chartableIdM, userDataU, isNew ) =
+                ( chartableIdM, userData_, isNew ) =
                     case model.charts |> Listx.lookup chartId |> Maybe.map .editState of
                         Just (AddingChartable (Just chartableId)) ->
                             ( Just chartableId, model.userData, False )
@@ -364,51 +366,46 @@ update msg model =
                         _ ->
                             ( Nothing, model.userData, False )
 
-                chartablesU =
-                    UserData.chartables userDataU
+                chartableM =
+                    chartableIdM |> Maybe.andThen (\chartableId -> userData_ |> UserData.getChartable chartableId)
 
                 newChartableModelM =
-                    chartableIdM |> Maybe.andThen (\chartableId -> toChartableModel chartablesU trackables chartableId { visible = True })
+                    chartableM |> Maybe.map (toChartableModel userData_ True)
+
+                userDataM__ =
+                    chartableIdM
+                        |> Maybe.map
+                            (\chartableId ->
+                                userData_
+                                    |> (UserData.updateLineChart chartId <|
+                                            \c ->
+                                                { c
+                                                    | chartables = ( chartableId, True ) :: c.chartables
+                                                }
+                                       )
+                            )
             in
-            case ( chartableIdM, newChartableModelM ) of
-                ( Just chartableId, Just newChartableModel ) ->
-                    ( { model
-                        | userData =
-                            userDataU
-                                |> (UserData.updateLineChart chartId <|
-                                        \c ->
+            case ( chartableIdM, newChartableModelM, userDataM__ ) of
+                ( Just chartableId, Just newChartableModel, Just userData__ ) ->
+                    ( model
+                        |> setUserData userData__
+                        |> (updateChartModel chartId <|
+                                updateSelectedDataSet
+                                    << (\c ->
                                             { c
-                                                | chartables = c.chartables |> IdDict.insert chartableId { visible = True }
-                                                , chartableOrder = chartableId :: c.chartableOrder
+                                                | data = ( chartableId, newChartableModel ) :: c.data
+                                                , editState =
+                                                    if isNew then
+                                                        EditingChartable chartableId True
+
+                                                    else
+                                                        NotEditing
                                             }
-                                   )
-                        , charts =
-                            model.charts
-                                |> (Listx.updateLookup chartId <|
-                                        updateSelectedDataSet
-                                            << (\c ->
-                                                    { c
-                                                        | data = c.data |> IdDict.insert chartableId newChartableModel
-                                                        , dataOrder = chartableId :: c.dataOrder
-                                                        , editState =
-                                                            if isNew then
-                                                                EditingChartable chartableId True
-
-                                                            else
-                                                                NotEditing
-                                                        , selectedDataSet =
-                                                            if isNew then
-                                                                Just chartableId
-
-                                                            else
-                                                                Nothing
-                                                    }
-                                               )
-                                   )
-                        , chartableOptions = model.chartableOptions |> Listx.insertLookup chartableId (Stringx.withDefault "[no name]" newChartableModel.name)
-                      }
+                                       )
+                           )
+                        |> (updateChartableOptions <| Listx.insertLookup chartableId (Stringx.withDefault "[no name]" newChartableModel.name))
                     , if isNew then
-                        Task.attempt (always NoOp) <| Dom.focus <| "chart" ++ LineChart.idToString chartId ++ "-chartable" ++ Chartable.idToString chartableId ++ "-name"
+                        Task.attempt (always NoOp) <| Dom.focus <| "chart" ++ LineChartId.toString chartId ++ "-chartable" ++ ChartableId.toString chartableId ++ "-name"
 
                       else
                         Cmd.none
@@ -431,20 +428,23 @@ update msg model =
             )
 
         ChartableDeleteClicked chartId chartableId ->
+            let
+                userData_ =
+                    model.userData
+                        |> (UserData.updateLineChart chartId <|
+                                \c ->
+                                    { c
+                                        | chartables = c.chartables |> List.filter (\( cId, _ ) -> cId /= chartableId)
+                                    }
+                           )
+            in
             ( model
-                |> (updateUserData <|
-                        UserData.updateLineChart chartId <|
-                            \c ->
-                                { c
-                                    | chartables = c.chartables |> IdDict.delete chartableId
-                                    , chartableOrder = c.chartableOrder |> List.filter (\cId -> cId /= chartableId)
-                                }
-                   )
+                |> setUserData userData_
                 |> (updateChartModel chartId <|
                         \c ->
                             { c
-                                | data = c.data |> IdDict.delete chartableId
-                                , dataOrder = c.dataOrder |> List.filter (\cId -> cId /= chartableId)
+                                | data = c.data |> List.filter (\( cId, _ ) -> cId /= chartableId)
+                                , editState = NotEditing
                             }
                    )
             , Cmd.none
@@ -455,25 +455,28 @@ update msg model =
                 questionM =
                     model.trackableOptions |> Listx.lookup newTrackableId
 
-                chartableUM =
-                    UserData.chartables model.userData
-                        |> IdDict.get chartableId
-                        |> (Maybe.map <|
+                userData_ =
+                    model.userData
+                        |> (UserData.updateChartable chartableId <|
                                 \c ->
                                     { c | sum = c.sum |> Listx.updateLookupWithKey trackableId (\( _, multiplier ) -> ( newTrackableId, multiplier )) }
                            )
+
+                chartableM_ =
+                    userData_
+                        |> UserData.getChartable chartableId
             in
-            case ( questionM, chartableUM ) of
-                ( Just question, Just chartableU ) ->
+            case ( questionM, chartableM_ ) of
+                ( Just question, Just chartable_ ) ->
                     ( model
-                        |> (updateUserData <| UserData.insertChartable chartableId chartableU)
+                        |> setUserData userData_
                         |> (updateChartModel chartId <|
                                 updateChartableModel chartableId <|
                                     \c ->
                                         { c
                                             | trackables = c.trackables |> Listx.updateLookupWithKey trackableId (\( _, t ) -> ( newTrackableId, { t | question = question } ))
-                                            , colour = toColour trackables chartableU
-                                            , dataPoints = toDataPoints trackables chartableU
+                                            , colour = toColour userData_ chartable_
+                                            , dataPoints = toDataPoints userData_ chartable_
                                         }
                            )
                     , Cmd.none
@@ -486,24 +489,29 @@ update msg model =
             let
                 multiplierM =
                     String.toFloat stringValue
+                        |> Maybe.andThen
+                            (\v ->
+                                if v > 0 then
+                                    Just v
 
-                isValid =
-                    multiplierM |> Maybe.map (\v -> v > 0) |> Maybe.withDefault False
+                                else
+                                    Nothing
+                            )
 
-                chartableUM =
-                    Maybe.map2
-                        (\c m -> { c | sum = c.sum |> Listx.insertLookup trackableId m })
-                        (UserData.chartables model.userData |> IdDict.get chartableId)
-                        multiplierM
+                userDataM_ =
+                    multiplierM |> Maybe.map (\multiplier -> model.userData |> (UserData.updateChartable chartableId <| \c -> { c | sum = c.sum |> Listx.insertLookup trackableId multiplier }))
+
+                chartableM_ =
+                    userDataM_ |> Maybe.andThen (UserData.getChartable chartableId)
             in
             ( model
-                |> (updateUserData <|
-                        case chartableUM of
-                            Just chartableU ->
-                                UserData.insertChartable chartableId chartableU
+                |> (setUserData <|
+                        case userDataM_ of
+                            Just userData_ ->
+                                userData_
 
                             _ ->
-                                identity
+                                model.userData
                    )
                 |> (updateChartModel chartId <|
                         updateChartableModel chartableId <|
@@ -511,11 +519,11 @@ update msg model =
                                 { c
                                     | trackables =
                                         c.trackables
-                                            |> Listx.updateLookup trackableId (\t -> { t | multiplier = stringValue, isValid = isValid })
+                                            |> Listx.updateLookup trackableId (\t -> { t | multiplier = stringValue, isValid = multiplierM /= Nothing })
                                     , dataPoints =
-                                        case chartableUM of
-                                            Just chartableU ->
-                                                toDataPoints trackables chartableU
+                                        case ( chartableM_, userDataM_ ) of
+                                            ( Just chartable_, Just userData_ ) ->
+                                                toDataPoints userData_ chartable_
 
                                             _ ->
                                                 c.dataPoints
@@ -527,7 +535,7 @@ update msg model =
         TrackableAddClicked chartId chartableId ->
             let
                 chartableM =
-                    UserData.chartables model.userData |> IdDict.get chartableId
+                    UserData.getChartable chartableId model.userData
 
                 trackableM =
                     chartableM
@@ -542,25 +550,25 @@ update msg model =
                         |> Maybe.map (\tId -> ( tId, 1.0 ))
 
                 trackableModelM =
-                    trackableM |> Maybe.andThen (toTrackableModel trackables)
+                    trackableM |> Maybe.andThen (toTrackableModel model.userData)
 
-                chartableUM =
-                    Maybe.map2
-                        (\c trackable -> { c | sum = c.sum |> Array.fromList |> Array.push trackable |> Array.toList })
-                        chartableM
-                        trackableM
+                userDataM_ =
+                    trackableM |> (Maybe.map <| \trackable -> model.userData |> (UserData.updateChartable chartableId <| \c -> { c | sum = c.sum |> Array.fromList |> Array.push trackable |> Array.toList }))
+
+                chartableM_ =
+                    userDataM_ |> Maybe.andThen (UserData.getChartable chartableId)
             in
-            case ( trackableModelM, chartableUM ) of
-                ( Just trackableModel, Just chartable ) ->
+            case ( trackableModelM, chartableM_, userDataM_ ) of
+                ( Just trackableModel, Just chartable_, Just userData_ ) ->
                     ( model
-                        |> (updateUserData <| UserData.insertChartable chartableId chartable)
+                        |> setUserData userData_
                         |> (updateChartModel chartId <|
                                 updateChartableModel chartableId <|
                                     \c ->
                                         { c
                                             | trackables = c.trackables |> Array.fromList |> Array.push trackableModel |> Array.toList
-                                            , colour = toColour trackables chartable
-                                            , dataPoints = toDataPoints trackables chartable
+                                            , colour = toColour userData_ chartable_
+                                            , dataPoints = toDataPoints userData_ chartable_
                                         }
                            )
                     , Cmd.none
@@ -571,24 +579,27 @@ update msg model =
 
         TrackableDeleteClicked chartId chartableId trackableId ->
             let
-                chartableUM =
-                    UserData.chartables model.userData
-                        |> IdDict.get chartableId
-                        |> Maybe.map
-                            (\c ->
-                                { c | sum = c.sum |> (List.filter <| \( id, _ ) -> id /= trackableId) }
-                            )
+                userData_ =
+                    model.userData
+                        |> (UserData.updateChartable chartableId <|
+                                \c ->
+                                    { c | sum = c.sum |> (List.filter <| \( id, _ ) -> id /= trackableId) }
+                           )
+
+                chartableM_ =
+                    userData_
+                        |> UserData.getChartable chartableId
             in
-            case chartableUM of
-                Just chartableU ->
+            case chartableM_ of
+                Just chartable_ ->
                     ( model
-                        |> (updateUserData <| UserData.insertChartable chartableId chartableU)
+                        |> setUserData userData_
                         |> (updateChartModel chartId <|
                                 updateChartableModel chartableId <|
                                     \c ->
                                         { c
                                             | trackables = c.trackables |> (List.filter <| \( tId, _ ) -> tId /= trackableId)
-                                            , dataPoints = toDataPoints trackables chartableU
+                                            , dataPoints = toDataPoints userData_ chartable_
                                         }
                            )
                     , Cmd.none
@@ -611,10 +622,9 @@ update msg model =
 view : Model -> Html Msg
 view model =
     div [ class "shadow-inner-t-md" ] <|
-        [ h2 [ class "py-4 pb-0 font-bold text-2xl text-center" ]
+        h2 [ class "py-4 pb-0 font-bold text-2xl text-center" ]
             [ text "Charts" ]
-        ]
-            ++ (model.charts
+            :: (model.charts
                     |> List.map (viewLineChart model.chartableOptions model.trackableOptions)
                )
 
@@ -623,19 +633,15 @@ viewLineChart : List ( ChartableId, String ) -> List ( TrackableId, String ) -> 
 viewLineChart chartableOptions trackableOptions ( chartId, model ) =
     let
         viewChartables =
-            model.dataOrder
-                |> List.filterMap
-                    (\chartableId ->
-                        IdDict.get chartableId model.data |> Maybe.map (\ds -> ( chartableId, ds ))
-                    )
+            model.data
                 |> List.map
                     (\( chartableId, dataSet ) ->
                         let
                             canMoveUp =
-                                List.head model.dataOrder /= Just chartableId
+                                (Maybe.map Tuple.first << List.head) model.data /= Just chartableId
 
                             canMoveDown =
-                                (List.head << List.reverse) model.dataOrder /= Just chartableId
+                                (Maybe.map Tuple.first << List.head << List.reverse) model.data /= Just chartableId
                         in
                         [ div
                             [ class "border-t-4"
@@ -667,7 +673,7 @@ viewLineChart chartableOptions trackableOptions ( chartId, model ) =
                                                 SolidEyeSlash
                                         ]
                                     , Controls.textbox [ class "ml-4 w-72" ]
-                                        [ id <| "chart" ++ LineChart.idToString chartId ++ "-chartable" ++ Chartable.idToString chartableId ++ "-name"
+                                        [ id <| "chart" ++ LineChartId.toString chartId ++ "-chartable" ++ ChartableId.toString chartableId ++ "-name"
                                         , placeholder "Name"
                                         ]
                                         dataSet.name
@@ -684,7 +690,7 @@ viewLineChart chartableOptions trackableOptions ( chartId, model ) =
                                         []
                                     , button
                                         [ class "ml-4 rounded text-black text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
-                                        , onClick (ChartableCloseClicked chartId chartableId)
+                                        , onClick (ChartableCloseClicked chartId)
                                         ]
                                         [ icon "w-5 h-5" <| SolidTimes ]
                                     ]
@@ -772,8 +778,8 @@ viewLineChart chartableOptions trackableOptions ( chartId, model ) =
                                                         SolidPlus
                                                 , Controls.textDropdown "ml-4 w-full h-10"
                                                     (TrackableChanged chartId chartableId trackableId)
-                                                    Trackable.idToString
-                                                    Trackable.idFromString
+                                                    TrackableId.toString
+                                                    TrackableId.fromString
                                                     (trackableOptions
                                                         |> List.sortBy (String.toUpper << Tuple.second)
                                                         |> List.map
@@ -817,7 +823,7 @@ viewLineChart chartableOptions trackableOptions ( chartId, model ) =
     div []
         [ div [ class "mx-4 my-0 flex scrollable-parent", style "height" "300px" ]
             [ viewJustYAxis "flex-grow-0 flex-shrink-0" model
-            , viewScrollableContainer ("chart" ++ LineChart.idToString chartId) [ Html.map (GraphMsg chartId) <| viewLineGraph "h-full" model ]
+            , viewScrollableContainer ("chart" ++ LineChartId.toString chartId) [ Html.map (GraphMsg chartId) <| viewLineGraph "h-full" model ]
             ]
         , div [ class "m-4 mt-4 flex flex-wrap justify-end" ]
             [ label [ class "text-right whitespace-nowrap", for "fill-lines" ] [ text "Colour under curves" ]
@@ -840,21 +846,19 @@ viewLineChart chartableOptions trackableOptions ( chartId, model ) =
                 []
             ]
         , div [ class "mt-4 bg-gray-200" ] <|
-            [ case model.editState of
+            (case model.editState of
                 AddingChartable addingChartableId ->
                     div [ class "px-4 py-2 bg-gray-300 border-t-4 border-gray-400 flex" ]
                         [ Controls.textDropdown "w-full h-10"
                             (ChartableToAddChanged chartId)
-                            Chartable.idToString
-                            Chartable.idFromString
+                            ChartableId.toString
+                            ChartableId.fromString
                             (chartableOptions
                                 |> List.sortBy (String.toUpper << Tuple.second)
                                 |> List.map
                                     (\( cId, name ) ->
                                         ( ( cId
-                                          , not <|
-                                                List.member cId <|
-                                                    model.dataOrder
+                                          , not <| List.member cId <| List.map Tuple.first model.data
                                           )
                                         , name
                                         )
@@ -878,8 +882,8 @@ viewLineChart chartableOptions trackableOptions ( chartId, model ) =
                     div [ class "px-4 py-2 bg-gray-300 border-t-4 border-gray-400 flex" ]
                         [ Controls.button "" Controls.ButtonGrey (ChartableAddClicked chartId) SolidPlusCircle "Add chartable" True
                         ]
-            ]
-                ++ List.concat viewChartables
+            )
+                :: List.concat viewChartables
         ]
 
 

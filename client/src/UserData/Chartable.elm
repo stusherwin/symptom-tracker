@@ -1,11 +1,13 @@
-module UserData.Chartable exposing (Chartable, ChartableDict, ChartableId(..), decode, decodeDict, decodeId, decodeIdDict, decodeList, encode, encodeDict, encodeId, encodeIdDict, encodeList, fromList, idFromString, idToString, toDict)
+module UserData.Chartable exposing (Chartable, ChartableDict, decode, encode)
 
 import Colour exposing (Colour)
 import Dict
 import IdDict exposing (IdDict(..), IdDictProps)
 import Json.Decode as D
 import Json.Encode as E
-import UserData.Trackable as Trackable exposing (TrackableId)
+import UserData.ChartableId exposing (ChartableId)
+import UserData.Trackable
+import UserData.TrackableId as TrackableId exposing (TrackableId)
 
 
 type alias Chartable =
@@ -16,89 +18,8 @@ type alias Chartable =
     }
 
 
-type ChartableId
-    = ChartableId Int
-
-
-fromId : ChartableId -> Int
-fromId (ChartableId id) =
-    id
-
-
 type alias ChartableDict =
     IdDict ChartableId Chartable
-
-
-idToString (ChartableId id) =
-    String.fromInt id
-
-
-idFromString =
-    Maybe.map ChartableId << String.toInt
-
-
-encodeId : ChartableId -> E.Value
-encodeId (ChartableId id) =
-    E.int id
-
-
-decodeId : D.Decoder ChartableId
-decodeId =
-    D.map ChartableId D.int
-
-
-dictProps : IdDictProps ChartableId
-dictProps =
-    { name = "Chartable", fromId = fromId, toId = ChartableId }
-
-
-toDict : List Chartable -> ChartableDict
-toDict chartables =
-    IdDict dictProps <| Dict.fromList <| List.map2 Tuple.pair (List.range 1 (List.length chartables)) chartables
-
-
-fromList : List ( ChartableId, a ) -> IdDict ChartableId a
-fromList list =
-    IdDict dictProps (Dict.fromList <| List.map (Tuple.mapFirst dictProps.fromId) list)
-
-
-decodeDict : D.Decoder ChartableDict
-decodeDict =
-    IdDict.decode dictProps decode
-
-
-decodeList : D.Decoder (List ( ChartableId, Chartable ))
-decodeList =
-    D.list <|
-        D.map2 Tuple.pair
-            (D.field "id" decodeId)
-            (D.field "value" decode)
-
-
-encodeDict : ChartableDict -> E.Value
-encodeDict =
-    IdDict.encode encode
-
-
-encodeList : List ( ChartableId, Chartable ) -> E.Value
-encodeList =
-    E.list
-        (\( id, entity ) ->
-            E.object
-                [ ( "id", encodeId id )
-                , ( "value", encode entity )
-                ]
-        )
-
-
-decodeIdDict : D.Decoder a -> D.Decoder (IdDict ChartableId a)
-decodeIdDict =
-    IdDict.decode dictProps
-
-
-encodeIdDict : (a -> E.Value) -> IdDict ChartableId a -> E.Value
-encodeIdDict =
-    IdDict.encode
 
 
 decode : D.Decoder Chartable
@@ -117,7 +38,7 @@ decode =
         (D.field "sum" <|
             D.list <|
                 D.map2 Tuple.pair
-                    (D.field "trackableId" Trackable.decodeId)
+                    (D.field "trackableId" TrackableId.decode)
                     (D.field "multiplier" D.float)
         )
 
@@ -139,7 +60,7 @@ encode { name, colour, inverted, sum } =
           , E.list
                 (\( trackableId, multiplier ) ->
                     E.object
-                        [ ( "trackableId", Trackable.encodeId trackableId )
+                        [ ( "trackableId", TrackableId.encode trackableId )
                         , ( "multiplier", E.float multiplier )
                         ]
                 )

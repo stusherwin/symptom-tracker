@@ -1,4 +1,4 @@
-module UserData exposing (UserData, addChartable, chartables, decode, encode, init, insertChartable, lineCharts, trackables, tryAddTrackable, tryDeleteTrackable, tryUpdateTrackable, updateChartable, updateLineChart)
+module UserData exposing (UserData, addChartable, chartables, decode, encode, getChartable, getLineChart, getTrackable, init, {- insertChartable, -} lineCharts, trackables, tryAddTrackable, tryDeleteTrackable, tryUpdateTrackable, updateChartable, updateLineChart)
 
 import Array
 import Colour exposing (Colour(..))
@@ -9,9 +9,12 @@ import Json.Decode as D
 import Json.Encode as E
 import Svg.Icon exposing (IconType(..))
 import Time exposing (Month(..))
-import UserData.Chartable as Chartable exposing (Chartable, ChartableDict, ChartableId(..))
-import UserData.LineChart as LineChart exposing (LineChart, LineChartDict, LineChartId(..))
-import UserData.Trackable as Trackable exposing (Trackable, TrackableData(..), TrackableDict, TrackableId(..))
+import UserData.Chartable as Chartable exposing (Chartable, ChartableDict)
+import UserData.ChartableId as ChartableId exposing (ChartableId(..))
+import UserData.LineChart as LineChart exposing (LineChart, LineChartDict)
+import UserData.LineChartId as LineChartId exposing (LineChartId(..))
+import UserData.Trackable as Trackable exposing (Trackable, TrackableData(..), TrackableDict)
+import UserData.TrackableId as TrackableId exposing (TrackableId(..))
 
 
 type UserData
@@ -27,9 +30,19 @@ trackables (UserData data) =
     data.trackables
 
 
+getTrackable : TrackableId -> UserData -> Maybe Trackable
+getTrackable id (UserData data) =
+    IdDict.get id data.trackables
+
+
 chartables : UserData -> ChartableDict
 chartables (UserData data) =
     data.chartables
+
+
+getChartable : ChartableId -> UserData -> Maybe Chartable
+getChartable id (UserData data) =
+    IdDict.get id data.chartables
 
 
 lineCharts : UserData -> LineChartDict
@@ -37,11 +50,16 @@ lineCharts (UserData data) =
     data.lineCharts
 
 
+getLineChart : LineChartId -> UserData -> Maybe LineChart
+getLineChart id (UserData data) =
+    IdDict.get id data.lineCharts
+
+
 init : UserData
 init =
     UserData
         { trackables =
-            Trackable.fromList
+            TrackableId.toDict
                 [ ( TrackableId 1
                   , { question = "How did you feel?"
                     , colour = Red
@@ -116,7 +134,7 @@ init =
                   )
                 ]
         , chartables =
-            Chartable.fromList
+            ChartableId.toDict
                 [ ( ChartableId 1
                   , { name = "Mood"
                     , colour = Nothing
@@ -165,25 +183,17 @@ init =
                   )
                 ]
         , lineCharts =
-            LineChart.fromList
+            LineChartId.toDict
                 [ ( LineChartId 1
                   , { name = "All Data"
                     , fillLines = True
                     , showPoints = False
                     , chartables =
-                        Chartable.fromList
-                            [ ( ChartableId 1, { visible = True } )
-                            , ( ChartableId 2, { visible = False } )
-                            , ( ChartableId 3, { visible = True } )
-                            , ( ChartableId 4, { visible = True } )
-                            , ( ChartableId 5, { visible = True } )
-                            ]
-                    , chartableOrder =
-                        [ ChartableId 1
-                        , ChartableId 2
-                        , ChartableId 3
-                        , ChartableId 4
-                        , ChartableId 5
+                        [ ( ChartableId 1, True )
+                        , ( ChartableId 2, False )
+                        , ( ChartableId 3, True )
+                        , ( ChartableId 4, True )
+                        , ( ChartableId 5, True )
                         ]
                     }
                   )
@@ -211,11 +221,6 @@ updateChartable id fn (UserData data) =
     UserData { data | chartables = data.chartables |> IdDict.update id fn }
 
 
-insertChartable : ChartableId -> Chartable -> UserData -> UserData
-insertChartable id chartable (UserData data) =
-    UserData { data | chartables = data.chartables |> IdDict.insert id chartable }
-
-
 addChartable : Chartable -> UserData -> ( Maybe ChartableId, UserData )
 addChartable chartable (UserData data) =
     let
@@ -234,14 +239,14 @@ decode : D.Decoder UserData
 decode =
     let
         v0 =
-            D.map (\ts -> UserData { trackables = ts, chartables = Chartable.toDict [], lineCharts = LineChart.toDict [] })
-                Trackable.decodeDict
+            D.map (\ts -> UserData { trackables = ts, chartables = ChartableId.toDict [], lineCharts = LineChartId.toDict [] })
+                (TrackableId.decodeDict Trackable.decode)
 
         v1 =
             D.map3 (\tbles cbles cts -> UserData { trackables = tbles, chartables = cbles, lineCharts = cts })
-                (D.field "trackables" <| Trackable.decodeDict)
-                (D.field "chartables" <| Chartable.decodeDict)
-                (D.field "lineCharts" <| LineChart.decodeDict)
+                (D.field "trackables" <| TrackableId.decodeDict Trackable.decode)
+                (D.field "chartables" <| ChartableId.decodeDict Chartable.decode)
+                (D.field "lineCharts" <| LineChartId.decodeDict LineChart.decode)
     in
     D.oneOf
         [ D.null init
@@ -266,9 +271,9 @@ encode (UserData data) =
         [ ( "version", E.int 1 )
         , ( "data"
           , E.object
-                [ ( "trackables", Trackable.encodeDict data.trackables )
-                , ( "chartables", Chartable.encodeDict data.chartables )
-                , ( "lineCharts", LineChart.encodeDict data.lineCharts )
+                [ ( "trackables", TrackableId.encodeDict Trackable.encode data.trackables )
+                , ( "chartables", ChartableId.encodeDict Chartable.encode data.chartables )
+                , ( "lineCharts", LineChartId.encodeDict LineChart.encode data.lineCharts )
                 ]
           )
         ]

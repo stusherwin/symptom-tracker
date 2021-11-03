@@ -5,6 +5,7 @@ import Colour exposing (Colour(..))
 import Date exposing (Date, Unit(..))
 import Dict exposing (Dict)
 import IdDict exposing (IdDict)
+import Listx
 import Svg as S exposing (..)
 import Svg.Attributes as A exposing (..)
 import Svg.Events as E exposing (onClick, onMouseOut, onMouseOver)
@@ -20,13 +21,12 @@ type Msg dataSetId
 type alias Model m dataSetId dataSet =
     { m
         | today : Date
-        , data : IdDict dataSetId (DataSet dataSet)
+        , data : List ( dataSetId, DataSet dataSet )
         , selectedDataPoint : Maybe ( dataSetId, Int )
         , fillLines : Bool
         , showPoints : Bool
         , selectedDataSet : Maybe dataSetId
         , hoveredDataSet : Maybe dataSetId
-        , dataOrder : List dataSetId
     }
 
 
@@ -100,14 +100,7 @@ hoverDataSet id model =
 
 toggleDataSet : dataSetId -> Model m dataSetId dataSet -> Model m dataSetId dataSet
 toggleDataSet id model =
-    case IdDict.get id model.data of
-        Just ds ->
-            { model
-                | data = IdDict.insert id { ds | visible = not ds.visible } model.data
-            }
-
-        _ ->
-            model
+    { model | data = model.data |> Listx.updateLookup id (\ds -> { ds | visible = not ds.visible }) }
 
 
 
@@ -176,7 +169,7 @@ viewJustYAxis class { data } =
 
 
 viewLineGraph : String -> Model m dataSetId dataSet -> Svg (Msg dataSetId)
-viewLineGraph class { data, today, selectedDataPoint, selectedDataSet, hoveredDataSet, fillLines, showPoints, dataOrder } =
+viewLineGraph class { data, today, selectedDataPoint, selectedDataSet, hoveredDataSet, fillLines, showPoints } =
     let
         startDate =
             findStartDate today data
@@ -247,8 +240,8 @@ viewLineGraph class { data, today, selectedDataPoint, selectedDataSet, hoveredDa
                 :: xAxis
                 ++ yAxis
 
-        dataLine : dataSetId -> DataSet dataSet -> List (Svg (Msg dataSetId))
-        dataLine id dataSet =
+        dataLine : ( dataSetId, DataSet dataSet ) -> List (Svg (Msg dataSetId))
+        dataLine ( id, dataSet ) =
             let
                 plotPoints : List PlotPoint
                 plotPoints =
@@ -312,30 +305,26 @@ viewLineGraph class { data, today, selectedDataPoint, selectedDataSet, hoveredDa
                     else
                         []
                    )
-
-        dataLines =
-            IdDict.map dataLine <| IdDict.filter (\_ ds -> ds.visible) <| data
     in
     svg [ viewBox w h, A.class class ] <|
         (defs [] <|
-            List.concat <|
-                IdDict.values <|
-                    IdDict.map
-                        (\_ { colour } ->
-                            [ linearGradient [ id <| "gradient-opaque-" ++ Colour.toString colour, x1 "0", x2 "0", y1 "0", y2 "1" ]
-                                [ stop [ offset "0%", A.class <| "stop-" ++ Colour.toString colour, stopOpacity "100%" ] []
-                                , stop [ offset "100%", A.class <| "stop-" ++ Colour.toString colour, stopOpacity "90%" ] []
-                                ]
-                            , linearGradient [ id <| "gradient-transparent-" ++ Colour.toString colour, x1 "0", x2 "0", y1 "0", y2 "1" ]
-                                [ stop [ offset "0%", A.class <| "stop-" ++ Colour.toString colour, stopOpacity "80%" ] []
-                                , stop [ offset "100%", A.class <| "stop-" ++ Colour.toString colour, stopOpacity "60%" ] []
-                                ]
-                            ]
-                        )
-                        data
+            List.concatMap
+                (\( _, { colour } ) ->
+                    [ linearGradient [ id <| "gradient-opaque-" ++ Colour.toString colour, x1 "0", x2 "0", y1 "0", y2 "1" ]
+                        [ stop [ offset "0%", A.class <| "stop-" ++ Colour.toString colour, stopOpacity "100%" ] []
+                        , stop [ offset "100%", A.class <| "stop-" ++ Colour.toString colour, stopOpacity "90%" ] []
+                        ]
+                    , linearGradient [ id <| "gradient-transparent-" ++ Colour.toString colour, x1 "0", x2 "0", y1 "0", y2 "1" ]
+                        [ stop [ offset "0%", A.class <| "stop-" ++ Colour.toString colour, stopOpacity "80%" ] []
+                        , stop [ offset "100%", A.class <| "stop-" ++ Colour.toString colour, stopOpacity "60%" ] []
+                        ]
+                    ]
+                )
+                data
         )
-            :: axes
-            ++ (List.concatMap (\id -> Maybe.withDefault [] <| IdDict.get id dataLines) <| List.reverse dataOrder)
+            :: (axes
+                    ++ (List.concatMap dataLine <| List.filter (.visible << Tuple.second) <| List.reverse data)
+               )
 
 
 viewKey : String -> Colour -> Svg msg
@@ -368,7 +357,7 @@ viewKey class colour =
         ]
 
 
-findStartDate : Date -> IdDict dataSetId (DataSet dataSet) -> Date
+findStartDate : Date -> List ( dataSetId, DataSet dataSet ) -> Date
 findStartDate today data =
     let
         minDate =
@@ -376,7 +365,7 @@ findStartDate today data =
                 << Maybe.withDefault (Date.toRataDie today)
                 << List.minimum
                 << List.filterMap (List.head << Dict.keys << .dataPoints)
-                << IdDict.values
+                << List.map Tuple.second
             <|
                 data
 
@@ -386,25 +375,12 @@ findStartDate today data =
     Date.add Weeks -fullWeeks today
 
 
-findMaxValue : IdDict dataSetId (DataSet dataSet) -> Float
+findMaxValue : List ( dataSetId, DataSet dataSet ) -> Float
 findMaxValue =
     Maybe.withDefault 0
         << List.maximum
         << List.filterMap (List.maximum << Dict.values << .dataPoints)
-        << IdDict.values
-
-
-concatMaybes : List (Maybe dataSet) -> List dataSet
-concatMaybes maybeXs =
-    case maybeXs of
-        (Just x) :: xs ->
-            x :: concatMaybes xs
-
-        _ :: xs ->
-            concatMaybes xs
-
-        _ ->
-            []
+        << List.map Tuple.second
 
 
 type alias LineDefn =

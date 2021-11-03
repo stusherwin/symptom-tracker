@@ -14,7 +14,8 @@ import Platform.Cmd as Cmd
 import Svg.Icon exposing (IconType(..), icon)
 import Task
 import UserData exposing (UserData)
-import UserData.Trackable as Trackable exposing (Trackable, TrackableData(..), TrackableId)
+import UserData.Trackable as Trackable exposing (Trackable, TrackableData(..))
+import UserData.TrackableId as TrackableId exposing (TrackableId)
 
 
 type alias Model =
@@ -309,7 +310,7 @@ update msg model =
             ( { model | questions = IdDict.insert id (trackableToQuestion id t) model.questions }
             , Dom.getViewport
                 |> Task.andThen (\info -> Dom.setViewport 0 info.scene.height)
-                |> (Task.andThen <| always <| Dom.focus ("q-" ++ Trackable.idToString id))
+                |> (Task.andThen <| always <| Dom.focus ("q-" ++ TrackableId.toString id))
                 |> Task.attempt (always NoOp)
             )
 
@@ -547,7 +548,7 @@ viewQuestion id q =
     in
     div [ class "py-6 px-4 border-t-4", Colour.class "bg" q.colour, Colour.classUp "border" q.colour ] <|
         [ div [ class "flex justify-between items-end" ]
-            [ Controls.textbox [ class "w-full" ] [ A.id <| "q-" ++ Trackable.idToString id ] q.question { isValid = True, isRequired = False, isPristine = False } (QuestionTextUpdated id)
+            [ Controls.textbox [ class "w-full" ] [ A.id <| "q-" ++ TrackableId.toString id ] q.question { isValid = True, isRequired = False, isPristine = False } (QuestionTextUpdated id)
             ]
         , div [ class "flex justify-start items-end" ]
             [ Controls.textDropdown "mt-4 w-48 h-10 flex-shrink-0 flex-grow-0" (QuestionAnswerTypeUpdated id) answerTypeToString answerTypeFromString (answerTypes |> List.sortBy (String.toUpper << Tuple.second)) Nothing (Just q.answerType) { showFilled = False }
