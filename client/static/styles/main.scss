@@ -35,22 +35,6 @@ body {
   max-width: 640px;
 }
 
-.btn-gray {
-  @apply border-black border-opacity-50 hover:border-opacity-80 focus-within:border-opacity-80; // focus-within:ring focus-within:ring-blue-300;
-}
-
-.btn-gray button {
-  @apply bg-gray-800 focus:outline-none disabled:bg-opacity-30;
-}
-
-.btn-blue {
-  @apply border-blue-500 border-opacity-70 hover:border-opacity-100 focus-within:border-opacity-100;
-}
-
-.btn-blue button {
-  @apply bg-blue-500 focus:outline-none disabled:bg-opacity-30 ;
-}
-
 .hidden-all {
   display: none;
 }
@@ -66,6 +50,10 @@ body {
   -webkit-clip-path: inset(50%);
   clip-path: inset(50%);
   border: 0;
+}
+
+.options-selected-display > div {
+  @apply overflow-ellipsis overflow-hidden;
 }
 
 .group:hover .group-hover\:bg-white.hover\:bg-gray-800:hover{

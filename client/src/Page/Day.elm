@@ -339,13 +339,12 @@ viewIconAnswer id options answer =
         iconButton : Int -> IconType -> Html Msg
         iconButton value iconType =
             Controls.iconButton
-                ("mt-4 mr-4 last:mr-0 "
-                    ++ (if answer == Just value then
-                            "btn-blue"
+                "mt-4 mr-4 last:mr-0 "
+                (if answer == Just value then
+                    Controls.ButtonBlue
 
-                        else
-                            "btn-gray"
-                       )
+                 else
+                    Controls.ButtonGrey
                 )
                 (IconAnswerClicked id <|
                     if answer == Just value then
@@ -355,6 +354,7 @@ viewIconAnswer id options answer =
                         Just value
                 )
                 iconType
+                True
     in
     List.indexedMap iconButton <| Array.toList options
 
@@ -408,13 +408,12 @@ viewScaleAnswerButtons min max id answer =
         scaleButton : Int -> Html Msg
         scaleButton level =
             Controls.circleButton
-                ("mt-4 mr-4 last:mr-0 "
-                    ++ (if answer == Just level then
-                            "btn-blue"
+                "mt-4 mr-4 last:mr-0"
+                (if answer == Just level then
+                    Controls.ButtonBlue
 
-                        else
-                            "btn-gray"
-                       )
+                 else
+                    Controls.ButtonGrey
                 )
                 (ScaleAnswerClicked id <|
                     if answer == Just level then
@@ -424,6 +423,7 @@ viewScaleAnswerButtons min max id answer =
                         Just level
                 )
                 (String.fromInt level)
+                True
     in
     List.map scaleButton <|
         List.range min max

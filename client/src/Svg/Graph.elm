@@ -103,16 +103,6 @@ toggleDataSet id model =
         Just ds ->
             { model
                 | data = IdDict.insert id { ds | visible = not ds.visible } model.data
-                , selectedDataSet =
-                    model.selectedDataSet
-                        |> Maybe.andThen
-                            (\selectedId ->
-                                if selectedId == id && not ds.visible then
-                                    Nothing
-
-                                else
-                                    Just selectedId
-                            )
             }
 
         _ ->

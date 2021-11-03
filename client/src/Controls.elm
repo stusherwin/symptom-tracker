@@ -19,21 +19,22 @@ button class colour toMsg icon text enabled =
         [ A.class "rounded border-4"
         , A.class class
         , classList
-            [ ( "border-black border-opacity-50", colour == ButtonGrey )
-            , ( "hover:border-opacity-80 focus-within:border-opacity-80", colour == ButtonGrey && enabled )
-            , ( "border-blue-500 border-opacity-70", colour == ButtonBlue )
-            , ( "hover:border-opacity-100 focus-within:border-opacity-100", colour == ButtonBlue && enabled )
+            [ ( "border-black", colour == ButtonGrey )
+            , ( "border-blue-600", colour == ButtonBlue )
+            , ( "border-opacity-80 hover:border-opacity-100 focus-within:border-opacity-100", enabled )
+            , ( "border-opacity-40", not enabled )
             ]
         ]
         [ H.button
             [ A.class "w-full h-full px-2 py-1 text-white flex items-center text-center focus:outline-none"
-            , onClick toMsg
             , classList
-                [ ( "cursor-default bg-opacity-30", not enabled )
+                [ ( "cursor-default bg-opacity-80 hover:bg-opacity-90", enabled )
+                , ( "cursor-default bg-opacity-30", not enabled )
                 , ( "bg-gray-800", colour == ButtonGrey )
                 , ( "bg-blue-500", colour == ButtonBlue )
                 ]
             , A.disabled (not enabled)
+            , onClick toMsg
             ]
             [ Icon.icon "w-4 h-4 mr-2" icon
             , H.text text
@@ -41,14 +42,27 @@ button class colour toMsg icon text enabled =
         ]
 
 
-iconButton : String -> msg -> IconType -> Html msg
-iconButton class toMsg icon =
+iconButton : String -> ButtonColour -> msg -> IconType -> Bool -> Html msg
+iconButton class colour toMsg icon enabled =
     div
         [ A.class "rounded border-4"
         , A.class class
+        , classList
+            [ ( "border-black", colour == ButtonGrey )
+            , ( "border-blue-600", colour == ButtonBlue )
+            , ( "border-opacity-80 hover:border-opacity-100 focus-within:border-opacity-100", enabled )
+            , ( "border-opacity-40", not enabled )
+            ]
         ]
         [ H.button
-            [ A.class "w-full h-full p-2 text-white flex items-center text-center"
+            [ A.class "w-full h-full p-2 text-white flex items-center text-center focus:outline-none"
+            , classList
+                [ ( "cursor-default bg-opacity-80 hover:bg-opacity-90", enabled )
+                , ( "cursor-default bg-opacity-30", not enabled )
+                , ( "bg-gray-800", colour == ButtonGrey )
+                , ( "bg-blue-500", colour == ButtonBlue )
+                ]
+            , A.disabled (not enabled)
             , onClick toMsg
             ]
             [ Icon.icon "w-8 h-8" icon
@@ -56,14 +70,27 @@ iconButton class toMsg icon =
         ]
 
 
-circleButton : String -> msg -> String -> Html msg
-circleButton class toMsg text =
+circleButton : String -> ButtonColour -> msg -> String -> Bool -> Html msg
+circleButton class colour toMsg text enabled =
     div
-        [ A.class "w-10 h-10 rounded-full text-lg font-bold border-4"
+        [ A.class "rounded-full border-4"
         , A.class class
+        , classList
+            [ ( "border-black", colour == ButtonGrey )
+            , ( "border-blue-600", colour == ButtonBlue )
+            , ( "border-opacity-80 hover:border-opacity-100 focus-within:border-opacity-100", enabled )
+            , ( "border-opacity-40", not enabled )
+            ]
         ]
         [ H.button
-            [ A.class "w-full h-full p-2 text-white flex items-center text-center"
+            [ A.class "w-12 h-12 rounded-full p-2 text-white text-2xl font-bold flex items-center justify-center text-center"
+            , classList
+                [ ( "cursor-default bg-opacity-80 hover:bg-opacity-90", enabled )
+                , ( "cursor-default bg-opacity-30", not enabled )
+                , ( "bg-gray-800", colour == ButtonGrey )
+                , ( "bg-blue-500", colour == ButtonBlue )
+                ]
+            , A.disabled (not enabled)
             , onClick toMsg
             ]
             [ H.text text
@@ -102,7 +129,7 @@ dropdown class toMsg toString fromString options selectedValue { unselectedItemC
                 ]
                 []
             , div
-                [ A.class "options-selected-display absolute top-0 bottom-0 left-0 right-8"
+                [ A.class "options-selected-display absolute top-0 bottom-0 left-0 right-8 whitespace-nowrap overflow-hidden"
                 , A.class unselectedItemClass
                 ]
                 []

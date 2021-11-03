@@ -1,4 +1,4 @@
-module UserData.Trackable exposing (Trackable, TrackableData(..), TrackableDict, TrackableId(..), addIcon, convertToFloat, convertToIcon, convertToInt, convertToScale, convertToText, convertToYesNo, decode, decodeDict, decodeId, deleteIcon, encode, encodeDict, encodeId, fromList, hasData, idToString, maybeFloatData, onlyFloatData, textData, toDict, toString, updateFloatData, updateIcon, updateIconData, updateIntData, updateScaleData, updateScaleFrom, updateScaleTo, updateTextData, updateYesNoData)
+module UserData.Trackable exposing (Trackable, TrackableData(..), TrackableDict, TrackableId(..), addIcon, convertToFloat, convertToIcon, convertToInt, convertToScale, convertToText, convertToYesNo, decode, decodeDict, decodeId, deleteIcon, encode, encodeDict, encodeId, fromList, hasData, idFromString, idToString, maybeFloatData, onlyFloatData, textData, toDict, toString, updateFloatData, updateIcon, updateIconData, updateIntData, updateScaleData, updateScaleFrom, updateScaleTo, updateTextData, updateYesNoData)
 
 import Array exposing (Array)
 import Colour exposing (Colour(..))
@@ -446,6 +446,10 @@ fromId (TrackableId id) =
 
 idToString (TrackableId id) =
     String.fromInt id
+
+
+idFromString =
+    Maybe.map TrackableId << String.toInt
 
 
 encodeId : TrackableId -> E.Value
