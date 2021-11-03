@@ -1,4 +1,4 @@
-module IdDict exposing (IdDict(..), IdDictProps, add, decode, delete, encode, filter, get, insert, keys, map, toDict, tryAdd, tryDelete, tryUpdate, update, values)
+module IdDict exposing (IdDict(..), IdDictProps, add, decode, delete, encode, filter, fromList, get, insert, keys, map, toDict, tryAdd, tryDelete, tryUpdate, update, values)
 
 import Dict exposing (Dict)
 import Json.Decode as D
@@ -120,3 +120,8 @@ encode encodeEntity (IdDict _ dict) =
         )
     <|
         Dict.toList dict
+
+
+fromList : IdDictProps id -> List ( id, entity ) -> IdDict id entity
+fromList p list =
+    IdDict p (Dict.fromList <| List.map (Tuple.mapFirst p.fromId) list)

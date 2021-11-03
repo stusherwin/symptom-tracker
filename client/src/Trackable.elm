@@ -1,4 +1,4 @@
-module Trackable exposing (Trackable, TrackableData(..), TrackableDict, TrackableId, addIcon, convertToFloat, convertToIcon, convertToInt, convertToScale, convertToText, convertToYesNo, decode, decodeDict, deleteIcon, encode, encodeDict, hasData, idToString, maybeFloatData, onlyFloatData, textData, toDict, toString, updateFloatData, updateIcon, updateIconData, updateIntData, updateScaleData, updateScaleFrom, updateScaleTo, updateTextData, updateYesNoData)
+module Trackable exposing (Trackable, TrackableData(..), TrackableDict, TrackableId(..), addIcon, convertToFloat, convertToIcon, convertToInt, convertToScale, convertToText, convertToYesNo, decode, decodeDict, decodeId, deleteIcon, encode, encodeDict, encodeId, fromList, hasData, idToString, maybeFloatData, onlyFloatData, textData, toDict, toString, updateFloatData, updateIcon, updateIconData, updateIntData, updateScaleData, updateScaleFrom, updateScaleTo, updateTextData, updateYesNoData)
 
 import Array exposing (Array)
 import Colour exposing (Colour(..))
@@ -447,6 +447,16 @@ idToString (TrackableId id) =
     String.fromInt id
 
 
+encodeId : TrackableId -> E.Value
+encodeId (TrackableId id) =
+    E.int id
+
+
+decodeId : D.Decoder TrackableId
+decodeId =
+    D.map TrackableId D.int
+
+
 type alias TrackableDict =
     IdDict TrackableId Trackable
 
@@ -459,6 +469,11 @@ dictProps =
 toDict : List Trackable -> TrackableDict
 toDict trackables =
     IdDict dictProps <| Dict.fromList <| List.map2 Tuple.pair (List.range 1 (List.length trackables)) trackables
+
+
+fromList : List ( TrackableId, Trackable ) -> TrackableDict
+fromList list =
+    IdDict dictProps (Dict.fromList <| List.map (Tuple.mapFirst dictProps.fromId) list)
 
 
 decodeDict : D.Decoder TrackableDict

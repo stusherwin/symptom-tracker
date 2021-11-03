@@ -1,8 +1,8 @@
-module UserData exposing (UserData, chartables, decode, encode, init, trackables, tryAddTrackable, tryDeleteTrackable, tryUpdateTrackable)
+module UserData exposing (UserData, chartables, charts, decode, encode, init, trackables, tryAddTrackable, tryDeleteTrackable, tryUpdateTrackable)
 
 import Array
-import Chart exposing (Chart, ChartDict)
-import Chartable exposing (Chartable)
+import Chart exposing (Chart(..), ChartDict, ChartId(..))
+import Chartable exposing (Chartable, ChartableDict, ChartableId(..))
 import Colour exposing (Colour(..))
 import Date exposing (Date, Unit(..))
 import Dict exposing (Dict)
@@ -11,13 +11,13 @@ import IdDict
 import Json.Decode as D
 import Json.Encode as E
 import Time exposing (Month(..))
-import Trackable exposing (Trackable, TrackableData(..), TrackableDict, TrackableId)
+import Trackable exposing (Trackable, TrackableData(..), TrackableDict, TrackableId(..))
 
 
 type UserData
     = UserData
         { trackables : TrackableDict
-        , chartables : Dict Int Chartable
+        , chartables : ChartableDict
         , charts : ChartDict
         }
 
@@ -27,7 +27,7 @@ trackables (UserData data) =
     data.trackables
 
 
-chartables : UserData -> Dict Int Chartable
+chartables : UserData -> ChartableDict
 chartables (UserData data) =
     data.chartables
 
@@ -40,45 +40,105 @@ charts (UserData data) =
 init : UserData
 init =
     let
-        fromList : List Trackable -> Dict Int Trackable
-        fromList ts =
-            Dict.fromList <| List.map2 Tuple.pair (List.range 1 (List.length ts)) ts
-
         answersFromList : List ( Date, a ) -> Dict Int a
         answersFromList =
             Dict.fromList << List.map (Tuple.mapFirst Date.toRataDie)
     in
     UserData
         { trackables =
-            Trackable.toDict
-                [ { question = "How did you feel?"
-                  , colour = Red
-                  , multiplier = 1.0
-                  , data =
+            Trackable.fromList
+                [ ( TrackableId 1
+                  , { question = "How did you feel?"
+                    , colour = Red
+                    , multiplier = 1.0
+                    , data =
                         TIcon (Array.fromList [ SolidTired, SolidFrownOpen, SolidMeh, SolidGrin, SolidLaughBeam ]) <|
-                            answersFromList
-                                [ ( Date.fromCalendarDate 2020 Dec 13, 3 )
-                                , ( Date.fromCalendarDate 2020 Dec 14, 4 )
-                                ]
-                  }
-                , { question = "Did you have a bath?", colour = Green, multiplier = 1.0, data = TYesNo Dict.empty }
-                , { question = "Did you smoke?"
-                  , colour = Orange
-                  , multiplier = 1.0
-                  , data =
+                            Dict.fromList
+                                [ ( 737772, 3 ), ( 737773, 2 ), ( 737774, 3 ), ( 737789, 1 ), ( 737793, 1 ), ( 737811, 0 ), ( 737812, 1 ), ( 737813, 2 ), ( 737814, 4 ), ( 737815, 0 ), ( 737816, 2 ), ( 737817, 0 ), ( 737818, 3 ), ( 737819, 4 ), ( 737820, 2 ), ( 737821, 3 ), ( 737824, 0 ) ]
+                    }
+                  )
+                , ( TrackableId 2
+                  , { question = "Did you have a bath?"
+                    , colour = Green
+                    , multiplier = 1.0
+                    , data =
                         TYesNo <|
-                            answersFromList
-                                [ ( Date.fromCalendarDate 2020 Dec 13, True )
-                                , ( Date.fromCalendarDate 2020 Dec 14, False )
-                                ]
-                  }
-                , { question = "What was your energy level?", colour = Blue, multiplier = 1.0, data = TScale 1 11 Dict.empty }
-                , { question = "How many chocolate bars did you eat?", colour = Pink, multiplier = 1.0, data = TInt Dict.empty }
-                , { question = "How many miles did you run?", colour = Purple, multiplier = 1.0, data = TFloat Dict.empty }
-                , { question = "Any other notes?", colour = Rose, multiplier = 1.0, data = TText Dict.empty }
+                            Dict.fromList
+                                [ ( 737789, True ), ( 737814, True ), ( 737820, False ), ( 737824, True ) ]
+                    }
+                  )
+                , ( TrackableId 3
+                  , { question = "Did you smoke?"
+                    , colour = Orange
+                    , multiplier = 1.0
+                    , data =
+                        TYesNo <|
+                            Dict.fromList
+                                [ ( 737772, True ), ( 737773, False ), ( 737789, False ), ( 737814, False ), ( 737820, True ), ( 737824, False ) ]
+                    }
+                  )
+                , ( TrackableId 4
+                  , { question = "What was your energy level?"
+                    , colour = Blue
+                    , multiplier = 1.0
+                    , data =
+                        TScale 1
+                            11
+                        <|
+                            Dict.fromList
+                                [ ( 737789, 3 ), ( 737814, 1 ), ( 737816, 5 ), ( 737817, 11 ), ( 737818, 0 ), ( 737820, 5 ), ( 737824, 3 ) ]
+                    }
+                  )
+                , ( TrackableId 5
+                  , { question = "How many chocolate bars did you eat?"
+                    , colour = Pink
+                    , multiplier = 1.0
+                    , data =
+                        TInt <|
+                            Dict.fromList
+                                [ ( 737789, 1 ), ( 737814, 1 ), ( 737820, 3 ), ( 737824, 2 ) ]
+                    }
+                  )
+                , ( TrackableId 6
+                  , { question = "How many miles did you run?"
+                    , colour = Purple
+                    , multiplier = 1.0
+                    , data =
+                        TFloat <|
+                            Dict.fromList
+                                [ ( 737789, 7 ), ( 737814, 2.5 ), ( 737815, 10 ), ( 737816, 0 ), ( 737817, 12 ), ( 737818, 1 ), ( 737819, 11 ), ( 737820, 2 ), ( 737821, 1 ), ( 737822, 10 ), ( 737824, 2.3 ) ]
+                    }
+                  )
+                , ( TrackableId 7
+                  , { question = "Any other notes?"
+                    , colour = Rose
+                    , multiplier = 1.0
+                    , data =
+                        TText <|
+                            Dict.fromList
+                                [ ( 737814, "fdsa" ), ( 737824, "xsdf" ) ]
+                    }
+                  )
                 ]
-        , chartables = Dict.empty
-        , charts = Chart.toDict []
+        , chartables =
+            Chartable.fromList
+                [ ( ChartableId 1, { name = "Mood", colour = Colour.Fuchsia, inverted = False, sum = [ ( TrackableId 1, 1.0 ) ] } )
+                , ( ChartableId 2, { name = "Bath", colour = Colour.Blue, inverted = False, sum = [ ( TrackableId 2, 5.0 ) ] } )
+                , ( ChartableId 3, { name = "Bad things", colour = Colour.Orange, inverted = True, sum = [ ( TrackableId 3, 5.0 ), ( TrackableId 5, 1.0 ) ] } )
+                , ( ChartableId 4, { name = "Energy", colour = Colour.Green, inverted = False, sum = [ ( TrackableId 4, 1.0 ) ] } )
+                , ( ChartableId 5, { name = "Running", colour = Colour.Indigo, inverted = False, sum = [ ( TrackableId 6, 1.0 ) ] } )
+                ]
+        , charts =
+            Chart.fromList
+                [ ( ChartId 1
+                  , LineChart
+                        { name = "All Data"
+                        , fillLines = True
+                        , showPoints = False
+                        , chartables = [ ChartableId 1, ChartableId 2, ChartableId 3, ChartableId 4, ChartableId 5 ]
+                        }
+                  )
+                ]
         }
 
 
@@ -110,17 +170,18 @@ decode =
             D.map Dict.fromList (listInt v)
 
         v0 =
-            D.map (\ts -> UserData { trackables = ts, chartables = Dict.empty, charts = Chart.toDict [] })
+            D.map (\ts -> UserData { trackables = ts, chartables = Chartable.toDict [], charts = Chart.toDict [] })
                 Trackable.decodeDict
 
         v1 =
             D.map3 (\tbles cbles cts -> UserData { trackables = tbles, chartables = cbles, charts = cts })
                 (D.field "trackables" <| Trackable.decodeDict)
-                (D.field "chartables" <| dictInt Chartable.decode)
+                (D.field "chartables" <| Chartable.decodeDict)
                 (D.field "charts" <| Chart.decodeDict)
     in
     D.oneOf
-        [ v0
+        [ D.null init
+        , v0
         , v1
         , D.field "version" D.int
             |> D.andThen
@@ -156,7 +217,7 @@ encode (UserData data) =
         , ( "data"
           , E.object
                 [ ( "trackables", Trackable.encodeDict data.trackables )
-                , ( "chartables", dictInt Chartable.encode data.chartables )
+                , ( "chartables", Chartable.encodeDict data.chartables )
                 , ( "charts", Chart.encodeDict data.charts )
                 ]
           )
