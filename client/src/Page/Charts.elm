@@ -7,38 +7,22 @@ import Html exposing (..)
 import Html.Attributes exposing (..)
 import IdDict
 import Listx
-import Maybe exposing (Maybe)
 import Stringx
 import Svg.Icon exposing (IconType(..), icon)
+import Task
 import Time exposing (Month(..))
 import UserData exposing (UserData)
-import UserData.Chartable exposing (Chartable)
 import UserData.ChartableId exposing (ChartableId)
 import UserData.LineChart exposing (LineChart)
 import UserData.LineChartId as LineChartId exposing (LineChartId)
 import UserData.Trackable exposing (TrackableData(..))
-import UserData.TrackableId exposing (TrackableId)
 
 
 type alias Model =
-    { charts : List ( LineChartId, ( Chart.Model, List ( ChartableId, ChartableModel ) ) )
-    , trackableOptions : List ( TrackableId, ( String, Bool ) )
+    { today : Date
+    , charts : List ( LineChartId, Chart.Model )
     , chartableOptions : List ( ChartableId, String )
     , userData : UserData
-    }
-
-
-type alias ChartableModel =
-    { trackables : List ( TrackableId, TrackableModel )
-    , inverted : Bool
-    , nameIsPristine : Bool
-    }
-
-
-type alias TrackableModel =
-    { question : String
-    , multiplier : String
-    , isValid : Bool
     }
 
 
@@ -50,11 +34,8 @@ init today userData =
                 |> IdDict.map (toChartModel today userData)
                 |> IdDict.toList
     in
-    ( { charts = chartsWithCmds |> List.map (\( id, ( chart, _ ) ) -> ( id, chart ))
-      , trackableOptions =
-            UserData.activeTrackables userData
-                |> List.map (Tuple.mapSecond (Tuple.mapFirst .question))
-                |> List.sortBy (String.toUpper << Tuple.first << Tuple.second)
+    ( { today = today
+      , charts = chartsWithCmds |> List.map (\( id, ( chart, _ ) ) -> ( id, chart ))
       , chartableOptions =
             UserData.chartables userData
                 |> IdDict.toList
@@ -66,51 +47,20 @@ init today userData =
     )
 
 
-toChartModel : Date -> UserData -> LineChartId -> LineChart -> ( ( Chart.Model, List ( ChartableId, ChartableModel ) ), Cmd Msg )
+toChartModel : Date -> UserData -> LineChartId -> LineChart -> ( Chart.Model, Cmd Msg )
 toChartModel today userData id chart =
     let
-        toChartableModel_ ( chartableId, _ ) =
-            userData
-                |> UserData.getChartable chartableId
-                |> Maybe.map (\c -> ( chartableId, toChartableModel userData c ))
-
         ( chartModel, chartCmd ) =
             Chart.init today userData id chart
     in
-    ( ( chartModel
-      , chart.chartables
-            |> List.filterMap toChartableModel_
-      )
+    ( chartModel
     , Cmd.map (ChartMsg id) chartCmd
     )
 
 
-toChartableModel : UserData -> Chartable -> ChartableModel
-toChartableModel userData chartable =
-    { inverted = chartable.inverted
-    , trackables = chartable.sum |> List.filterMap (toTrackableModel userData)
-    , nameIsPristine = True
-    }
-
-
-toTrackableModel : UserData -> ( TrackableId, Float ) -> Maybe ( TrackableId, TrackableModel )
-toTrackableModel userData ( trackableId, multiplier ) =
-    userData
-        |> UserData.getTrackable trackableId
-        |> Maybe.map
-            (\{ question } ->
-                ( trackableId
-                , { question = question
-                  , multiplier = String.fromFloat multiplier
-                  , isValid = True
-                  }
-                )
-            )
-
-
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    model.charts |> List.map (\( id, ( chart, _ ) ) -> Sub.map (ChartMsg id) (Chart.subscriptions chart)) |> Sub.batch
+    model.charts |> List.map (\( id, chart ) -> Sub.map (ChartMsg id) (Chart.subscriptions chart)) |> Sub.batch
 
 
 
@@ -127,13 +77,19 @@ update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     let
         updateChart chartId fn m =
-            { m | charts = m.charts |> Listx.updateLookup chartId (Tuple.mapFirst fn) }
+            { m | charts = m.charts |> Listx.updateLookup chartId fn }
+
+        addChart chartId chart m =
+            { m | charts = m.charts |> Listx.insertLookup chartId chart }
+
+        setUserData userData_ m =
+            { m | userData = userData_ }
     in
     case msg of
         ChartMsg chartId chartMsg ->
             let
                 chartM =
-                    model.charts |> Listx.lookup chartId |> Maybe.map Tuple.first
+                    model.charts |> Listx.lookup chartId
             in
             case chartM of
                 Just chart ->
@@ -142,6 +98,34 @@ update msg model =
                             Chart.update chartMsg chart
                     in
                     ( model |> updateChart chartId (always chart_), Cmd.map (ChartMsg chartId) cmd )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        ChartAddClicked ->
+            let
+                newChart =
+                    { name = ""
+                    , fillLines = True
+                    , chartables = []
+                    }
+
+                ( idM, userData_ ) =
+                    model.userData |> UserData.addLineChart newChart
+
+                newChartModelM =
+                    idM |> Maybe.map (\id -> Chart.init model.today model.userData id newChart)
+            in
+            case ( idM, newChartModelM ) of
+                ( Just id, Just ( newChartModel, cmd ) ) ->
+                    ( model
+                        |> setUserData userData_
+                        |> addChart id newChartModel
+                    , Cmd.batch
+                        [ Task.perform UserDataUpdated <| Task.succeed userData_
+                        , Cmd.map (ChartMsg id) cmd
+                        ]
+                    )
 
                 _ ->
                     ( model, Cmd.none )
@@ -164,16 +148,16 @@ view model =
             [ text "Charts" ]
             :: (model.charts
                     |> List.map
-                        (\( chartId, ( c, _ ) ) ->
+                        (\( chartId, chart ) ->
                             div
                                 []
                                 [ div [ class "ml-8 mb-2 px-4" ]
-                                    [ a [ class "block w-full font-bold flex items-center relative text-opacity-70 hover:text-opacity-100 text-black", href <| "/charts/" ++ LineChartId.toString c.chartId ]
-                                        [ span [] [ text <| c.name ]
+                                    [ a [ class "block w-full font-bold flex items-center relative text-opacity-70 hover:text-opacity-100 text-black", href <| "/charts/" ++ LineChartId.toString chartId ]
+                                        [ span [] [ text <| Stringx.withDefault "[no name]" chart.name ]
                                         , icon "absolute right-4 w-5 h-5" SolidPencilAlt
                                         ]
                                     ]
-                                , Html.map (ChartMsg chartId) (Chart.view model.chartableOptions model.userData c)
+                                , Html.map (ChartMsg chartId) (Chart.view chart)
                                 ]
                         )
                )

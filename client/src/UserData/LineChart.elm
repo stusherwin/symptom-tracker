@@ -1,4 +1,4 @@
-module UserData.LineChart exposing (LineChart, LineChartDict, addChartable, decode, deleteChartable, encode, moveChartableDown, moveChartableUp, setFillLines, setName, setShowPoints, toggleChartableVisible)
+module UserData.LineChart exposing (LineChart, LineChartDict, addChartable, decode, deleteChartable, encode, moveChartableDown, moveChartableUp, setFillLines, setName, toggleChartableVisible)
 
 import IdDict exposing (IdDict(..))
 import Json.Decode as D
@@ -11,7 +11,6 @@ import UserData.LineChartId exposing (LineChartId)
 type alias LineChart =
     { name : String
     , fillLines : Bool
-    , showPoints : Bool
     , chartables : List ( ChartableId, Bool )
     }
 
@@ -23,11 +22,6 @@ type alias LineChartDict =
 setName : String -> LineChart -> LineChart
 setName name c =
     { c | name = name }
-
-
-setShowPoints : Bool -> LineChart -> LineChart
-setShowPoints sp c =
-    { c | showPoints = sp }
 
 
 setFillLines : Bool -> LineChart -> LineChart
@@ -62,17 +56,15 @@ moveChartableDown chartableId c =
 
 decode : D.Decoder LineChart
 decode =
-    D.map4
-        (\name fillLines showPoints chartables ->
+    D.map3
+        (\name fillLines chartables ->
             { name = name
             , chartables = chartables
             , fillLines = fillLines
-            , showPoints = showPoints
             }
         )
         (D.field "name" D.string)
         (D.field "fillLines" D.bool)
-        (D.field "showPoints" D.bool)
         (D.field "chartables" <|
             D.list <|
                 D.map2 Tuple.pair
@@ -86,7 +78,6 @@ encode c =
     E.object
         [ ( "name", E.string c.name )
         , ( "fillLines", E.bool c.fillLines )
-        , ( "showPoints", E.bool c.showPoints )
         , ( "chartables"
           , c.chartables
                 |> E.list

@@ -1,8 +1,8 @@
-module UserData exposing (UserData, activeTrackables, addChartable, addTrackable, chartables, decode, deleteTrackable, encode, getChartable, getChartableColour, getChartableDataPoints, getLineChart, getTrackable, init, lineCharts, moveTrackableDown, moveTrackableUp, toggleTrackableVisible, trackables, updateChartable, updateLineChart, updateTrackable)
+module UserData exposing (UserData, activeTrackables, addChartable, addLineChart, addTrackable, chartables, decode, deleteTrackable, encode, getChartable, getChartableColour, getChartableDataPoints, getLineChart, getTrackable, init, lineCharts, moveTrackableDown, moveTrackableUp, toggleTrackableVisible, trackables, updateChartable, updateLineChart, updateTrackable)
 
 import Array
 import Colour exposing (Colour(..))
-import Date exposing (Date, Unit(..))
+import Date exposing (Unit(..))
 import Dict exposing (Dict)
 import Dictx
 import IdDict
@@ -238,7 +238,6 @@ init =
                 [ ( LineChartId 1
                   , { name = "All Data"
                     , fillLines = True
-                    , showPoints = False
                     , chartables =
                         [ ( ChartableId 1, True )
                         , ( ChartableId 2, False )
@@ -320,6 +319,15 @@ addChartable chartable (UserData data) =
 updateLineChart : LineChartId -> (LineChart -> LineChart) -> UserData -> UserData
 updateLineChart id fn (UserData data) =
     UserData { data | lineCharts = data.lineCharts |> IdDict.update id fn }
+
+
+addLineChart : LineChart -> UserData -> ( Maybe LineChartId, UserData )
+addLineChart lineChart (UserData data) =
+    let
+        ( newId, lineChartsU ) =
+            data.lineCharts |> IdDict.add lineChart
+    in
+    ( newId, UserData { data | lineCharts = lineChartsU } )
 
 
 decode : D.Decoder UserData

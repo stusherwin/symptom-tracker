@@ -1,8 +1,8 @@
-module Chart.LineChart exposing (Model, Msg, addDataSet, hoverDataSet, init, moveDataSetBack, moveDataSetForward, removeDataSet, selectDataSet, subscriptions, toggleDataSetSelected, toggleDataSetVisible, update, updateDataSetColour, updateDataSetData, view)
+module Chart.LineChart exposing (Model, Msg, addDataSet, hoverDataSet, init, moveDataSetBack, moveDataSetForward, removeDataSet, selectDataSet, subscriptions, toggleDataSetSelected, toggleDataSetVisible, update, updateDataSetColour, updateDataSetData, updateDataSetName, updateName, view)
 
 import Browser.Dom as Dom
 import Date exposing (Date, Unit(..))
-import Dict
+import Dict exposing (Dict)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Htmlx
@@ -28,7 +28,7 @@ type alias Model =
     , userData : UserData
     , fullScreen : Bool
     , graph : Graph.Model ChartableId
-    , chartables : List ( ChartableId, Bool )
+    , chartables : List ( ChartableId, { name : String, inverted : Bool, data : List ( String, Dict Int Float, Float ) } )
     }
 
 
@@ -77,7 +77,20 @@ init today userData chartId chart =
                     (\( chartableId, _ ) ->
                         userData
                             |> UserData.getChartable chartableId
-                            |> Maybe.map (\c -> ( chartableId, c.inverted ))
+                            |> Maybe.map
+                                (\c ->
+                                    ( chartableId
+                                    , { name = c.name
+                                      , inverted = c.inverted
+                                      , data =
+                                            c.sum
+                                                |> List.filterMap
+                                                    (\( tId, m ) ->
+                                                        userData |> UserData.getTrackable tId |> Maybe.map (\t -> ( t.question, Trackable.onlyFloatData t, m ))
+                                                    )
+                                      }
+                                    )
+                                )
                     )
       }
     , Cmd.batch
@@ -219,6 +232,11 @@ update msg model =
             ( model, Cmd.none )
 
 
+updateName : String -> Model -> Model
+updateName name model =
+    { model | name = name }
+
+
 hoverDataSet : Maybe ChartableId -> Model -> Model
 hoverDataSet id model =
     { model | graph = model.graph |> Graph.hoverDataSet id }
@@ -239,6 +257,18 @@ selectDataSet id model =
     { model | graph = model.graph |> Graph.selectDataSet id }
 
 
+updateDataSetName : ChartableId -> String -> Model -> Model
+updateDataSetName id name model =
+    let
+        graph =
+            model.graph
+    in
+    { model
+        | graph = { graph | data = graph.data |> Listx.updateLookup id (\d -> { d | name = name }) }
+        , chartables = model.chartables |> Listx.updateLookup id (\d -> { d | name = name })
+    }
+
+
 updateDataSetData : UserData -> ChartableId -> Model -> Model
 updateDataSetData userData chartableId model =
     case userData |> UserData.getChartable chartableId of
@@ -247,7 +277,23 @@ updateDataSetData userData chartableId model =
                 graph =
                     model.graph
             in
-            { model | graph = { graph | data = graph.data |> Listx.updateLookup chartableId (\d -> { d | dataPoints = UserData.getChartableDataPoints userData chartable }) } }
+            { model
+                | graph = { graph | data = graph.data |> Listx.updateLookup chartableId (\d -> { d | dataPoints = UserData.getChartableDataPoints userData chartable }) }
+                , chartables =
+                    model.chartables
+                        |> Listx.updateLookup chartableId
+                            (\c ->
+                                { c
+                                    | inverted = chartable.inverted
+                                    , data =
+                                        chartable.sum
+                                            |> List.filterMap
+                                                (\( tId, m ) ->
+                                                    userData |> UserData.getTrackable tId |> Maybe.map (\t -> ( t.question, Trackable.onlyFloatData t, m ))
+                                                )
+                                }
+                            )
+            }
 
         _ ->
             model
@@ -261,7 +307,9 @@ updateDataSetColour userData chartableId model =
                 graph =
                     model.graph
             in
-            { model | graph = { graph | data = graph.data |> Listx.updateLookup chartableId (\d -> { d | colour = UserData.getChartableColour userData chartable }) } }
+            { model
+                | graph = { graph | data = graph.data |> Listx.updateLookup chartableId (\d -> { d | colour = UserData.getChartableColour userData chartable }) }
+            }
 
         _ ->
             model
@@ -273,9 +321,23 @@ addDataSet userData chartableId model =
         graph =
             model.graph
     in
-    case toDataSet userData chartableId True of
-        Just ( _, dataSet ) ->
-            { model | graph = { graph | data = graph.data |> Listx.insertLookup chartableId dataSet } }
+    case ( toDataSet userData chartableId True, userData |> UserData.getChartable chartableId ) of
+        ( Just ( _, dataSet ), Just chartable ) ->
+            { model
+                | graph = { graph | data = graph.data |> Listx.insertLookup chartableId dataSet }
+                , chartables =
+                    model.chartables
+                        |> Listx.insertLookup chartableId
+                            { name = chartable.name
+                            , inverted = chartable.inverted
+                            , data =
+                                chartable.sum
+                                    |> List.filterMap
+                                        (\( tId, m ) ->
+                                            userData |> UserData.getTrackable tId |> Maybe.map (\t -> ( t.question, Trackable.onlyFloatData t, m ))
+                                        )
+                            }
+            }
 
         _ ->
             model
@@ -287,7 +349,10 @@ removeDataSet chartableId model =
         graph =
             model.graph
     in
-    { model | graph = { graph | data = graph.data |> List.filter (\( cId, _ ) -> cId /= chartableId) } }
+    { model
+        | graph = { graph | data = graph.data |> List.filter (\( cId, _ ) -> cId /= chartableId) }
+        , chartables = model.chartables |> List.filter (\( cId, _ ) -> cId /= chartableId)
+    }
 
 
 moveDataSetBack : ChartableId -> Model -> Model
@@ -313,8 +378,8 @@ subscriptions _ =
     fullScreenChanged FullScreenChanged
 
 
-view : List ( ChartableId, String ) -> UserData -> Model -> Html Msg
-view chartableOptions userData model =
+view : Model -> Html Msg
+view model =
     div
         [ id ("chart" ++ LineChartId.toString model.chartId)
         , class "mb-8 bg-white"
@@ -341,31 +406,40 @@ view chartableOptions userData model =
                             SolidExpand
                     ]
                 , button
-                    [ class "mt-2 rounded shadow p-2 bg-white bg-opacity-80 text-black focus:outline-none text-opacity-70 hover:bg-opacity-100 hover:text-opacity-100 focus:text-opacity-100"
+                    [ class "mt-2 rounded shadow p-2 bg-white bg-opacity-80 text-black focus:outline-none"
+                    , classList
+                        [ ( "text-opacity-50 cursor-default", List.isEmpty model.chartables )
+                        , ( "text-opacity-70 hover:text-opacity-100 hover:bg-opacity-100 focus:text-opacity-100 focus:bg-opacity-100", not (List.isEmpty model.chartables) )
+                        ]
                     , Htmlx.onClickStopPropagation ChartZoomInClicked
+                    , disabled (List.isEmpty model.chartables)
                     ]
                     [ icon "w-5 h-5" SolidPlus
                     ]
                 , button
                     [ class "mt-2 rounded shadow p-2 bg-white bg-opacity-80 text-black focus:outline-none"
                     , classList
-                        [ ( "text-opacity-50 cursor-default", model.graph.currentWidth <= model.graph.minWidth )
-                        , ( "text-opacity-70 hover:text-opacity-100 hover:bg-opacity-100 focus:text-opacity-100 focus:bg-opacity-100", model.graph.currentWidth > model.graph.minWidth )
+                        [ ( "text-opacity-50 cursor-default", List.isEmpty model.chartables || model.graph.currentWidth <= model.graph.minWidth )
+                        , ( "text-opacity-70 hover:text-opacity-100 hover:bg-opacity-100 focus:text-opacity-100 focus:bg-opacity-100", not (List.isEmpty model.chartables) || model.graph.currentWidth > model.graph.minWidth )
                         ]
                     , Htmlx.onClickStopPropagation ChartZoomOutClicked
-                    , disabled (model.graph.currentWidth <= model.graph.minWidth)
+                    , disabled (List.isEmpty model.chartables || model.graph.currentWidth <= model.graph.minWidth)
                     ]
-                    [ icon "w-5 h-5" <| SolidMinus
+                    [ icon "w-5 h-5" SolidMinus
                     ]
                 , button
-                    [ class "mt-2 rounded shadow p-2 bg-white bg-opacity-80 text-black focus:outline-none fill-icon text-opacity-70 hover:bg-opacity-100 focus:bg-opacity:100 focus:text-opacity-100"
+                    [ class "mt-2 rounded shadow p-2 bg-white bg-opacity-80 text-black focus:outline-none fill-icon"
+                    , classList
+                        [ ( "disabled cursor-default", List.isEmpty model.chartables )
+                        ]
                     , Htmlx.onClickStopPropagation (ChartFillLinesChecked <| not model.graph.fillLines)
+                    , disabled (List.isEmpty model.chartables)
                     ]
                     [ fillIcon "w-5 h-5" model.graph.fillLines ]
                 ]
              ]
-                ++ (case model.graph.selectedDataSet |> Maybe.andThen (\id -> Listx.findBy Tuple.first id chartableOptions) of
-                        Just ( id, name ) ->
+                ++ (case model.graph.selectedDataSet |> Maybe.andThen (\id -> Listx.findBy Tuple.first id model.chartables) of
+                        Just ( id, { name, inverted, data } ) ->
                             [ div
                                 [ class "absolute left-14 top-6 rounded bg-white bg-opacity-80 p-2 min-w-44 max-w-xs" ]
                                 ([ button
@@ -388,29 +462,10 @@ view chartableOptions userData model =
                                         case featuredDataPoint of
                                             Just date ->
                                                 let
-                                                    data =
-                                                        userData
-                                                            |> UserData.getChartable id
-                                                            |> Maybe.map
-                                                                (.sum
-                                                                    >> List.filterMap
-                                                                        (\( tId, m ) ->
-                                                                            userData |> UserData.getTrackable tId |> Maybe.map (\t -> ( t.question, Maybe.withDefault 0 <| Dict.get date <| Trackable.onlyFloatData t, m ))
-                                                                        )
-                                                                )
-                                                            |> Maybe.withDefault []
-
                                                     total =
-                                                        List.sum <| List.map (\( _, v, m ) -> v * m) <| data
+                                                        List.sum <| List.map (\( _, d, m ) -> (Maybe.withDefault 0 <| Dict.get date <| d) * m) <| data
 
                                                     invertedTotal =
-                                                        let
-                                                            inverted =
-                                                                userData
-                                                                    |> UserData.getChartable id
-                                                                    |> Maybe.map .inverted
-                                                                    |> Maybe.withDefault False
-                                                        in
                                                         if inverted then
                                                             let
                                                                 max =
@@ -433,7 +488,7 @@ view chartableOptions userData model =
                                                             ++ (case invertedTotal of
                                                                     Just ( _, t ) ->
                                                                         [ span [ class "ml-1" ] [ text "(inverted " ]
-                                                                        , span [ class "font-bold" ] [ text <| String.fromFloat t ]
+                                                                        , span [ class "font-bold" ] [ text <| String.fromFloat <| (toFloat <| round <| t * 100) / 100 ]
                                                                         , span [ class "" ] [ text ")" ]
                                                                         ]
 
@@ -458,7 +513,11 @@ view chartableOptions userData model =
                                                         [ table [ class "w-full" ] <|
                                                             (data
                                                                 |> List.indexedMap
-                                                                    (\i ( question, value, multiplier ) ->
+                                                                    (\i ( question, d, multiplier ) ->
+                                                                        let
+                                                                            value =
+                                                                                Maybe.withDefault 0 <| Dict.get date <| d
+                                                                        in
                                                                         tr []
                                                                             [ td [ class "align-baseline" ]
                                                                                 [ icon "w-2 h-2" <|

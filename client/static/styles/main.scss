@@ -1144,18 +1144,18 @@ body {
   fill-opacity: 0.3;
 }
 
-.fill-icon:hover path.stroke-back {
+.fill-icon:not(.disabled):hover path.stroke-back {
   fill-opacity: 0.7;
 }
 
-.fill-icon:hover path.stroke-front {
+.fill-icon:not(.disabled):hover path.stroke-front {
   fill-opacity: 1;
 }
 
-.fill-icon:hover path.fill-back {
+.fill-icon:not(.disabled):hover path.fill-back {
   fill-opacity: 0.3;
 }
 
-.fill-icon:hover path.fill-front {
+.fill-icon:not(.disabled):hover path.fill-front {
   fill-opacity: 0.4;
 }

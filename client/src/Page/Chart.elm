@@ -5,25 +5,23 @@ import Chart.LineChart as Chart
 import Colour exposing (Colour)
 import Controls
 import Date exposing (Date, Unit(..))
-import Dict exposing (Dict)
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Html.Events exposing (onCheck, onClick, onMouseEnter, onMouseLeave)
+import Html.Events exposing (onCheck, onMouseEnter, onMouseLeave)
 import Htmlx
 import IdDict
 import Listx
 import Maybe exposing (Maybe)
 import Stringx
-import Svg.Graph as Graph exposing (Msg, viewJustYAxis, viewLineGraph)
-import Svg.Icon exposing (IconType(..), fillIcon, icon)
+import Svg.Icon exposing (IconType(..), icon)
 import Task
 import Time exposing (Month(..))
 import UserData exposing (UserData)
-import UserData.Chartable as Chartable exposing (Chartable, ChartableDict)
+import UserData.Chartable as Chartable exposing (Chartable)
 import UserData.ChartableId as ChartableId exposing (ChartableId)
 import UserData.LineChart as LineChart exposing (LineChart)
 import UserData.LineChartId as LineChartId exposing (LineChartId)
-import UserData.Trackable as Trackable exposing (TrackableData(..), TrackableDict)
+import UserData.Trackable exposing (TrackableData(..))
 import UserData.TrackableId as TrackableId exposing (TrackableId)
 
 
@@ -237,6 +235,7 @@ update msg model =
                 |> setUserData userData_
                 |> (updateChartable chartableId <| \c -> { c | name = name, nameIsPristine = False })
                 |> (updateChartableOptions <| Listx.insertLookup chartableId (Stringx.withDefault "[no name]" name))
+                |> (updateChart <| Chart.updateDataSetName chartableId name)
             , Task.perform UserDataUpdated <| Task.succeed userData_
             )
 
@@ -549,7 +548,7 @@ view : Model -> Html Msg
 view model =
     div [ class "bg-white" ]
         [ h2 [ class "py-4 pb-0 font-bold text-2xl text-center" ]
-            [ text model.chart.name ]
+            [ text <| Stringx.withDefault "[no name]" model.chart.name ]
         , viewLineChart model
         ]
 
@@ -763,7 +762,7 @@ viewLineChart model =
     in
     div
         []
-        [ Html.map ChartMsg (Chart.view model.chartableOptions model.userData model.chart)
+        [ Html.map ChartMsg (Chart.view model.chart)
         , div [ class "mt-8 bg-gray-200" ] <|
             (model.chartables |> List.concatMap viewChartable)
                 ++ [ case model.addState of
