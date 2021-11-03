@@ -1,4 +1,4 @@
-module UserData.Trackable exposing (New, Responses(..), Trackable, TrackableDict, add, addIcon, colour, convertToFloat, convertToIcon, convertToInt, convertToScale, convertToText, convertToYesNo, decode, deleteIcon, encode, getDataPoints, hasData, maybeFloatData, moveData, onlyFloatData, parseMultiplier, question, responses, setColour, setQuestion, textData, updateFloatData, updateIcon, updateIconData, updateIntData, updateScaleData, updateScaleFrom, updateScaleTo, updateTextData, updateYesNoData)
+module UserData.Trackable exposing (New, Responses(..), Trackable, TrackableDict, add, addIcon, colour, convertToFloat, convertToIcon, convertToInt, convertToScale, convertToText, convertToYesNo, decode, deleteIcon, encode, hasData, maybeFloatData, moveData, onlyFloatData, parseMultiplier, question, responses, setColour, setQuestion, textData, updateFloatData, updateIcon, updateIconData, updateIntData, updateScaleData, updateScaleFrom, updateScaleTo, updateTextData, updateYesNoData)
 
 import Array exposing (Array)
 import Colour exposing (Colour(..))
@@ -481,26 +481,25 @@ parseMultiplier stringValue =
             )
 
 
-getDataPoints : Float -> Bool -> Trackable -> Dict Int Float
-getDataPoints multiplier inverted trackable =
-    let
-        invert rs =
-            case List.maximum <| Dict.values rs of
-                Just max ->
-                    rs |> Dict.map (\_ v -> max - v)
 
-                _ ->
-                    rs
-    in
-    trackable
-        |> onlyFloatData
-        |> Dict.map (\_ v -> v * multiplier)
-        |> (if inverted then
-                invert
-
-            else
-                identity
-           )
+-- getDataPoints : Float -> Bool -> Trackable -> Dict Int Float
+-- getDataPoints multiplier inverted trackable =
+--     let
+--         invert rs =
+--             case List.maximum <| Dict.values rs of
+--                 Just max ->
+--                     rs |> Dict.map (\_ v -> max - v)
+--                 _ ->
+--                     rs
+--     in
+--     trackable
+--         |> onlyFloatData
+--         |> Dict.map (\_ v -> v * multiplier)
+--         |> (if inverted then
+--                 invert
+--             else
+--                 identity
+--            )
 
 
 moveData : Int -> Trackable -> Trackable

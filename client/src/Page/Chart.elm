@@ -4,7 +4,7 @@ import Array exposing (Array)
 import Arrayx
 import Browser.Dom as Dom
 import Chart.Chartable
-import Chart.LineChart as Chart exposing (DataSetId(..))
+import Chart.LineChart as Chart
 import Chart.Trackable
 import Controls
 import Date exposing (Date, Unit(..))
@@ -348,7 +348,7 @@ update msg model =
                             ( model, Cmd.none )
                                 |> setUserData userData_
                                 |> (updateChartable <| Chart.Chartable.update userData_ chartableMsg)
-                                |> (updateChart <| Chart.updateDataSetColour i userData_ (ChartableId chartable.chartableId))
+                                |> (updateChart <| Chart.updateChartableDataSet i userData_ chartable.chartableId)
 
                         Chart.Chartable.ChartableInvertedChanged inverted ->
                             let
@@ -358,7 +358,7 @@ update msg model =
                             ( model, Cmd.none )
                                 |> setUserData userData_
                                 |> (updateChartable <| Chart.Chartable.update userData_ chartableMsg)
-                                |> (updateChart <| Chart.updateChartableData i userData_ chartable.chartableId)
+                                |> (updateChart <| Chart.updateChartableDataSet i userData_ chartable.chartableId)
 
                         Chart.Chartable.ChartableDeleteClicked ->
                             let
@@ -395,9 +395,9 @@ update msg model =
                             ( model, Cmd.none )
                                 |> setUserData userData_
                                 |> (updateChartable <| Chart.Chartable.update userData_ chartableMsg)
-                                |> (updateChart <| Chart.updateChartableData i userData_ chartable.chartableId)
-                                |> (updateChart <| Chart.updateDataSetColour i userData_ (ChartableId chartable.chartableId))
+                                |> (updateChart <| Chart.updateChartableDataSet i userData_ chartable.chartableId)
 
+                        -- |> (updateChart <| Chart.updateDataSetColour i userData_ (ChartableId chartable.chartableId))
                         Chart.Chartable.TrackableMultiplierUpdated trackableId stringValue ->
                             let
                                 userData_ =
@@ -411,7 +411,7 @@ update msg model =
                             ( model, Cmd.none )
                                 |> setUserData userData_
                                 |> (updateChartable <| Chart.Chartable.update userData_ chartableMsg)
-                                |> (updateChart <| Chart.updateChartableData i userData_ chartable.chartableId)
+                                |> (updateChart <| Chart.updateChartableDataSet i userData_ chartable.chartableId)
 
                         Chart.Chartable.TrackableAddClicked (Just trackableId) ->
                             let
@@ -429,9 +429,9 @@ update msg model =
                             ( model, Cmd.none )
                                 |> setUserData userData_
                                 |> (updateChartable <| Chart.Chartable.update userData_ chartableMsg)
-                                |> (updateChart <| Chart.updateChartableData i userData_ chartable.chartableId)
-                                |> (updateChart <| Chart.updateDataSetColour i userData_ (ChartableId chartable.chartableId))
+                                |> (updateChart <| Chart.updateChartableDataSet i userData_ chartable.chartableId)
 
+                        -- |> (updateChart <| Chart.updateDataSetColour i userData_ (ChartableId chartable.chartableId))
                         Chart.Chartable.TrackableDeleteClicked trackableId ->
                             let
                                 userData_ =
@@ -440,9 +440,9 @@ update msg model =
                             ( model, Cmd.none )
                                 |> setUserData userData_
                                 |> (updateChartable <| Chart.Chartable.update userData_ chartableMsg)
-                                |> (updateChart <| Chart.updateChartableData i userData_ chartable.chartableId)
-                                |> (updateChart <| Chart.updateDataSetColour i userData_ (ChartableId chartable.chartableId))
+                                |> (updateChart <| Chart.updateChartableDataSet i userData_ chartable.chartableId)
 
+                        -- |> (updateChart <| Chart.updateDataSetColour i userData_ (ChartableId chartable.chartableId))
                         _ ->
                             ( model, Cmd.none )
                                 |> (updateChartable <| Chart.Chartable.update model.userData chartableMsg)
@@ -526,7 +526,7 @@ update msg model =
                             ( model, Cmd.none )
                                 |> setUserData userData_
                                 |> (updateTrackable <| Chart.Trackable.update userData_ Nothing trackableMsg)
-                                |> (updateChart <| Chart.updateTrackableData i userData_ trackable.trackableId Nothing (Just inverted))
+                                |> (updateChart <| Chart.updateTrackableDataSet i userData_ trackable.trackableId Nothing (Just inverted))
 
                         Chart.Trackable.TrackableMultiplierUpdated stringValue ->
                             let
@@ -544,7 +544,7 @@ update msg model =
                             ( model, Cmd.none )
                                 |> setUserData userData_
                                 |> (updateTrackable <| Chart.Trackable.update userData_ Nothing trackableMsg)
-                                |> (updateChart <| Chart.updateTrackableData i userData_ trackable.trackableId multiplierM Nothing)
+                                |> (updateChart <| Chart.updateTrackableDataSet i userData_ trackable.trackableId multiplierM Nothing)
 
                         Chart.Trackable.TrackableChanged (Just newTrackableId) ->
                             let

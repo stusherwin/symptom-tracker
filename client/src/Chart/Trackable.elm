@@ -1,6 +1,6 @@
 module Chart.Trackable exposing (Model, Msg(..), init, update, view)
 
-import Chart.LineChart as Chart exposing (DataSetId(..))
+import Chart.LineChart as Chart
 import Colour exposing (Colour)
 import Controls
 import Date exposing (Unit(..))

@@ -1,10 +1,11 @@
-module Svg.Graph exposing (DataSet, Model, Msg(..), hoverDataSet, hoverNearestDataPoint, selectDataSet, selectNearestDataPoint, toggleDataSetSelected, toggleDataSetVisible, update, viewJustYAxis, viewLineGraph)
+module Svg.Graph exposing (Model, Msg(..), hoverDataSet, hoverNearestDataPoint, selectDataSet, selectNearestDataPoint, toggleDataSetSelected, toggleDataSetVisible, update, viewJustYAxis, viewLineGraph)
 
 import Array exposing (Array)
 import Arrayx
 import Colour exposing (Colour(..))
+import DataSet exposing (DataSet)
 import Date exposing (Date, Unit(..))
-import Dict exposing (Dict)
+import Dict
 import Htmlx
 import Json.Decode as D
 import Svg as S exposing (..)
@@ -27,14 +28,6 @@ type alias Model =
     , minWidth : Float
     , maxWidth : Float
     , height : Float
-    }
-
-
-type alias DataSet =
-    { name : String
-    , colour : Colour
-    , dataPoints : Dict Int Float
-    , visible : Bool
     }
 
 
@@ -88,7 +81,7 @@ toggleDataSetSelected target model =
                     ( Just target, Nothing )
 
         wasVisible =
-            model.data |> Array.get target |> Maybe.map .visible
+            model.data |> Array.get target |> Maybe.map .isVisible
     in
     case wasVisible of
         Just True ->
@@ -114,10 +107,10 @@ selectDataSet targetM model =
                 _ ->
                     Nothing
 
-        visible =
-            targetM |> Maybe.andThen (\i -> model.data |> Array.get i |> Maybe.map .visible)
+        isVisible =
+            targetM |> Maybe.andThen (\i -> model.data |> Array.get i |> Maybe.map .isVisible)
     in
-    case ( targetM, visible ) of
+    case ( targetM, isVisible ) of
         ( Just i, Just True ) ->
             { model
                 | selectedDataSet = Just i
@@ -145,10 +138,10 @@ hoverDataSet targetM model =
             case targetM of
                 Just i ->
                     let
-                        visible =
-                            model.data |> Array.get i |> Maybe.map .visible
+                        isVisible =
+                            model.data |> Array.get i |> Maybe.map .isVisible
                     in
-                    if model.leavingDataSet == Just i || visible /= Just True then
+                    if model.leavingDataSet == Just i || isVisible /= Just True then
                         Nothing
 
                     else
@@ -202,7 +195,7 @@ findNearestDataPoint xPercent i model =
         Just dates ->
             let
                 startDate =
-                    Date.toRataDie <| findStartDate model.today model.data
+                    Date.toRataDie <| DataSet.startDate model.today model.data
 
                 range =
                     toFloat <| Date.toRataDie model.today - startDate
@@ -246,10 +239,10 @@ toggleDataSetVisible : Int -> Model -> Model
 toggleDataSetVisible i model =
     let
         wasVisible =
-            model.data |> Array.get i |> Maybe.map .visible
+            model.data |> Array.get i |> Maybe.map .isVisible
     in
     { model
-        | data = model.data |> Arrayx.update i (\ds -> { ds | visible = not ds.visible })
+        | data = model.data |> Arrayx.update i (\ds -> { ds | isVisible = not ds.isVisible })
         , selectedDataSet = Nothing
         , hoveredDataSet = Nothing
         , leavingDataSet =
@@ -260,32 +253,6 @@ toggleDataSetVisible i model =
                 _ ->
                     Nothing
     }
-
-
-findStartDate : Date -> Array DataSet -> Date
-findStartDate today data =
-    let
-        minDate =
-            Date.fromRataDie
-                << Maybe.withDefault (Date.toRataDie today)
-                << List.minimum
-                << List.filterMap (List.head << Dict.keys << .dataPoints)
-                << Array.toList
-            <|
-                data
-
-        fullWeeks =
-            ceiling <| toFloat (Date.diff Days minDate today) / 7
-    in
-    Date.add Weeks -fullWeeks today
-
-
-findMaxValue : Array DataSet -> Float
-findMaxValue =
-    Maybe.withDefault 0
-        << List.maximum
-        << List.filterMap (List.maximum << Dict.values << .dataPoints)
-        << Array.toList
 
 
 
@@ -325,7 +292,7 @@ divideYAxis data =
         ( maxValue, valueSteps ) =
             let
                 maxValue_ =
-                    findMaxValue data
+                    DataSet.maxValue data
 
                 log =
                     toFloat <| floor <| logBase 10 maxValue_
@@ -405,7 +372,7 @@ viewLineGraph : String -> String -> Model -> Svg Msg
 viewLineGraph svgId class m =
     let
         startDate =
-            findStartDate m.today m.data
+            DataSet.startDate m.today m.data
 
         yDiv =
             divideYAxis m.data
@@ -818,7 +785,7 @@ viewLineGraph svgId class m =
                        )
 
         visibleDataSets =
-            m.data |> Array.indexedMap Tuple.pair |> Array.toList |> List.filter (.visible << Tuple.second)
+            m.data |> Array.indexedMap Tuple.pair |> Array.toList |> List.filter (.isVisible << Tuple.second)
 
         selectedDataSet =
             visibleDataSets |> List.filter ((\i -> m.selectedDataSet == Just i) << Tuple.first)

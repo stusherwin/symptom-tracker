@@ -1,9 +1,10 @@
-module Chart.LineChart exposing (DataSetId(..), Model, Msg, addChartableDataSet, addTrackableDataSet, hoverDataSet, init, moveDataSetBack, moveDataSetForward, removeDataSet, replaceDataSetWithChartable, replaceDataSetWithTrackable, selectDataSet, subscriptions, toggleDataSetSelected, toggleDataSetVisible, update, updateChartableData, updateDataSetColour, updateDataSetName, updateName, updateTrackableData, view)
+module Chart.LineChart exposing (Model, Msg, addChartableDataSet, addTrackableDataSet, hoverDataSet, init, moveDataSetBack, moveDataSetForward, removeDataSet, replaceDataSetWithChartable, replaceDataSetWithTrackable, selectDataSet, subscriptions, toggleDataSetSelected, toggleDataSetVisible, update, updateChartableDataSet, updateDataSetName, updateName, updateTrackableDataSet, view)
 
 import Array exposing (Array)
 import Arrayx
 import Browser.Dom as Dom
 import Browser.Events as E
+import DataSet exposing (DataSet)
 import Date exposing (Date, Unit(..))
 import Dict exposing (Dict)
 import Html exposing (..)
@@ -18,7 +19,7 @@ import Time exposing (Month(..))
 import UserData exposing (UserData)
 import UserData.Chartable as C exposing (Chartable)
 import UserData.ChartableId exposing (ChartableId)
-import UserData.LineChart as LC exposing (DataSet(..), LineChart(..))
+import UserData.LineChart as LC exposing (LineChart(..))
 import UserData.LineChartId as LCId exposing (LineChartId)
 import UserData.Trackable as T exposing (Responses(..), Trackable)
 import UserData.TrackableId exposing (TrackableId)
@@ -32,20 +33,15 @@ type alias Model =
     , userData : UserData
     , fullScreen : Bool
     , graph : Graph.Model
-    , data : Array DataSet
+    , data : Array TrackableData
     }
 
 
-type alias DataSet =
+type alias TrackableData =
     { name : String
-    , inverted : Bool
+    , isInverted : Bool
     , data : List ( String, Dict Int Float, Float )
     }
-
-
-type DataSetId
-    = ChartableId ChartableId
-    | TrackableId TrackableId
 
 
 type Msg
@@ -81,13 +77,13 @@ init today userData chartId chart =
             , data =
                 LC.dataSets chart
                     |> Array.map
-                        (\( data, visible ) ->
+                        (\( data, isVisible ) ->
                             case data of
-                                LC.Chartable { chartableId, chartable } ->
-                                    chartableToDataSet chartable visible
+                                LC.Chartable { chartable } ->
+                                    DataSet.fromChartable chartable isVisible
 
-                                LC.Trackable { trackableId, trackable, multiplier, isInverted } ->
-                                    trackableToDataSet trackable multiplier isInverted visible
+                                LC.Trackable { trackable, multiplier, isInverted } ->
+                                    DataSet.fromTrackable trackable multiplier isInverted isVisible
                         )
             , selectedDataSet = Nothing
             , leavingDataSet = Nothing
@@ -105,9 +101,9 @@ init today userData chartId chart =
                 |> Array.map
                     (\( data, _ ) ->
                         case data of
-                            LC.Chartable { chartableId, chartable } ->
+                            LC.Chartable { chartable } ->
                                 { name = C.name chartable
-                                , inverted = C.isInverted chartable
+                                , isInverted = C.isInverted chartable
                                 , data =
                                     C.sum chartable
                                         |> List.map
@@ -116,9 +112,9 @@ init today userData chartId chart =
                                             )
                                 }
 
-                            LC.Trackable { trackableId, trackable, multiplier, isInverted } ->
+                            LC.Trackable { trackable, multiplier, isInverted } ->
                                 { name = T.question trackable
-                                , inverted = isInverted
+                                , isInverted = isInverted
                                 , data = [ ( T.question trackable, T.onlyFloatData trackable, multiplier ) ]
                                 }
                     )
@@ -134,24 +130,6 @@ init today userData chartId chart =
             |> Task.attempt ViewportUpdated
         ]
     )
-
-
-chartableToDataSet : Chartable -> Bool -> Graph.DataSet
-chartableToDataSet c visible =
-    { name = C.name c
-    , colour = C.colour c
-    , dataPoints = C.dataPoints c
-    , visible = visible
-    }
-
-
-trackableToDataSet : Trackable -> Float -> Bool -> Bool -> Graph.DataSet
-trackableToDataSet t multiplier inverted visible =
-    { name = T.question t
-    , colour = T.colour t
-    , dataPoints = T.getDataPoints multiplier inverted t
-    , visible = visible
-    }
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -290,11 +268,7 @@ selectDataSet i model =
 
 
 updateDataSetName : Int -> String -> Model -> ( Model, Cmd Msg )
-updateDataSetName i name model =
-    let
-        graph =
-            model.graph
-    in
+updateDataSetName i name ({ graph } as model) =
     ( { model
         | graph = { graph | data = graph.data |> Arrayx.update i (\d -> { d | name = name }) }
         , data = model.data |> Arrayx.update i (\d -> { d | name = name })
@@ -303,117 +277,86 @@ updateDataSetName i name model =
     )
 
 
-updateChartableData : Int -> UserData -> ChartableId -> Model -> ( Model, Cmd Msg )
-updateChartableData i userData chartableId model =
-    case userData |> UserData.getChartable chartableId of
-        Just ch ->
-            let
-                graph =
-                    model.graph
-            in
-            ( { model
-                | graph = { graph | data = graph.data |> Arrayx.update i (\d -> { d | dataPoints = C.dataPoints ch }) }
-                , data =
-                    model.data
-                        |> Arrayx.update i
-                            (\c ->
-                                { c
-                                    | inverted = C.isInverted ch
-                                    , data =
-                                        C.sum ch
-                                            |> List.map
-                                                (\( _, ( t, m ) ) ->
-                                                    ( T.question t, T.onlyFloatData t, m )
-                                                )
-                                }
-                            )
-              }
-            , Cmd.none
+updateChartableDataSet : Int -> UserData -> ChartableId -> Model -> ( Model, Cmd Msg )
+updateChartableDataSet i userData chartableId ({ graph } as model) =
+    userData
+        |> UserData.getChartable chartableId
+        |> Maybe.map
+            (\chartable ->
+                ( { model
+                    | graph = { graph | data = graph.data |> Arrayx.update i (\d -> DataSet.fromChartable chartable d.isVisible) }
+                    , data =
+                        model.data
+                            |> Arrayx.update i
+                                (\c ->
+                                    { c
+                                        | isInverted = C.isInverted chartable
+                                        , data =
+                                            C.sum chartable
+                                                |> List.map
+                                                    (\( _, ( t, m ) ) ->
+                                                        ( T.question t, T.onlyFloatData t, m )
+                                                    )
+                                    }
+                                )
+                  }
+                , Cmd.none
+                )
             )
-
-        _ ->
-            ( model, Cmd.none )
+        |> Maybe.withDefault ( model, Cmd.none )
 
 
-updateTrackableData : Int -> UserData -> TrackableId -> Maybe Float -> Maybe Bool -> Model -> ( Model, Cmd Msg )
-updateTrackableData i userData trackableId multiplierM invertedM model =
-    case userData |> UserData.getTrackable trackableId of
-        Just trackable ->
-            let
-                graph =
-                    model.graph
+updateTrackableDataSet : Int -> UserData -> TrackableId -> Maybe Float -> Maybe Bool -> Model -> ( Model, Cmd Msg )
+updateTrackableDataSet i userData trackableId updatedMultiplierM updatedIsInvertedM ({ graph } as model) =
+    userData
+        |> UserData.getTrackable trackableId
+        |> Maybe.andThen
+            (\trackable ->
+                model.data
+                    |> Array.get i
+                    |> Maybe.andThen
+                        (\t ->
+                            List.head t.data
+                                |> Maybe.map
+                                    (\( _, _, m ) ->
+                                        let
+                                            isInverted =
+                                                Maybe.withDefault t.isInverted updatedIsInvertedM
 
-                trackableDataM =
-                    model.data |> Array.get i
-
-                trackableListDataM =
-                    trackableDataM |> Maybe.andThen (.data >> List.head)
-            in
-            case ( trackableDataM, trackableListDataM ) of
-                ( Just { inverted }, Just ( _, _, multiplier ) ) ->
-                    ( { model
-                        | graph = { graph | data = graph.data |> Arrayx.update i (\d -> { d | dataPoints = T.getDataPoints (Maybe.withDefault multiplier multiplierM) (Maybe.withDefault inverted invertedM) trackable }) }
-                        , data =
-                            model.data
-                                |> Arrayx.update i
-                                    (\d ->
-                                        { d
-                                            | data = [ ( T.question trackable, T.onlyFloatData trackable, Maybe.withDefault multiplier multiplierM ) ]
-                                            , inverted = Maybe.withDefault inverted invertedM
-                                        }
+                                            multiplier =
+                                                Maybe.withDefault m updatedMultiplierM
+                                        in
+                                        ( { model
+                                            | graph = { graph | data = graph.data |> Arrayx.update i (\d -> DataSet.fromTrackable trackable multiplier isInverted d.isVisible) }
+                                            , data =
+                                                model.data
+                                                    |> Arrayx.update i
+                                                        (\d ->
+                                                            { d
+                                                                | data = [ ( T.question trackable, T.onlyFloatData trackable, multiplier ) ]
+                                                                , isInverted = isInverted
+                                                            }
+                                                        )
+                                          }
+                                        , Cmd.none
+                                        )
                                     )
-                      }
-                    , Cmd.none
-                    )
-
-                _ ->
-                    ( model, Cmd.none )
-
-        _ ->
-            ( model, Cmd.none )
-
-
-updateDataSetColour : Int -> UserData -> DataSetId -> Model -> ( Model, Cmd Msg )
-updateDataSetColour i userData dataSetId model =
-    case dataSetId of
-        ChartableId chartableId ->
-            case userData |> UserData.getChartable chartableId of
-                Just c ->
-                    let
-                        graph =
-                            model.graph
-                    in
-                    ( { model
-                        | graph = { graph | data = graph.data |> Arrayx.update i (\d -> { d | colour = C.colour c }) }
-                      }
-                    , Cmd.none
-                    )
-
-                _ ->
-                    ( model, Cmd.none )
-
-        _ ->
-            ( model, Cmd.none )
+                        )
+            )
+        |> Maybe.withDefault ( model, Cmd.none )
 
 
 addChartableDataSet : UserData -> ChartableId -> Model -> ( Model, Cmd Msg )
-addChartableDataSet userData chartableId model =
+addChartableDataSet userData chartableId ({ graph } as model) =
     case userData |> UserData.getChartable chartableId of
         Just c ->
-            let
-                dataSet =
-                    chartableToDataSet c True
-
-                graph =
-                    model.graph
-            in
             ( { model
-                | graph = { graph | data = graph.data |> Array.push dataSet }
+                | graph = { graph | data = graph.data |> Array.push (DataSet.fromChartable c True) }
                 , data =
                     model.data
                         |> Array.push
                             { name = C.name c
-                            , inverted = C.isInverted c
+                            , isInverted = C.isInverted c
                             , data =
                                 C.sum c
                                     |> List.map
@@ -431,23 +374,16 @@ addChartableDataSet userData chartableId model =
 
 
 replaceDataSetWithChartable : UserData -> Int -> ChartableId -> Model -> ( Model, Cmd Msg )
-replaceDataSetWithChartable userData i chartableId model =
+replaceDataSetWithChartable userData i chartableId ({ graph } as model) =
     case userData |> UserData.getChartable chartableId of
         Just c ->
-            let
-                graph =
-                    model.graph
-
-                dataSet =
-                    chartableToDataSet c True
-            in
             ( { model
-                | graph = { graph | data = graph.data |> Array.set i dataSet }
+                | graph = { graph | data = graph.data |> Array.set i (DataSet.fromChartable c True) }
                 , data =
                     model.data
                         |> Array.set i
                             { name = C.name c
-                            , inverted = C.isInverted c
+                            , isInverted = C.isInverted c
                             , data =
                                 C.sum c
                                     |> List.map
@@ -465,23 +401,16 @@ replaceDataSetWithChartable userData i chartableId model =
 
 
 replaceDataSetWithTrackable : UserData -> Int -> TrackableId -> Float -> Bool -> Bool -> Model -> ( Model, Cmd Msg )
-replaceDataSetWithTrackable userData i trackableId multiplier inverted visible model =
+replaceDataSetWithTrackable userData i trackableId multiplier isInverted isVisible ({ graph } as model) =
     case userData |> UserData.getTrackable trackableId of
         Just trackable ->
-            let
-                dataSet =
-                    trackableToDataSet trackable multiplier inverted visible
-
-                graph =
-                    model.graph
-            in
             ( { model
-                | graph = { graph | data = graph.data |> Array.set i dataSet }
+                | graph = { graph | data = graph.data |> Array.set i (DataSet.fromTrackable trackable multiplier isInverted isVisible) }
                 , data =
                     model.data
                         |> Array.set i
                             { name = T.question trackable
-                            , inverted = inverted
+                            , isInverted = isInverted
                             , data = [ ( T.question trackable, T.onlyFloatData trackable, multiplier ) ]
                             }
               }
@@ -494,23 +423,16 @@ replaceDataSetWithTrackable userData i trackableId multiplier inverted visible m
 
 
 addTrackableDataSet : UserData -> TrackableId -> Model -> ( Model, Cmd Msg )
-addTrackableDataSet userData trackableId model =
+addTrackableDataSet userData trackableId ({ graph } as model) =
     case userData |> UserData.getTrackable trackableId of
         Just trackable ->
-            let
-                dataSet =
-                    trackableToDataSet trackable 1 False True
-
-                graph =
-                    model.graph
-            in
             ( { model
-                | graph = { graph | data = graph.data |> Array.push dataSet }
+                | graph = { graph | data = graph.data |> Array.push (DataSet.fromTrackable trackable 1 False True) }
                 , data =
                     model.data
                         |> Array.push
                             { name = T.question trackable
-                            , inverted = False
+                            , isInverted = False
                             , data = [ ( T.question trackable, T.onlyFloatData trackable, 1 ) ]
                             }
               }
@@ -523,11 +445,7 @@ addTrackableDataSet userData trackableId model =
 
 
 removeDataSet : Int -> Model -> ( Model, Cmd Msg )
-removeDataSet i model =
-    let
-        graph =
-            model.graph
-    in
+removeDataSet i ({ graph } as model) =
     ( { model
         | graph = { graph | data = graph.data |> Arrayx.delete i }
         , data = model.data |> Arrayx.delete i
@@ -538,20 +456,12 @@ removeDataSet i model =
 
 
 moveDataSetBack : Int -> Model -> ( Model, Cmd Msg )
-moveDataSetBack i model =
-    let
-        graph =
-            model.graph
-    in
+moveDataSetBack i ({ graph } as model) =
     ( { model | graph = { graph | data = graph.data |> Arrayx.swap i (i - 1) } }, Cmd.none )
 
 
 moveDataSetForward : Int -> Model -> ( Model, Cmd Msg )
-moveDataSetForward i model =
-    let
-        graph =
-            model.graph
-    in
+moveDataSetForward i ({ graph } as model) =
     ( { model | graph = { graph | data = graph.data |> Arrayx.swap i (i + 1) } }, Cmd.none )
 
 
@@ -635,7 +545,7 @@ view model =
                 ]
              ]
                 ++ (case ( model.graph.selectedDataSet, model.graph.selectedDataSet |> Maybe.andThen (\i -> Array.get i model.data) ) of
-                        ( Just i, Just { name, inverted, data } ) ->
+                        ( Just i, Just { name, isInverted, data } ) ->
                             [ div
                                 [ class "absolute left-14 top-6 rounded bg-white bg-opacity-80 p-2 min-w-44 max-w-xs" ]
                                 ([ button
@@ -662,13 +572,10 @@ view model =
                                                         List.sum <| List.map (\( _, d, m ) -> (Maybe.withDefault 0 <| Dict.get date <| d) * m) <| data
 
                                                     invertedTotal =
-                                                        if inverted then
+                                                        if isInverted then
                                                             let
                                                                 max =
-                                                                    model.graph.data
-                                                                        |> Array.get i
-                                                                        |> Maybe.andThen (List.maximum << Dict.values << .dataPoints)
-                                                                        |> Maybe.withDefault 0
+                                                                    DataSet.maxValue model.graph.data
                                                             in
                                                             Just ( max, max - total )
 

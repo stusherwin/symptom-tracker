@@ -1,4 +1,4 @@
-module UserData.Chartable exposing (Chartable, ChartableDict, New, add, addTrackable, buildDict, colour, dataPoints, decode, deleteTrackable, encode, isInverted, name, ownColour, replaceTrackable, setInverted, setMultiplier, setName, setOwnColour, sum)
+module UserData.Chartable exposing (Chartable, ChartableDict, New, add, addTrackable, buildDict, colour, decode, deleteTrackable, encode, isInverted, name, ownColour, replaceTrackable, setInverted, setMultiplier, setName, setOwnColour, sum)
 
 import Colour exposing (Colour)
 import Dict exposing (Dict)
@@ -23,7 +23,6 @@ type alias Data =
     , isInverted : Bool
     , sum : List ( TrackableId, ( Trackable, Float ) )
     , colour : Colour
-    , dataPoints : Dict Int Float
     }
 
 
@@ -72,11 +71,6 @@ colour (Chartable c) =
     c.colour
 
 
-dataPoints : Chartable -> Dict Int Float
-dataPoints (Chartable c) =
-    c.dataPoints
-
-
 add : TrackableDict -> New -> ChartableDict -> Result String ( ( ChartableId, Chartable ), ChartableDict )
 add trackables c dict =
     let
@@ -104,7 +98,6 @@ build trackables s =
         , isInverted = s.isInverted
         , sum = sum_
         , colour = buildColour sum_ s.ownColour
-        , dataPoints = buildDataPoints sum_ s.isInverted
         }
 
 
@@ -136,31 +129,30 @@ buildColour s col =
     colourM |> Maybe.withDefault Colour.Gray
 
 
-buildDataPoints : List ( TrackableId, ( Trackable, Float ) ) -> Bool -> Dict Int Float
-buildDataPoints s inv =
-    let
-        invert d =
-            case List.maximum <| Dict.values d of
-                Just max ->
-                    d |> Dict.map (\_ v -> max - v)
 
-                _ ->
-                    d
-    in
-    s
-        |> List.map
-            (\( _, ( trackable, multiplier ) ) ->
-                trackable
-                    |> T.onlyFloatData
-                    |> Dict.map (\_ v -> v * multiplier)
-            )
-        |> List.foldl (Dictx.unionWith (\v1 v2 -> v1 + v2)) Dict.empty
-        |> (if inv then
-                invert
-
-            else
-                identity
-           )
+-- buildDataPoints : List ( TrackableId, ( Trackable, Float ) ) -> Bool -> Dict Int Float
+-- buildDataPoints s inv =
+--     let
+--         invert d =
+--             case List.maximum <| Dict.values d of
+--                 Just max ->
+--                     d |> Dict.map (\_ v -> max - v)
+--                 _ ->
+--                     d
+--     in
+--     s
+--         |> List.map
+--             (\( _, ( trackable, multiplier ) ) ->
+--                 trackable
+--                     |> T.onlyFloatData
+--                     |> Dict.map (\_ v -> v * multiplier)
+--             )
+--         |> List.foldl (Dictx.unionWith (\v1 v2 -> v1 + v2)) Dict.empty
+--         |> (if inv then
+--                 invert
+--             else
+--                 identity
+--            )
 
 
 setName : String -> Chartable -> Chartable
@@ -175,7 +167,7 @@ setOwnColour col (Chartable c) =
 
 setInverted : Bool -> Chartable -> Chartable
 setInverted inv (Chartable c) =
-    Chartable { c | isInverted = inv, dataPoints = buildDataPoints c.sum inv }
+    Chartable { c | isInverted = inv }
 
 
 addTrackable : TrackableId -> Trackable -> Float -> Chartable -> Chartable
@@ -184,7 +176,7 @@ addTrackable trackableId trackable multiplier (Chartable c) =
         sum_ =
             c.sum ++ [ ( trackableId, ( trackable, multiplier ) ) ]
     in
-    Chartable { c | colour = buildColour sum_ c.ownColour, dataPoints = buildDataPoints sum_ c.isInverted }
+    Chartable { c | colour = buildColour sum_ c.ownColour }
 
 
 deleteTrackable : TrackableId -> Chartable -> Chartable
@@ -197,7 +189,6 @@ deleteTrackable trackableId (Chartable c) =
         { c
             | sum = sum_
             , colour = buildColour sum_ c.ownColour
-            , dataPoints = buildDataPoints sum_ c.isInverted
         }
 
 
@@ -211,7 +202,6 @@ replaceTrackable oldTrackableId newTrackableId newTrackable (Chartable c) =
         { c
             | sum = sum_
             , colour = buildColour sum_ c.ownColour
-            , dataPoints = buildDataPoints sum_ c.isInverted
         }
 
 
@@ -224,7 +214,6 @@ setMultiplier trackableId multiplier (Chartable c) =
     Chartable
         { c
             | sum = sum_
-            , dataPoints = buildDataPoints sum_ c.isInverted
         }
 
 

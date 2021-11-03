@@ -4,7 +4,7 @@ import Array exposing (Array)
 import Arrayx
 import Browser.Dom as Dom
 import Chart.Chartable
-import Chart.LineChart as Chart exposing (DataSetId(..))
+import Chart.LineChart as Chart
 import Colour exposing (Colour(..))
 import Controls
 import Html exposing (..)

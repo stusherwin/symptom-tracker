@@ -1,7 +1,7 @@
 module Chart.Chartable exposing (Model, Msg(..), buildTrackableOptions, init, toTrackableModel, update, view)
 
 import Browser.Dom as Dom
-import Chart.LineChart as Chart exposing (DataSetId(..))
+import Chart.LineChart as Chart
 import Colour exposing (Colour)
 import Controls
 import Date exposing (Unit(..))
