@@ -78,6 +78,8 @@ type IconType
     | SolidMinus
     | SolidArrowRight
     | SolidCaretRight
+    | SolidCalendarCheck
+    | SolidChartArea
 
 
 toString : IconType -> String
@@ -200,6 +202,12 @@ toString iconType =
         SolidCaretRight ->
             "solid-caret-right"
 
+        SolidCalendarCheck ->
+            "solid-calendar-check"
+            
+        SolidChartArea -> 
+            "solid-chart-area"
+
 
 fromString : String -> Maybe IconType
 fromString str =
@@ -320,6 +328,12 @@ fromString str =
 
         "solid-caret-right" ->
             Just SolidCaretRight
+
+        "solid-calendar-check" ->
+            Just SolidCalendarCheck
+            
+        "solid-chart-area" ->
+            Just SolidChartArea 
 
         _ ->
             Nothing
@@ -523,6 +537,16 @@ iconSymbol attrs iconType =
                 [ path ([ d "M0 384.662V127.338c0-17.818 21.543-26.741 34.142-14.142l128.662 128.662c7.81 7.81 7.81 20.474 0 28.284L34.142 398.804C21.543 411.404 0 402.48 0 384.662z" ] ++ attrs) []
                 ]
 
+        SolidCalendarCheck ->
+            symbol [id <| toString iconType, viewBox "0 0 448 512"] [
+              path ([d "M436 160H12c-6.627 0-12-5.373-12-12v-36c0-26.51 21.49-48 48-48h48V12c0-6.627 5.373-12 12-12h40c6.627 0 12 5.373 12 12v52h128V12c0-6.627 5.373-12 12-12h40c6.627 0 12 5.373 12 12v52h48c26.51 0 48 21.49 48 48v36c0 6.627-5.373 12-12 12zM12 192h424c6.627 0 12 5.373 12 12v260c0 26.51-21.49 48-48 48H48c-26.51 0-48-21.49-48-48V204c0-6.627 5.373-12 12-12zm333.296 95.947l-28.169-28.398c-4.667-4.705-12.265-4.736-16.97-.068L194.12 364.665l-45.98-46.352c-4.667-4.705-12.266-4.736-16.971-.068l-28.397 28.17c-4.705 4.667-4.736 12.265-.068 16.97l82.601 83.269c4.667 4.705 12.265 4.736 16.97.068l142.953-141.805c4.705-4.667 4.736-12.265.068-16.97z"] ++ attrs) []
+            ]
+
+        SolidChartArea ->
+            symbol [id <| toString iconType, viewBox "0 0 512 512"] [
+              path ([d "M500 384c6.6 0 12 5.4 12 12v40c0 6.6-5.4 12-12 12H12c-6.6 0-12-5.4-12-12V76c0-6.6 5.4-12 12-12h40c6.6 0 12 5.4 12 12v308h436zM372.7 159.5L288 216l-85.3-113.7c-5.1-6.8-15.5-6.3-19.9 1L96 248v104h384l-89.9-187.8c-3.2-6.5-11.4-8.7-17.4-4.7z"]  ++ attrs) []
+            ]
+
 
 all : List IconType
 all =
@@ -565,6 +589,8 @@ all =
     , SolidMinus
     , SolidArrowRight
     , SolidCaretRight
+    , SolidCalendarCheck
+    , SolidChartArea
     ]
 
 

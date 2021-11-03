@@ -8,10 +8,10 @@ import Html.Attributes exposing (..)
 import Json.Decode as Decode
 import Json.Encode as Encode
 import Maybe exposing (Maybe)
-import Page.Chart as ChartPage
+import Page.Chartables as ChartablesPage
 import Page.Charts as ChartsPage
 import Page.Day as DayPage
-import Page.Settings as SettingsPage
+import Page.Trackables as TrackablesPage
 import Ports exposing (setUserData)
 import Svg.Icon exposing (IconType(..), icon, iconSymbols, logo)
 import Task
@@ -46,7 +46,8 @@ main =
 type Route
     = Today
     | Day Date
-    | Settings
+    | Trackables
+    | Chartables
     | Charts (Maybe LineChartId)
 
 
@@ -60,7 +61,8 @@ routeParser =
     oneOf
         [ Parser.map Today top
         , Parser.map Day (Parser.map Date.fromCalendarDate (Parser.s "day" </> Parser.int </> monthParser </> Parser.int))
-        , Parser.map Settings (Parser.s "settings")
+        , Parser.map Trackables (Parser.s "trackables")
+        , Parser.map Chartables (Parser.s "chartables")
         , Parser.map Charts (Parser.s "charts" </> Parser.map (Just << LineChartId) Parser.int)
         , Parser.map (Charts Nothing) (Parser.s "charts")
         ]
@@ -75,8 +77,11 @@ routeToPage today userData route navKey =
         Just (Day date) ->
             ( DayPage <| DayPage.init today date userData, Cmd.none )
 
-        Just Settings ->
-            ( SettingsPage <| SettingsPage.init userData, Cmd.none )
+        Just Trackables ->
+            ( TrackablesPage <| TrackablesPage.init userData, Cmd.none )
+
+        Just Chartables ->
+            ( ChartablesPage <| ChartablesPage.init userData, Cmd.none )
 
         Just (Charts chartId) ->
             let
@@ -85,16 +90,6 @@ routeToPage today userData route navKey =
             in
             ( ChartsPage model, Cmd.map ChartsPageMsg cmd )
 
-        -- Just (Chart chartId) ->
-        --     case userData |> UserData.getLineChart chartId of
-        --         Just chart ->
-        --             let
-        --                 ( model, cmd ) =
-        --                     ChartPage.init today userData chartId chart
-        --             in
-        --             ( ChartPage model, Cmd.map ChartPageMsg cmd )
-        --         _ ->
-        --             ( NotFoundPage, Cmd.none )
         _ ->
             ( NotFoundPage, Cmd.none )
 
@@ -118,9 +113,9 @@ type PageState
 
 type Page
     = DayPage DayPage.Model
-    | SettingsPage SettingsPage.Model
+    | TrackablesPage TrackablesPage.Model
+    | ChartablesPage ChartablesPage.Model
     | ChartsPage ChartsPage.Model
-      -- | ChartPage ChartPage.Model
     | NotFoundPage
 
 
@@ -172,8 +167,8 @@ type Msg
     | LinkClicked Browser.UrlRequest
     | DayPageMsg DayPage.Msg
     | ChartsPageMsg ChartsPage.Msg
-      -- | ChartPageMsg ChartPage.Msg
-    | SettingsPageMsg SettingsPage.Msg
+    | TrackablesPageMsg TrackablesPage.Msg
+    | ChartablesPageMsg ChartablesPage.Msg
     | UpdateThrottle
 
 
@@ -274,29 +269,32 @@ update msg model =
                 _ ->
                     ( model, Cmd.none )
 
-        -- ChartPageMsg (ChartPage.UserDataUpdated userData_) ->
-        --     updateUserData userData_
-        -- ChartPageMsg chartPageMsg ->
-        --     case model.pageState of
-        --         Loaded today userData (ChartPage chartPageModel) ->
-        --             let
-        --                 ( newModel, cmd ) =
-        --                     ChartPage.update chartPageMsg chartPageModel
-        --             in
-        --             ( { model | pageState = Loaded today userData (ChartPage newModel) }, Cmd.map ChartPageMsg cmd )
-        --         _ ->
-        --             ( model, Cmd.none )
-        SettingsPageMsg (SettingsPage.UserDataUpdated userData_) ->
+        TrackablesPageMsg (TrackablesPage.UserDataUpdated userData_) ->
             updateUserData userData_
 
-        SettingsPageMsg settingsPageMsg ->
+        TrackablesPageMsg trackablesPageMsg ->
             case model.pageState of
-                Loaded today userData (SettingsPage settingsPageModel) ->
+                Loaded today userData (TrackablesPage trackablesPageModel) ->
                     let
                         ( newModel, cmd ) =
-                            SettingsPage.update settingsPageMsg settingsPageModel
+                            TrackablesPage.update trackablesPageMsg trackablesPageModel
                     in
-                    ( { model | pageState = Loaded today userData (SettingsPage newModel) }, Cmd.map SettingsPageMsg cmd )
+                    ( { model | pageState = Loaded today userData (TrackablesPage newModel) }, Cmd.map TrackablesPageMsg cmd )
+
+                _ ->
+                    ( model, Cmd.none )
+
+        ChartablesPageMsg (ChartablesPage.UserDataUpdated userData_) ->
+            updateUserData userData_
+
+        ChartablesPageMsg chartablesPageMsg ->
+            case model.pageState of
+                Loaded today userData (ChartablesPage chartablesPageModel) ->
+                    let
+                        ( newModel, cmd ) =
+                            ChartablesPage.update chartablesPageMsg chartablesPageModel
+                    in
+                    ( { model | pageState = Loaded today userData (ChartablesPage newModel) }, Cmd.map ChartablesPageMsg cmd )
 
                 _ ->
                     ( model, Cmd.none )
@@ -336,14 +334,15 @@ view model =
                                     DayPage dayModel ->
                                         Html.map DayPageMsg <| DayPage.view dayModel
 
-                                    SettingsPage settingsModel ->
-                                        Html.map SettingsPageMsg <| SettingsPage.view settingsModel
+                                    TrackablesPage trackablesModel ->
+                                        Html.map TrackablesPageMsg <| TrackablesPage.view trackablesModel
+
+                                    ChartablesPage chartablesModel ->
+                                        Html.map ChartablesPageMsg <| ChartablesPage.view chartablesModel
 
                                     ChartsPage graphModel ->
                                         Html.map ChartsPageMsg <| ChartsPage.view graphModel
 
-                                    -- ChartPage graphModel ->
-                                    --     Html.map ChartPageMsg <| ChartPage.view graphModel
                                     NotFoundPage ->
                                         viewNotFoundPage
                                 ]
@@ -361,8 +360,9 @@ viewMenu pageState =
         , h1 [ class "ml-2 text-xl font-bold text-center" ] [ text "Symptrack" ]
         , div [ class "mx-auto" ] []
         , a [ href "/", class "mr-2 rounded p-2 bg-gray-700 hover:bg-gray-600 text-white" ] [ icon "w-5 h-5" SolidCalendarAlt ]
-        , a [ href "/charts", class "mr-2 rounded p-2 bg-gray-700 hover:bg-gray-600 text-white" ] [ icon "w-5 h-5" SolidChartLine ]
-        , a [ href "/settings", class "rounded p-2 bg-gray-700 hover:bg-gray-600 text-white" ] [ icon "w-5 h-5" SolidCog ]
+        , a [ href "/charts", class "mr-2 rounded p-2 bg-gray-700 hover:bg-gray-600 text-white" ] [ icon "w-5 h-5" SolidChartArea ]
+        , a [ href "/trackables", class "mr-2 rounded p-2 bg-gray-700 hover:bg-gray-600 text-white" ] [ icon "w-5 h-5" SolidCalendarCheck ]
+        , a [ href "/chartables", class "rounded p-2 bg-gray-700 hover:bg-gray-600 text-white" ] [ icon "w-5 h-5" SolidChartLine ]
         ]
 
 
