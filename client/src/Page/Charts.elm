@@ -241,7 +241,7 @@ update msg model =
             )
 
         ChartableCloseClicked chartId chartableId ->
-            ( model |> (updateChartModel chartId <| Graph.toggleDataSetSelected chartableId), Cmd.none )
+            ( model |> (updateChartModel chartId <| (Graph.toggleDataSetSelected chartableId << \c -> {c | newChartable = False })), Cmd.none )
 
         ChartableVisibleClicked chartId chartableId ->
             ( model |> (updateChartModel chartId <| Graph.toggleDataSet chartableId), Cmd.none )
@@ -369,6 +369,7 @@ update msg model =
                                                 , addingChartable = False
                                                 , chartableToAdd = Nothing
                                                 , selectedDataSet = if isNew then Just chartableId else Nothing
+                                                , newChartable = isNew
                                             }
                                    )
                         , chartableOptions = model.chartableOptions |> Listx.insertLookup chartableId (Stringx.withDefault "[no name]" newChartableModel.name)
@@ -828,7 +829,7 @@ viewLineChart chartableOptions trackableOptions ( chartId, model ) =
                     ]
 
               else if model.newChartable then
-                div [] [ text "New chartable ..." ]
+                div [] []
 
               else
                 div [ class "px-4 py-2 bg-gray-300 border-t-4 border-gray-400 flex" ]
