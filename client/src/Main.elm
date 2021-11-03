@@ -5,6 +5,7 @@ import Browser.Navigation as Nav
 import Date exposing (Date, Unit(..))
 import Html exposing (..)
 import Html.Attributes exposing (..)
+import IdDict
 import Json.Decode as Decode
 import Json.Encode as Encode
 import Maybe exposing (Maybe)
@@ -262,7 +263,21 @@ update msg model =
         SettingsPageMsg (SettingsPage.AddTrackable t) ->
             case model.pageState of
                 Loaded _ userData _ ->
-                    updateUserData <| Result.map Tuple.second <| UserData.tryAddTrackable t userData
+                    case UserData.tryAddTrackable t userData of
+                        Ok ( newId, newUserData ) ->
+                            let
+                                ( m, c ) =
+                                    updateUserData <| Ok newUserData
+                            in
+                            case IdDict.get newId (UserData.trackables newUserData) of
+                                Just newTrackable ->
+                                    ( m, Cmd.batch [ Cmd.map SettingsPageMsg <| Task.perform SettingsPage.UserDataTrackableAdded <| Task.succeed ( newId, newTrackable ), c ] )
+
+                                _ ->
+                                    ( m, c )
+
+                        Err e ->
+                            updateUserData (Err e)
 
                 _ ->
                     ( model, Cmd.none )

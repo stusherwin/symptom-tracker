@@ -67,159 +67,160 @@ type AnswerType
 
 init : UserData -> Model
 init userData =
+    { questions = IdDict.map trackableToQuestion <| UserData.trackables userData
+    , selectedValue = 4
+    }
+
+
+trackableToQuestion : TrackableId -> Trackable -> Question
+trackableToQuestion _ t =
     let
-        toQuestion _ t =
-            let
-                floatData =
-                    Dict.values <| Trackable.maybeFloatData t
-            in
-            { question = t.question
-            , colour = t.colour
-            , answerType =
+        floatData =
+            Dict.values <| Trackable.maybeFloatData t
+    in
+    { question = t.question
+    , colour = t.colour
+    , answerType =
+        case t.data of
+            TYesNo _ ->
+                AYesNo
+
+            TIcon _ _ ->
+                AIcon
+
+            TScale _ _ _ ->
+                AScale
+
+            TInt _ ->
+                AInt
+
+            TFloat _ ->
+                AFloat
+
+            TText _ ->
+                AText
+    , scaleOptions =
+        let
+            ( maybeMin, maybeMax ) =
+                ( Maybe.map truncate << List.minimum << Listx.concatMaybes <| floatData
+                , Maybe.map truncate << List.maximum << Listx.concatMaybes <| floatData
+                )
+
+            ( from, to ) =
                 case t.data of
-                    TYesNo _ ->
-                        AYesNo
-
-                    TIcon _ _ ->
-                        AIcon
-
-                    TScale _ _ _ ->
-                        AScale
-
-                    TInt _ ->
-                        AInt
-
-                    TFloat _ ->
-                        AFloat
-
-                    TText _ ->
-                        AText
-            , scaleOptions =
-                let
-                    ( maybeMin, maybeMax ) =
-                        ( Maybe.map truncate << List.minimum << Listx.concatMaybes <| floatData
-                        , Maybe.map truncate << List.maximum << Listx.concatMaybes <| floatData
-                        )
-
-                    ( from, to ) =
-                        case t.data of
-                            TScale origFrom origTo _ ->
-                                ( origFrom, origTo )
-
-                            _ ->
-                                case ( maybeMin, maybeMax ) of
-                                    ( Just min, Just max ) ->
-                                        ( min, max )
-
-                                    _ ->
-                                        ( 0, 20 )
-                in
-                { from = from
-                , to = to
-                , fromMin = 0
-                , fromMax =
-                    case maybeMin of
-                        Just min ->
-                            min
-
-                        _ ->
-                            19
-                , toMin =
-                    case maybeMax of
-                        Just max ->
-                            max
-
-                        _ ->
-                            1
-                , toMax = 20
-                }
-            , iconOptions =
-                case t.data of
-                    TIcon options values ->
-                        Array.indexedMap (\i o -> { iconType = o, canDelete = not <| List.any (\v -> v >= i) (Dict.values values) }) options
+                    TScale origFrom origTo _ ->
+                        ( origFrom, origTo )
 
                     _ ->
-                        let
-                            max =
-                                Maybe.map truncate << List.maximum << Listx.concatMaybes <| floatData
-                        in
-                        case max of
-                            Just m ->
-                                Array.repeat (m + 1) { iconType = SolidQuestionCircle, canDelete = False }
+                        case ( maybeMin, maybeMax ) of
+                            ( Just min, Just max ) ->
+                                ( min, max )
 
                             _ ->
-                                Array.fromList
-                                    [ { iconType = SolidQuestionCircle, canDelete = False }
-                                    , { iconType = SolidQuestionCircle, canDelete = False }
-                                    ]
-            , canDelete = not <| Trackable.hasData t
-            , answerTypes =
-                [ ( AYesNo
-                  , List.all
-                        (\val ->
-                            case val of
-                                Just v ->
-                                    floor v == ceiling v && v >= 0 && v <= 1
+                                ( 0, 20 )
+        in
+        { from = from
+        , to = to
+        , fromMin = 0
+        , fromMax =
+            case maybeMin of
+                Just min ->
+                    min
 
-                                _ ->
-                                    False
-                        )
-                        floatData
-                  )
-                , ( AIcon
-                  , List.all
-                        (\val ->
-                            case val of
-                                Just v ->
-                                    floor v == ceiling v && v >= 0 && v <= 10
+                _ ->
+                    19
+        , toMin =
+            case maybeMax of
+                Just max ->
+                    max
 
-                                _ ->
-                                    False
-                        )
-                        floatData
-                  )
-                , ( AScale
-                  , List.all
-                        (\val ->
-                            case val of
-                                Just v ->
-                                    floor v == ceiling v && v >= 0 && v <= 20
+                _ ->
+                    1
+        , toMax = 20
+        }
+    , iconOptions =
+        case t.data of
+            TIcon options values ->
+                Array.indexedMap (\i o -> { iconType = o, canDelete = not <| List.any (\v -> v >= i) (Dict.values values) }) options
 
-                                _ ->
-                                    False
-                        )
-                        floatData
-                  )
-                , ( AInt
-                  , List.all
-                        (\val ->
-                            case val of
-                                Just v ->
-                                    floor v == ceiling v
+            _ ->
+                let
+                    max =
+                        Maybe.map truncate << List.maximum << Listx.concatMaybes <| floatData
+                in
+                case max of
+                    Just m ->
+                        Array.repeat (m + 1) { iconType = SolidQuestionCircle, canDelete = False }
 
-                                _ ->
-                                    False
-                        )
-                        floatData
-                  )
-                , ( AFloat
-                  , List.all
-                        (\val ->
-                            case val of
-                                Just _ ->
-                                    True
+                    _ ->
+                        Array.fromList
+                            [ { iconType = SolidQuestionCircle, canDelete = False }
+                            , { iconType = SolidQuestionCircle, canDelete = False }
+                            ]
+    , canDelete = not <| Trackable.hasData t
+    , answerTypes =
+        [ ( AYesNo
+          , List.all
+                (\val ->
+                    case val of
+                        Just v ->
+                            floor v == ceiling v && v >= 0 && v <= 1
 
-                                _ ->
-                                    False
-                        )
-                        floatData
-                  )
-                , ( AText, True )
-                ]
-            }
-    in
-    { questions = IdDict.map toQuestion <| UserData.trackables userData
-    , selectedValue = 4
+                        _ ->
+                            False
+                )
+                floatData
+          )
+        , ( AIcon
+          , List.all
+                (\val ->
+                    case val of
+                        Just v ->
+                            floor v == ceiling v && v >= 0 && v <= 10
+
+                        _ ->
+                            False
+                )
+                floatData
+          )
+        , ( AScale
+          , List.all
+                (\val ->
+                    case val of
+                        Just v ->
+                            floor v == ceiling v && v >= 0 && v <= 20
+
+                        _ ->
+                            False
+                )
+                floatData
+          )
+        , ( AInt
+          , List.all
+                (\val ->
+                    case val of
+                        Just v ->
+                            floor v == ceiling v
+
+                        _ ->
+                            False
+                )
+                floatData
+          )
+        , ( AFloat
+          , List.all
+                (\val ->
+                    case val of
+                        Just _ ->
+                            True
+
+                        _ ->
+                            False
+                )
+                floatData
+          )
+        , ( AText, True )
+        ]
     }
 
 
@@ -243,6 +244,7 @@ type Msg
     | UpdateTrackable (Trackable -> Result String Trackable) TrackableId
     | AddTrackable Trackable
     | DeleteTrackable TrackableId
+    | UserDataTrackableAdded ( TrackableId, Trackable )
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -291,66 +293,26 @@ update msg model =
             )
 
         QuestionAddClicked ->
-            let
-                questions =
-                    IdDict.add
+            ( model
+            , Task.perform
+                (\_ ->
+                    AddTrackable
                         { question = ""
                         , colour = Colour.Red
-                        , answerType = AYesNo
-                        , scaleOptions =
-                            { from = 0
-                            , fromMin = 0
-                            , fromMax = 19
-                            , to = 10
-                            , toMin = 1
-                            , toMax = 20
-                            }
-                        , iconOptions = Array.fromList [ { iconType = SolidQuestionCircle, canDelete = False }, { iconType = SolidQuestionCircle, canDelete = False } ]
-                        , canDelete = True
-                        , answerTypes =
-                            [ ( AYesNo, True )
-                            , ( AIcon, True )
-                            , ( AScale, True )
-                            , ( AInt, True )
-                            , ( AFloat, True )
-                            , ( AText, True )
-                            ]
+                        , multiplier = 1.0
+                        , data = TYesNo Dict.empty
                         }
-                        model.questions
+                )
+              <|
+                Task.succeed ()
+            )
 
-                newId =
-                    List.head <| List.reverse <| IdDict.keys questions
-            in
-            ( { model | questions = questions }
-            , Cmd.batch
-                [ Dom.getViewport
-                    |> Task.andThen (\info -> Dom.setViewport 0 info.scene.height)
-                    |> Task.andThen
-                        (always <|
-                            Dom.focus
-                                ("q-"
-                                    ++ (case newId of
-                                            Just id ->
-                                                Trackable.idToString id
-
-                                            _ ->
-                                                ""
-                                       )
-                                )
-                        )
-                    |> Task.attempt (always NoOp)
-                , Task.perform
-                    (\_ ->
-                        AddTrackable
-                            { question = ""
-                            , colour = Colour.Red
-                            , multiplier = 1.0
-                            , data = TYesNo Dict.empty
-                            }
-                    )
-                  <|
-                    Task.succeed ()
-                ]
+        UserDataTrackableAdded ( id, t ) ->
+            ( { model | questions = IdDict.insert id (trackableToQuestion id t) model.questions }
+            , Dom.getViewport
+                |> Task.andThen (\info -> Dom.setViewport 0 info.scene.height)
+                |> (Task.andThen <| always <| Dom.focus ("q-" ++ Trackable.idToString id))
+                |> Task.attempt (always NoOp)
             )
 
         QuestionDeleteClicked id ->
