@@ -207,7 +207,7 @@ view model =
                                 , button
                                     [ class "ml-4 flex-grow-0 flex-shrink-0 text-black focus:outline-none"
                                     , classList
-                                        [ ( "text-opacity-50 cursor-default", not canMoveUp )
+                                        [ ( "text-opacity-30 cursor-default", not canMoveUp )
                                         , ( "text-opacity-70 hover:text-opacity-100 focus:text-opacity-100", canMoveUp )
                                         ]
                                     , Htmlx.onClickStopPropagation <| ChartUpClicked chartId
@@ -218,7 +218,7 @@ view model =
                                 , button
                                     [ class "ml-1 flex-grow-0 flex-shrink-0 text-black focus:outline-none"
                                     , classList
-                                        [ ( "text-opacity-50 cursor-default", not canMoveDown )
+                                        [ ( "text-opacity-30 cursor-default", not canMoveDown )
                                         , ( "text-opacity-70 hover:text-opacity-100 focus:text-opacity-100", canMoveDown )
                                         ]
                                     , Htmlx.onClickStopPropagation <| ChartDownClicked chartId

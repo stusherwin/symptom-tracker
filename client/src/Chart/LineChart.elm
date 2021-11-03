@@ -442,7 +442,7 @@ view model =
                 , button
                     [ class "mt-2 rounded shadow p-2 bg-white bg-opacity-80 text-black focus:outline-none"
                     , classList
-                        [ ( "text-opacity-50 cursor-default", List.isEmpty model.chartables )
+                        [ ( "text-opacity-30 cursor-default", List.isEmpty model.chartables )
                         , ( "text-opacity-70 hover:text-opacity-100 hover:bg-opacity-100 focus:text-opacity-100 focus:bg-opacity-100", not (List.isEmpty model.chartables) )
                         ]
                     , Htmlx.onClickStopPropagation ChartZoomInClicked
@@ -453,7 +453,7 @@ view model =
                 , button
                     [ class "mt-2 rounded shadow p-2 bg-white bg-opacity-80 text-black focus:outline-none"
                     , classList
-                        [ ( "text-opacity-50 cursor-default", List.isEmpty model.chartables || model.graph.currentWidth > 0 && model.graph.currentWidth <= model.graph.minWidth )
+                        [ ( "text-opacity-30 cursor-default", List.isEmpty model.chartables || model.graph.currentWidth > 0 && model.graph.currentWidth <= model.graph.minWidth )
                         , ( "text-opacity-70 hover:text-opacity-100 hover:bg-opacity-100 focus:text-opacity-100 focus:bg-opacity-100", not (List.isEmpty model.chartables) && model.graph.currentWidth > model.graph.minWidth )
                         ]
                     , Htmlx.onClickStopPropagation ChartZoomOutClicked

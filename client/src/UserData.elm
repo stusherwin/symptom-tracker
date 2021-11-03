@@ -1,4 +1,4 @@
-module UserData exposing (UserData, activeLineCharts, activeTrackables, addChartable, addLineChart, addTrackable, chartables, decode, deleteLineChart, deleteTrackable, encode, getChartable, getChartableColour, getChartableDataPoints, getLineChart, getTrackable, init, lineCharts, moveLineChartDown, moveLineChartUp, moveTrackableDown, moveTrackableUp, toggleTrackableVisible, trackables, updateChartable, updateLineChart, updateTrackable)
+module UserData exposing (UserData, activeChartables, activeLineCharts, activeTrackables, addChartable, addLineChart, addTrackable, chartables, decode, deleteChartable, deleteLineChart, deleteTrackable, encode, getChartable, getChartableColour, getChartableDataPoints, getLineChart, getTrackable, init, lineCharts, moveChartableDown, moveChartableUp, moveLineChartDown, moveLineChartUp, moveTrackableDown, moveTrackableUp, toggleChartableVisible, toggleTrackableVisible, trackables, updateChartable, updateLineChart, updateTrackable)
 
 import Array
 import Colour exposing (Colour(..))
@@ -25,6 +25,7 @@ type UserData
         , chartables : ChartableDict
         , lineCharts : LineChartDict
         , activeTrackables : List ( TrackableId, Bool )
+        , activeChartables : List ( ChartableId, Bool )
         , activeLineCharts : List LineChartId
         , errors : List String
         }
@@ -49,6 +50,12 @@ getTrackable id (UserData data) =
 chartables : UserData -> ChartableDict
 chartables (UserData data) =
     data.chartables
+
+
+activeChartables : UserData -> List ( ChartableId, ( Chartable, Bool ) )
+activeChartables (UserData data) =
+    data.activeChartables
+        |> List.filterMap (\( id, visible ) -> data.chartables |> IdDict.get id |> Maybe.map (\t -> ( id, ( t, visible ) )))
 
 
 getChartable : ChartableId -> UserData -> Maybe Chartable
@@ -260,6 +267,23 @@ init =
             , ( TrackableId 2, True )
             , ( TrackableId 3, True )
             ]
+        , activeChartables =
+            [ ( ChartableId 1
+              , True
+              )
+            , ( ChartableId 2
+              , True
+              )
+            , ( ChartableId 3
+              , True
+              )
+            , ( ChartableId 4
+              , True
+              )
+            , ( ChartableId 5
+              , True
+              )
+            ]
         , activeLineCharts =
             [ LineChartId 1
             ]
@@ -281,7 +305,13 @@ addTrackable : Trackable -> UserData -> ( Maybe TrackableId, UserData )
 addTrackable trackable (UserData data) =
     case data.trackables |> IdDict.tryAdd trackable of
         Ok ( id, trackables_ ) ->
-            ( Just id, UserData { data | trackables = trackables_ } )
+            ( Just id
+            , UserData
+                { data
+                    | trackables = trackables_
+                    , activeTrackables = data.activeTrackables ++ [ ( id, True ) ]
+                }
+            )
 
         Err err ->
             ( Nothing, UserData { data | errors = err :: data.errors } )
@@ -291,7 +321,11 @@ deleteTrackable : TrackableId -> UserData -> UserData
 deleteTrackable id (UserData data) =
     case data.trackables |> IdDict.tryDelete id of
         Ok trackables_ ->
-            UserData { data | trackables = trackables_ }
+            UserData
+                { data
+                    | trackables = trackables_
+                    , activeTrackables = data.activeTrackables |> List.filter (\( tId, _ ) -> tId /= id)
+                }
 
         Err err ->
             UserData { data | errors = err :: data.errors }
@@ -323,7 +357,47 @@ addChartable chartable (UserData data) =
         ( newId, chartablesU ) =
             data.chartables |> IdDict.add chartable
     in
-    ( newId, UserData { data | chartables = chartablesU } )
+    ( newId
+    , case newId of
+        Just id ->
+            UserData
+                { data
+                    | chartables = chartablesU
+                    , activeChartables = data.activeChartables ++ [ ( id, True ) ]
+                }
+
+        _ ->
+            UserData data
+    )
+
+
+deleteChartable : ChartableId -> UserData -> UserData
+deleteChartable id (UserData data) =
+    case data.chartables |> IdDict.tryDelete id of
+        Ok chartables_ ->
+            UserData
+                { data
+                    | chartables = chartables_
+                    , activeChartables = data.activeChartables |> List.filter (\( cId, _ ) -> cId /= id)
+                }
+
+        Err err ->
+            UserData { data | errors = err :: data.errors }
+
+
+toggleChartableVisible : ChartableId -> UserData -> UserData
+toggleChartableVisible chartableId (UserData data) =
+    UserData { data | activeChartables = data.activeChartables |> Listx.updateLookup chartableId not }
+
+
+moveChartableUp : ChartableId -> UserData -> UserData
+moveChartableUp chartableId (UserData data) =
+    UserData { data | activeChartables = data.activeChartables |> Listx.moveHeadwardsBy Tuple.first chartableId }
+
+
+moveChartableDown : ChartableId -> UserData -> UserData
+moveChartableDown chartableId (UserData data) =
+    UserData { data | activeChartables = data.activeChartables |> Listx.moveTailwardsBy Tuple.first chartableId }
 
 
 updateLineChart : LineChartId -> (LineChart -> LineChart) -> UserData -> UserData
@@ -337,7 +411,18 @@ addLineChart lineChart (UserData data) =
         ( newId, lineChartsU ) =
             data.lineCharts |> IdDict.add lineChart
     in
-    ( newId, UserData { data | lineCharts = lineChartsU } )
+    ( newId
+    , case newId of
+        Just id ->
+            UserData
+                { data
+                    | lineCharts = lineChartsU
+                    , activeLineCharts = data.activeLineCharts ++ [ id ]
+                }
+
+        _ ->
+            UserData data
+    )
 
 
 moveLineChartUp : LineChartId -> UserData -> UserData
@@ -354,7 +439,11 @@ deleteLineChart : LineChartId -> UserData -> UserData
 deleteLineChart id (UserData data) =
     case data.lineCharts |> IdDict.tryDelete id of
         Ok lineCharts_ ->
-            UserData { data | lineCharts = lineCharts_ }
+            UserData
+                { data
+                    | lineCharts = lineCharts_
+                    , activeLineCharts = data.activeLineCharts |> List.filter (\cId -> cId /= id)
+                }
 
         Err err ->
             UserData { data | errors = err :: data.errors }
@@ -364,17 +453,50 @@ decode : D.Decoder UserData
 decode =
     let
         v0 =
-            D.map (\ts -> UserData { trackables = ts, chartables = ChartableId.toDict [], lineCharts = LineChartId.toDict [], activeTrackables = ts |> IdDict.map (\k _ -> ( k, True )) |> IdDict.values, activeLineCharts = [], errors = [] })
+            D.map
+                (\ts ->
+                    UserData
+                        { trackables = ts
+                        , chartables = ChartableId.toDict []
+                        , lineCharts = LineChartId.toDict []
+                        , activeTrackables = ts |> IdDict.map (\k _ -> ( k, True )) |> IdDict.values
+                        , activeChartables = []
+                        , activeLineCharts = []
+                        , errors = []
+                        }
+                )
                 (TrackableId.decodeDict Trackable.decode)
 
         v1 =
-            D.map3 (\tbles cbles cts -> UserData { trackables = tbles, chartables = cbles, lineCharts = cts, activeTrackables = tbles |> IdDict.map (\k _ -> ( k, True )) |> IdDict.values, activeLineCharts = cts |> IdDict.keys, errors = [] })
+            D.map3
+                (\tbles cbles cts ->
+                    UserData
+                        { trackables = tbles
+                        , chartables = cbles
+                        , lineCharts = cts
+                        , activeTrackables = tbles |> IdDict.map (\k _ -> ( k, True )) |> IdDict.values
+                        , activeChartables = cbles |> IdDict.map (\k _ -> ( k, True )) |> IdDict.values
+                        , activeLineCharts = cts |> IdDict.keys
+                        , errors = []
+                        }
+                )
                 (D.field "trackables" <| TrackableId.decodeDict Trackable.decode)
                 (D.field "chartables" <| ChartableId.decodeDict Chartable.decode)
                 (D.field "lineCharts" <| LineChartId.decodeDict LineChart.decode)
 
         v2 =
-            D.map4 (\tbles cbles cts atbles -> UserData { trackables = tbles, chartables = cbles, lineCharts = cts, activeTrackables = atbles, activeLineCharts = cts |> IdDict.keys, errors = [] })
+            D.map4
+                (\tbles cbles cts atbles ->
+                    UserData
+                        { trackables = tbles
+                        , chartables = cbles
+                        , lineCharts = cts
+                        , activeTrackables = atbles
+                        , activeChartables = cbles |> IdDict.map (\k _ -> ( k, True )) |> IdDict.values
+                        , activeLineCharts = cts |> IdDict.keys
+                        , errors = []
+                        }
+                )
                 (D.field "trackables" <| TrackableId.decodeDict Trackable.decode)
                 (D.field "chartables" <| ChartableId.decodeDict Chartable.decode)
                 (D.field "lineCharts" <| LineChartId.decodeDict LineChart.decode)
@@ -386,7 +508,18 @@ decode =
                 )
 
         v3 =
-            D.map5 (\tbles cbles cts atbles acts -> UserData { trackables = tbles, chartables = cbles, lineCharts = cts, activeTrackables = atbles, activeLineCharts = acts, errors = [] })
+            D.map5
+                (\tbles cbles cts atbles acts ->
+                    UserData
+                        { trackables = tbles
+                        , chartables = cbles
+                        , lineCharts = cts
+                        , activeTrackables = atbles
+                        , activeChartables = cbles |> IdDict.map (\k _ -> ( k, True )) |> IdDict.values
+                        , activeLineCharts = acts
+                        , errors = []
+                        }
+                )
                 (D.field "trackables" <| TrackableId.decodeDict Trackable.decode)
                 (D.field "chartables" <| ChartableId.decodeDict Chartable.decode)
                 (D.field "lineCharts" <| LineChartId.decodeDict LineChart.decode)
@@ -394,6 +527,38 @@ decode =
                     D.list <|
                         D.map2 Tuple.pair
                             (D.field "id" TrackableId.decode)
+                            (D.field "visible" D.bool)
+                )
+                (D.field "activeCharts" <|
+                    D.list LineChartId.decode
+                )
+
+        v4 =
+            D.map6
+                (\tbles cbles cts atbles acbles acts ->
+                    UserData
+                        { trackables = tbles
+                        , chartables = cbles
+                        , lineCharts = cts
+                        , activeTrackables = atbles
+                        , activeChartables = acbles
+                        , activeLineCharts = acts
+                        , errors = []
+                        }
+                )
+                (D.field "trackables" <| TrackableId.decodeDict Trackable.decode)
+                (D.field "chartables" <| ChartableId.decodeDict Chartable.decode)
+                (D.field "lineCharts" <| LineChartId.decodeDict LineChart.decode)
+                (D.field "activeTrackables" <|
+                    D.list <|
+                        D.map2 Tuple.pair
+                            (D.field "id" TrackableId.decode)
+                            (D.field "visible" D.bool)
+                )
+                (D.field "activeChartables" <|
+                    D.list <|
+                        D.map2 Tuple.pair
+                            (D.field "id" ChartableId.decode)
                             (D.field "visible" D.bool)
                 )
                 (D.field "activeCharts" <|
@@ -417,6 +582,9 @@ decode =
                         3 ->
                             D.field "data" v3
 
+                        4 ->
+                            D.field "data" v4
+
                         v ->
                             D.fail <| "Unknown version " ++ String.fromInt v
                 )
@@ -426,7 +594,7 @@ decode =
 encode : UserData -> E.Value
 encode (UserData data) =
     E.object
-        [ ( "version", E.int 3 )
+        [ ( "version", E.int 4 )
         , ( "data"
           , E.object
                 [ ( "trackables", TrackableId.encodeDict Trackable.encode data.trackables )
@@ -438,6 +606,16 @@ encode (UserData data) =
                             (\( id, visible ) ->
                                 E.object
                                     [ ( "id", TrackableId.encode id )
+                                    , ( "visible", E.bool visible )
+                                    ]
+                            )
+                  )
+                , ( "activeChartables"
+                  , data.activeChartables
+                        |> E.list
+                            (\( id, visible ) ->
+                                E.object
+                                    [ ( "id", ChartableId.encode id )
                                     , ( "visible", E.bool visible )
                                     ]
                             )
