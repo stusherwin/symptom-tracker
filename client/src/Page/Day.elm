@@ -432,7 +432,7 @@ viewScaleAnswerButtons min max id answer =
 viewScaleAnswerSelect : Int -> Int -> TrackableId -> Maybe Int -> List (Html Msg)
 viewScaleAnswerSelect min max id answer =
     [ Controls.textDropdown
-        "mt-4 w-20"
+        "mt-4 w-20 h-10"
         (ScaleAnswerClicked id)
         String.fromInt
         String.toInt
@@ -444,13 +444,13 @@ viewScaleAnswerSelect min max id answer =
 
 viewIntAnswer : TrackableId -> String -> Bool -> List (Html Msg)
 viewIntAnswer id answer isValid =
-    [ Controls.textbox [ class "mt-4 w-20" ] [] answer isValid (IntAnswerUpdated id)
+    [ Controls.textbox [ class "mt-4 w-20" ] [] answer { isValid = isValid, isRequired = False } (IntAnswerUpdated id)
     ]
 
 
 viewFloatAnswer : TrackableId -> String -> Bool -> List (Html Msg)
 viewFloatAnswer id answer isValid =
-    [ Controls.textbox [ class "mt-4 w-20" ] [] answer isValid (FloatAnswerUpdated id)
+    [ Controls.textbox [ class "mt-4 w-20" ] [] answer { isValid = isValid, isRequired = False } (FloatAnswerUpdated id)
     ]
 
 

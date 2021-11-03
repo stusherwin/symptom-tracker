@@ -1,7 +1,7 @@
 module Page.Charts exposing (Model, Msg(..), init, update, view)
 
 import Browser.Dom as Dom
-import Colour
+import Colour exposing (Colour)
 import Controls
 import Date exposing (Date, Unit(..))
 import Dict exposing (Dict)
@@ -17,7 +17,7 @@ import Svg.Graph as Graph exposing (Msg, viewJustYAxis, viewLineGraph)
 import Svg.Icon exposing (IconType(..), icon)
 import Task
 import Time exposing (Month(..))
-import UserData exposing (UserData)
+import UserData exposing (UserData, chartables)
 import UserData.Chartable exposing (Chartable, ChartableDict, ChartableId)
 import UserData.LineChart as LineChart exposing (LineChart, LineChartId)
 import UserData.Trackable as Trackable exposing (TrackableData(..), TrackableDict, TrackableId)
@@ -26,7 +26,7 @@ import UserData.Trackable as Trackable exposing (TrackableData(..), TrackableDic
 type alias Model =
     { today : Date
     , charts : IdDict LineChartId (Graph.Model ChartableId ChartableModel)
-    , trackables : IdDict TrackableId String
+    , userData : UserData
     }
 
 
@@ -35,7 +35,7 @@ type alias ChartableModel =
 
 
 type alias TrackableModel =
-    { id : TrackableId
+    { trackableId : TrackableId
     , multiplier : String
     , isValid : Bool
     }
@@ -44,8 +44,8 @@ type alias TrackableModel =
 init : Date -> UserData -> ( Model, Cmd Msg )
 init today userData =
     ( { today = today
-      , charts = UserData.lineCharts userData |> IdDict.map (\_ chart -> toModel today (UserData.chartables userData) (UserData.trackables userData) chart)
-      , trackables = UserData.trackables userData |> IdDict.map (\_ t -> t.question)
+      , charts = UserData.lineCharts userData |> IdDict.map (\_ chart -> toChartModel today (UserData.chartables userData) (UserData.trackables userData) chart)
+      , userData = userData
       }
     , Cmd.batch <|
         IdDict.values <|
@@ -64,17 +64,8 @@ init today userData =
     )
 
 
-toModel : Date -> ChartableDict -> TrackableDict -> LineChart -> Graph.Model ChartableId ChartableModel
-toModel today chartables trackables chart =
-    let
-        invert data =
-            case List.maximum <| Dict.values data of
-                Just max ->
-                    data |> Dict.map (\_ v -> max - v)
-
-                _ ->
-                    data
-    in
+toChartModel : Date -> ChartableDict -> TrackableDict -> LineChart -> Graph.Model ChartableId ChartableModel
+toChartModel today chartables trackables chart =
     { today = today
     , fillLines = chart.fillLines
     , showPoints = chart.showPoints
@@ -84,35 +75,13 @@ toModel today chartables trackables chart =
             |> IdDict.map
                 (\id chartable ->
                     { name = chartable.name
-                    , colour =
-                        chartable.colour
-                            |> Maybe.withDefault
-                                (List.head chartable.sum
-                                    |> Maybe.andThen ((\t -> IdDict.get t trackables) << Tuple.first)
-                                    |> Maybe.map .colour
-                                    |> Maybe.withDefault Colour.Blue
-                                )
-                    , dataPoints =
-                        chartable.sum
-                            |> List.filterMap
-                                (\( trackableId, multiplier ) ->
-                                    IdDict.get trackableId trackables
-                                        |> Maybe.map
-                                            (Dict.map (\_ v -> v * multiplier) << Trackable.onlyFloatData)
-                                )
-                            |> List.foldl (Dictx.unionWith (\v1 v2 -> v1 + v2)) Dict.empty
-                            |> (if chartable.inverted then
-                                    invert
-
-                                else
-                                    identity
-                               )
+                    , colour = toColour trackables chartable
+                    , dataPoints = toDataPoints trackables chartable
                     , trackables =
                         chartable.sum
-                            |> List.filterMap
+                            |> List.map
                                 (\( trackableId, multiplier ) ->
-                                    IdDict.get trackableId trackables
-                                        |> Maybe.map (\t -> { id = trackableId, multiplier = String.fromFloat multiplier, isValid = True })
+                                    { trackableId = trackableId, multiplier = String.fromFloat multiplier, isValid = True }
                                 )
                             |> List.indexedMap Tuple.pair
                             |> Dict.fromList
@@ -124,6 +93,44 @@ toModel today chartables trackables chart =
     , hoveredDataSet = Nothing
     , selectedDataPoint = Nothing
     }
+
+
+toColour : TrackableDict -> Chartable -> Colour
+toColour trackables chartable =
+    chartable.colour
+        |> Maybe.withDefault
+            (List.head chartable.sum
+                |> Maybe.andThen ((\t -> IdDict.get t trackables) << Tuple.first)
+                |> Maybe.map .colour
+                |> Maybe.withDefault Colour.Blue
+            )
+
+
+toDataPoints : TrackableDict -> Chartable -> Dict Int Float
+toDataPoints trackables chartable =
+    let
+        invert data =
+            case List.maximum <| Dict.values data of
+                Just max ->
+                    data |> Dict.map (\_ v -> max - v)
+
+                _ ->
+                    data
+    in
+    chartable.sum
+        |> List.filterMap
+            (\( trackableId, multiplier ) ->
+                IdDict.get trackableId trackables
+                    |> Maybe.map
+                        (Dict.map (\_ v -> v * multiplier) << Trackable.onlyFloatData)
+            )
+        |> List.foldl (Dictx.unionWith (\v1 v2 -> v1 + v2)) Dict.empty
+        |> (if chartable.inverted then
+                invert
+
+            else
+                identity
+           )
 
 
 
@@ -146,90 +153,120 @@ type Msg
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
+    let
+        updateChartModel chartId fn =
+            { model | charts = model.charts |> IdDict.update chartId fn }
+
+        updateChartableModel chartableId fn c =
+            { c | data = c.data |> IdDict.update chartableId fn }
+
+        updateTrackableModel i fn c =
+            { c | trackables = c.trackables |> Dict.update i (Maybe.map fn) }
+    in
     case msg of
         FillLinesChecked chartId fl ->
-            ( { model | charts = model.charts |> (IdDict.update chartId <| \g -> { g | fillLines = fl }) }, Cmd.none )
+            ( updateChartModel chartId <| \c -> { c | fillLines = fl }, Cmd.none )
 
         ShowPointsChecked chartId sp ->
-            ( { model | charts = model.charts |> (IdDict.update chartId <| \g -> { g | showPoints = sp }) }, Cmd.none )
+            ( updateChartModel chartId <| \c -> { c | showPoints = sp }, Cmd.none )
 
-        DataSetHovered chartId id ->
-            ( { model | charts = model.charts |> (IdDict.update chartId <| Graph.hoverDataSet id) }, Cmd.none )
+        DataSetHovered chartId chartableId ->
+            ( updateChartModel chartId <| Graph.hoverDataSet chartableId, Cmd.none )
 
-        DataSetClicked chartId id ->
-            ( { model | charts = model.charts |> (IdDict.update chartId <| Graph.toggleDataSetSelected id) }, Cmd.none )
+        DataSetClicked chartId chartableId ->
+            ( updateChartModel chartId <| Graph.toggleDataSetSelected chartableId, Cmd.none )
 
-        DataSetVisibleClicked chartId id ->
-            ( { model | charts = model.charts |> (IdDict.update chartId <| Graph.toggleDataSet id) }, Cmd.none )
+        DataSetVisibleClicked chartId chartableId ->
+            ( updateChartModel chartId <| Graph.toggleDataSet chartableId, Cmd.none )
 
-        DataSetBringForwardClicked chartId id ->
-            ( { model | charts = model.charts |> (IdDict.update chartId <| \g -> { g | dataOrder = g.dataOrder |> Listx.moveTailwards id }) }, Cmd.none )
+        DataSetBringForwardClicked chartId chartableId ->
+            ( updateChartModel chartId <| \c -> { c | dataOrder = c.dataOrder |> Listx.moveTailwards chartableId }, Cmd.none )
 
-        DataSetPushBackClicked chartId id ->
-            ( { model | charts = model.charts |> (IdDict.update chartId <| \g -> { g | dataOrder = g.dataOrder |> Listx.moveHeadwards id }) }, Cmd.none )
+        DataSetPushBackClicked chartId chartableId ->
+            ( updateChartModel chartId <| \c -> { c | dataOrder = c.dataOrder |> Listx.moveHeadwards chartableId }, Cmd.none )
 
-        TrackableChanged chartId id i (Just tId) ->
+        TrackableChanged chartId chartableId i (Just trackableId) ->
+            let
+                userData =
+                    model.userData
+                        |> (UserData.updateChartable chartableId <|
+                                \c ->
+                                    { c | sum = c.sum |> List.indexedMap Tuple.pair |> Dict.fromList |> Dict.update i (Maybe.map (\( _, multiplier ) -> ( trackableId, multiplier ))) |> Dict.values }
+                           )
+            in
             ( { model
-                | charts =
+                | userData = userData
+                , charts =
                     model.charts
                         |> (IdDict.update chartId <|
-                                \g ->
-                                    { g
-                                        | data =
-                                            g.data
-                                                |> (IdDict.update id <|
-                                                        \ds ->
-                                                            { ds
-                                                                | trackables = ds.trackables |> Dict.update i (Maybe.map <| \t -> { t | id = tId })
-                                                            }
-                                                   )
-                                    }
+                                updateChartableModel chartableId <|
+                                    \c ->
+                                        { c
+                                            | trackables = c.trackables |> Dict.update i (Maybe.map <| \t -> { t | trackableId = trackableId })
+                                            , colour =
+                                                case UserData.chartables userData |> IdDict.get chartableId of
+                                                    Just chartable ->
+                                                        toColour (UserData.trackables userData) chartable
+
+                                                    _ ->
+                                                        c.colour
+                                            , dataPoints =
+                                                case UserData.chartables userData |> IdDict.get chartableId of
+                                                    Just chartable ->
+                                                        toDataPoints (UserData.trackables userData) chartable
+
+                                                    _ ->
+                                                        c.dataPoints
+                                        }
                            )
               }
             , Cmd.none
             )
 
-        TrackableMultiplierUpdated chartId id i stringValue ->
+        TrackableMultiplierUpdated chartId chartableId i stringValue ->
             let
-                isValid =
+                ( isValid, userData ) =
                     case String.toFloat stringValue of
                         Just multiplier ->
-                            multiplier > 0
+                            if multiplier > 0 then
+                                ( True
+                                , model.userData
+                                    |> (UserData.updateChartable chartableId <|
+                                            \c ->
+                                                { c | sum = c.sum |> List.indexedMap Tuple.pair |> Dict.fromList |> Dict.update i (Maybe.map (\( trackableId, _ ) -> ( trackableId, multiplier ))) |> Dict.values }
+                                       )
+                                )
+
+                            else
+                                ( False, model.userData )
 
                         _ ->
-                            False
+                            ( False, model.userData )
             in
             ( { model
-                | charts =
+                | userData = userData
+                , charts =
                     model.charts
                         |> (IdDict.update chartId <|
-                                \g ->
-                                    { g
-                                        | data =
-                                            g.data
-                                                |> (IdDict.update id <|
-                                                        \ds ->
-                                                            { ds
-                                                                | trackables =
-                                                                    ds.trackables
-                                                                        |> (Dict.update i <|
-                                                                                Maybe.map <|
-                                                                                    \t ->
-                                                                                        { t
-                                                                                            | multiplier = stringValue
-                                                                                            , isValid = isValid
-                                                                                        }
-                                                                           )
-                                                            }
-                                                   )
-                                    }
+                                updateChartableModel chartableId <|
+                                    \c ->
+                                        { c
+                                            | trackables = c.trackables |> Dict.update i (Maybe.map <| \t -> { t | multiplier = stringValue, isValid = isValid })
+                                            , dataPoints =
+                                                case ( isValid, UserData.chartables userData |> IdDict.get chartableId ) of
+                                                    ( True, Just chartable ) ->
+                                                        toDataPoints (UserData.trackables userData) chartable
+
+                                                    _ ->
+                                                        c.dataPoints
+                                        }
                            )
               }
             , Cmd.none
             )
 
         GraphMsg chartId graphMsg ->
-            ( { model | charts = model.charts |> (IdDict.update chartId <| Graph.update graphMsg) }, Cmd.none )
+            ( updateChartModel chartId <| Graph.update graphMsg, Cmd.none )
 
         _ ->
             ( model, Cmd.none )
@@ -246,28 +283,28 @@ view model =
             [ text "Charts" ]
         ]
             ++ (model.charts
-                    |> IdDict.map (viewLineChart model.trackables)
+                    |> IdDict.map (viewLineChart (UserData.trackables model.userData))
                     |> IdDict.values
                )
 
 
-viewLineChart : IdDict TrackableId String -> LineChartId -> Graph.Model ChartableId ChartableModel -> Html Msg
+viewLineChart : TrackableDict -> LineChartId -> Graph.Model ChartableId ChartableModel -> Html Msg
 viewLineChart trackables chartId model =
     let
         viewChartables =
             model.dataOrder
                 |> List.filterMap
-                    (\id ->
-                        IdDict.get id model.data |> Maybe.map (\ds -> ( id, ds ))
+                    (\chartableId ->
+                        IdDict.get chartableId model.data |> Maybe.map (\ds -> ( chartableId, ds ))
                     )
                 |> List.map
-                    (\( id, dataSet ) ->
+                    (\( chartableId, dataSet ) ->
                         let
                             canPushBack =
-                                List.head model.dataOrder /= Just id
+                                List.head model.dataOrder /= Just chartableId
 
                             canBringForward =
-                                (List.head << List.reverse) model.dataOrder /= Just id
+                                (List.head << List.reverse) model.dataOrder /= Just chartableId
                         in
                         [ div
                             [ class "p-4 border-t-4"
@@ -276,75 +313,72 @@ viewLineChart trackables chartId model =
                             , classList
                                 [ ( "bg-opacity-50 border-opacity-50", not dataSet.visible )
                                 ]
-                            , onMouseEnter <| DataSetHovered chartId (Just id)
+                            , onMouseEnter <| DataSetHovered chartId (Just chartableId)
                             , onMouseLeave <| DataSetHovered chartId Nothing
                             ]
                             [ div
                                 [ class "flex items-center"
-                                , onClick (DataSetClicked chartId id)
                                 ]
                                 [ button
-                                    [ class "text-black focus:outline-none"
+                                    [ class "text-black focus:outline-none flex-grow-0 flex-shrink-0"
                                     , classList
                                         [ ( "text-opacity-30 hover:text-opacity-50 focus:text-opacity-50", not dataSet.visible )
                                         , ( "text-opacity-70 hover:text-opacity-100 focus:text-opacity-100", dataSet.visible )
                                         ]
-                                    , Htmlx.onClickStopPropagation <| DataSetVisibleClicked chartId id
+                                    , Htmlx.onClickStopPropagation <| DataSetVisibleClicked chartId chartableId
                                     ]
-                                    [ icon "w-6 h-6" <|
+                                    [ icon "w-5 h-5" <|
                                         if dataSet.visible then
                                             SolidEye
 
                                         else
                                             SolidEyeSlash
                                     ]
-                                , span
-                                    [ class "ml-4 font-bold text-black"
+                                , a
+                                    [ href "#"
+                                    , target "_self"
+                                    , Htmlx.onClickPreventDefault (DataSetClicked chartId chartableId)
+                                    , class "ml-4 w-full font-bold flex items-center text-black"
                                     , classList
                                         [ ( "text-opacity-30", not dataSet.visible )
                                         , ( "text-opacity-100", dataSet.visible )
                                         ]
                                     ]
-                                    [ text dataSet.name ]
-                                , button
-                                    [ class "ml-2 text-black focus:outline-none"
-                                    , class "text-opacity-70 hover:text-opacity-100 focus:text-opacity-100"
-                                    , Htmlx.onClickStopPropagation <| DataSetClicked chartId id
-                                    ]
-                                    [ icon "w-6 h-6" <|
-                                        if model.selectedDataSet == Just id then
+                                    [ text dataSet.name
+                                    , icon "ml-1 w-5 h-5" <|
+                                        if model.selectedDataSet == Just chartableId then
                                             SolidAngleUp
 
                                         else
                                             SolidAngleDown
                                     ]
                                 , button
-                                    [ class "ml-auto text-black focus:outline-none"
+                                    [ class "ml-4 flex-grow-0 flex-shrink-0 text-black focus:outline-none"
                                     , classList
                                         [ ( "text-opacity-0 cursor-default", not canPushBack )
                                         , ( "text-opacity-70 hover:text-opacity-100 focus:text-opacity-100", canPushBack )
                                         ]
-                                    , Htmlx.onClickStopPropagation <| DataSetPushBackClicked chartId id
+                                    , Htmlx.onClickStopPropagation <| DataSetPushBackClicked chartId chartableId
                                     , disabled (not canPushBack)
                                     ]
-                                    [ icon "w-6 h-6" <| SolidArrowUp
+                                    [ icon "w-5 h-5" <| SolidArrowUp
                                     ]
                                 , button
-                                    [ class "ml-2 text-black focus:outline-none"
+                                    [ class "ml-1 flex-grow-0 flex-shrink-0 text-black focus:outline-none"
                                     , classList
                                         [ ( "text-opacity-0 cursor-default", not canBringForward )
                                         , ( "text-opacity-70 hover:text-opacity-100 focus:text-opacity-100", canBringForward )
                                         ]
-                                    , Htmlx.onClickStopPropagation <| DataSetBringForwardClicked chartId id
+                                    , Htmlx.onClickStopPropagation <| DataSetBringForwardClicked chartId chartableId
                                     , disabled (not canBringForward)
                                     ]
-                                    [ icon "w-6 h-6" <| SolidArrowDown
+                                    [ icon "w-5 h-5" <| SolidArrowDown
                                     ]
                                 ]
-                            , if model.selectedDataSet == Just id then
+                            , if model.selectedDataSet == Just chartableId then
                                 div [ class "mt-4" ] <|
-                                    (Dict.values <|
-                                        Dict.map
+                                    (dataSet.trackables
+                                        |> Dict.map
                                             (\i t ->
                                                 div [ class "ml-1 mt-4 flex" ]
                                                     [ icon "mt-3 w-4 h-4 flex-grow-0 flex-shrink-0" <|
@@ -353,13 +387,18 @@ viewLineChart trackables chartId model =
 
                                                         else
                                                             SolidPlus
-                                                    , Controls.textDropdown "ml-5 w-full" (TrackableChanged chartId id i) Trackable.idToString Trackable.idFromString (trackables |> IdDict.map (\tId q -> ( ( tId, True ), q )) |> IdDict.values) (Just t.id) { showFilled = False }
+                                                    , Controls.textDropdown "ml-5 w-full h-10"
+                                                        (TrackableChanged chartId chartableId i)
+                                                        Trackable.idToString
+                                                        Trackable.idFromString
+                                                        (trackables |> IdDict.map (\tId { question } -> ( ( tId, True ), question )) |> IdDict.values)
+                                                        (Just t.trackableId)
+                                                        { showFilled = False }
                                                     , icon "mt-3 ml-4 w-4 h-4 flex-grow-0 flex-shrink-0" SolidTimes
-                                                    , Controls.textbox [ class "ml-4 w-24 flex-grow-0 flex-shrink-0" ] [] t.multiplier t.isValid (TrackableMultiplierUpdated chartId id i)
+                                                    , Controls.textbox [ class "ml-4 w-20 flex-grow-0 flex-shrink-0" ] [] t.multiplier { isValid = t.isValid, isRequired = True } (TrackableMultiplierUpdated chartId chartableId i)
                                                     ]
                                             )
-                                        <|
-                                            dataSet.trackables
+                                        |> Dict.values
                                     )
                                         ++ [ div [ class "ml-10 mt-4 flex" ]
                                                 [ Controls.button "" Controls.ButtonGrey NoOp SolidPlusCircle "Add trackable" True ]

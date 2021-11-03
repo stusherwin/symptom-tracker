@@ -19,6 +19,13 @@ class ScrollableContainer extends HTMLElement {
     }
     if (parent) {
       parent.style.paddingBottom = scrollBarWidth + 'px';
+      this.parentContainer = parent;
+    }
+  }
+
+  disconnectedCallback() {
+    if (this.parentContainer) {
+      this.parentContainer.style.paddingBottom = null;
     }
   }
 

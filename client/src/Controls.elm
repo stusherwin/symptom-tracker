@@ -83,7 +83,7 @@ circleButton class colour toMsg text enabled =
             ]
         ]
         [ H.button
-            [ A.class "w-12 h-12 rounded-full p-2 text-white text-2xl font-bold flex items-center justify-center text-center"
+            [ A.class "w-10 h-10 rounded-full p-2 text-white text-xl font-bold flex items-center justify-center text-center"
             , classList
                 [ ( "cursor-default bg-opacity-80 hover:bg-opacity-90", enabled )
                 , ( "cursor-default bg-opacity-30", not enabled )
@@ -98,8 +98,8 @@ circleButton class colour toMsg text enabled =
         ]
 
 
-dropdown : String -> (Maybe a -> msg) -> (a -> String) -> (String -> Maybe a) -> List ( ( a, Bool ), Html msg ) -> Maybe a -> { unselectedItemClass : String, selectedItemClass : String, showFilled : Bool } -> Html msg
-dropdown class toMsg toString fromString options selectedValue { unselectedItemClass, selectedItemClass, showFilled } =
+dropdown : String -> (Maybe a -> msg) -> (a -> String) -> (String -> Maybe a) -> List ( ( a, Bool ), Html msg ) -> Maybe a -> { unselectedItemClass : String, selectedItemClass : String, showFilled : Bool, darkBorder : Bool } -> Html msg
+dropdown class toMsg toString fromString options selectedValue { unselectedItemClass, selectedItemClass, showFilled, darkBorder } =
     let
         isEmpty =
             case selectedValue of
@@ -113,9 +113,11 @@ dropdown class toMsg toString fromString options selectedValue { unselectedItemC
         [ A.class "block relative z-0 rounded border-4"
         , A.class class
         , classList
-            [ ( "border-black border-opacity-50 hover:border-opacity-80 focus-within:border-opacity-80", isEmpty )
-            , ( "border-black border-opacity-50 hover:border-opacity-80 focus-within:border-opacity-80", not showFilled && not isEmpty )
-            , ( "border-blue-500 border-opacity-70 hover:border-opacity-100 focus-within:border-opacity-100", showFilled && not isEmpty )
+            [ ( "border-black", isEmpty )
+            , ( "border-black", not isEmpty && not showFilled )
+            , ( "border-blue-600", not isEmpty && showFilled )
+            , ( "border-opacity-80 hover:border-opacity-100 focus-within:border-opacity-100", darkBorder )
+            , ( "border-opacity-50 hover:border-opacity-80 focus-within:border-opacity-80", not darkBorder )
             ]
         , attribute "selected-option-classes" selectedItemClass
         , attribute "unselected-option-classes" unselectedItemClass
@@ -163,11 +165,12 @@ textDropdown class toMsg toString fromString options selectedValue { showFilled 
         toMsg
         toString
         fromString
-        (List.map (Tuple.mapSecond (\t -> div [ A.class "py-1 px-2 text-lg font-bold" ] [ text t ])) options)
+        (List.map (Tuple.mapSecond (\t -> div [ A.class "py-1 px-2 font-bold flex items-center" ] [ span [] [ text t ] ])) options)
         selectedValue
         { unselectedItemClass = "bg-white text-black"
         , selectedItemClass = "bg-gray-800 text-white"
         , showFilled = showFilled
+        , darkBorder = False
         }
 
 
@@ -180,7 +183,7 @@ colourDropdown class toMsg selectedValue { showFilled } =
         (List.map
             (\c ->
                 ( ( c, True )
-                , div [ A.class "p-1 text-lg font-bold flex items-center" ]
+                , div [ A.class "p-1 font-bold flex items-center" ]
                     [ div [ A.class "w-8 h-8 rounded-full flex-shrink-0 flex-grow-0 border-2", Colour.class "bg" c, Colour.classUp "border" c ] []
                     ]
                 )
@@ -191,30 +194,7 @@ colourDropdown class toMsg selectedValue { showFilled } =
         { unselectedItemClass = "bg-white text-black"
         , selectedItemClass = "bg-gray-800 text-white"
         , showFilled = showFilled
-        }
-
-
-textColourDropdown : String -> (Maybe Colour -> msg) -> Maybe Colour -> { showFilled : Bool } -> Html msg
-textColourDropdown dropdownClass toMsg selectedValue { showFilled } =
-    dropdown (dropdownClass ++ " w-20 h-12")
-        toMsg
-        Colour.toString
-        Colour.fromString
-        (List.map
-            (\c ->
-                ( ( c, True )
-                , div [ class "p-1 text-lg font-bold flex items-center" ]
-                    [ div [ class "w-8 h-8 mr-2 rounded-full flex-shrink-0 flex-grow-0 border-2", Colour.class "bg" c, Colour.classUp "border" c ] []
-                    , text (Colour.toUserString c)
-                    ]
-                )
-            )
-            Colour.userSelectable
-        )
-        selectedValue
-        { unselectedItemClass = "bg-white text-black"
-        , selectedItemClass = "bg-gray-800 text-white"
-        , showFilled = showFilled
+        , darkBorder = False
         }
 
 
@@ -238,55 +218,28 @@ iconDropdown dropdownClass toMsg selectedValue { showFilled } =
         { unselectedItemClass = "bg-gray-800 text-white"
         , selectedItemClass = "bg-white text-black"
         , showFilled = showFilled
+        , darkBorder = True
         }
 
 
-view : String -> String -> String -> (String -> msg) -> Bool -> { showFilled : Bool } -> Html msg
-view id class value toMsg isValid { showFilled } =
+textbox : List (Attribute msg) -> List (Attribute msg) -> String -> { isValid : Bool, isRequired : Bool } -> (String -> msg) -> Html msg
+textbox outerAttributes inputAttributes value { isValid, isRequired } toMsg =
     let
         isEmpty =
             String.isEmpty value
     in
     div
-        [ A.class "rounded border-4"
-        , A.class class
-        , classList
-            [ ( "border-black border-opacity-50 hover:border-opacity-80 focus-within:border-opacity-80", isEmpty )
-            , ( "border-black border-opacity-50 hover:border-opacity-80 focus-within:border-opacity-80", not showFilled && isValid && not isEmpty )
-            , ( "border-blue-500 border-opacity-70 hover:border-opacity-100 focus-within:border-opacity-100", showFilled && isValid && not isEmpty )
-            , ( "border-red-500 border-opacity-70 hover:border-opacity-100 focus-within:border-opacity-100", not isValid && not isEmpty )
-            ]
-        ]
-        [ input
-            [ type_ "text"
-            , A.id id
-            , A.class "block w-full py-1 px-2 text-lg font-bold"
-            , A.value value
-            , onInput toMsg
-            ]
-            []
-        ]
-
-
-textbox : List (Attribute msg) -> List (Attribute msg) -> String -> Bool -> (String -> msg) -> Html msg
-textbox outerAttributes inputAttributes value isValid toMsg =
-    let
-        isEmpty =
-            String.isEmpty value
-    in
-    div
-        ([ A.class "rounded border-4"
+        ([ A.class "rounded border-4 h-10 border-opacity-50 hover:border-opacity-80 focus-within:border-opacity-80"
          , classList
-            [ ( "border-black border-opacity-50 hover:border-opacity-80 focus-within:border-opacity-80", isEmpty )
-            , ( "border-black border-opacity-50 hover:border-opacity-80 focus-within:border-opacity-80", not isEmpty && isValid )
-            , ( "border-red-500 border-opacity-70 hover:border-opacity-100 focus-within:border-opacity-100", not isEmpty && not isValid )
+            [ ( "border-black", isEmpty && not isRequired || not isEmpty && isValid )
+            , ( "border-red-600", isEmpty && isRequired || not isEmpty && not isValid )
             ]
          ]
             ++ outerAttributes
         )
         [ input
             ([ type_ "text"
-             , A.class "block w-full py-1 px-2 text-lg font-bold"
+             , A.class "block w-full h-full py-1 px-2 font-bold"
              , A.value value
              , onInput toMsg
              ]

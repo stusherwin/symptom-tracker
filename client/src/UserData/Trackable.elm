@@ -476,7 +476,7 @@ toDict trackables =
     IdDict dictProps <| Dict.fromList <| List.map2 Tuple.pair (List.range 1 (List.length trackables)) trackables
 
 
-fromList : List ( TrackableId, Trackable ) -> TrackableDict
+fromList : List ( TrackableId, a ) -> IdDict TrackableId a
 fromList list =
     IdDict dictProps (Dict.fromList <| List.map (Tuple.mapFirst dictProps.fromId) list)
 

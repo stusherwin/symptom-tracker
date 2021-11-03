@@ -53,7 +53,7 @@ body {
 }
 
 .options-selected-display > div {
-  @apply overflow-ellipsis overflow-hidden;
+  @apply overflow-ellipsis overflow-hidden h-full;
 }
 
 .group:hover .group-hover\:bg-white.hover\:bg-gray-800:hover{

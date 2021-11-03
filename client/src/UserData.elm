@@ -1,4 +1,4 @@
-module UserData exposing (UserData, chartables, decode, encode, init, lineCharts, trackables, tryAddTrackable, tryDeleteTrackable, tryUpdateTrackable)
+module UserData exposing (UserData, chartables, decode, encode, init, lineCharts, trackables, tryAddTrackable, tryDeleteTrackable, tryUpdateTrackable, updateChartable)
 
 import Array
 import Colour exposing (Colour(..))
@@ -204,6 +204,11 @@ tryAddTrackable trackable (UserData data) =
 tryDeleteTrackable : TrackableId -> UserData -> Result String UserData
 tryDeleteTrackable id (UserData data) =
     data.trackables |> IdDict.tryDelete id |> Result.map (\updated -> UserData { data | trackables = updated })
+
+
+updateChartable : ChartableId -> (Chartable -> Chartable) -> UserData -> UserData
+updateChartable id fn (UserData data) =
+    UserData { data | chartables = data.chartables |> IdDict.update id fn }
 
 
 decode : D.Decoder UserData

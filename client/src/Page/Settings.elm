@@ -463,9 +463,9 @@ viewQuestion id q =
             case q.answerType of
                 AScale ->
                     [ div [ class "mt-6 flex" ]
-                        [ span [ class "mr-2 py-1 border-4 border-transparent text-lg font-bold" ] [ text "From" ]
+                        [ span [ class "mr-2 py-1 border-4 border-transparent font-bold" ] [ text "From" ]
                         , Controls.textDropdown
-                            "mr-2 w-20"
+                            "mr-2 w-20 h-10"
                             (ScaleFromUpdated id)
                             String.fromInt
                             String.toInt
@@ -477,9 +477,9 @@ viewQuestion id q =
                             )
                             (Just q.scaleOptions.from)
                             { showFilled = False }
-                        , span [ class "mr-2 py-1 border-4 border-transparent text-lg font-bold" ] [ text "to" ]
+                        , span [ class "mr-2 py-1 border-4 border-transparent font-bold" ] [ text "to" ]
                         , Controls.textDropdown
-                            "w-20"
+                            "w-20 h-10"
                             (ScaleToUpdated id)
                             String.fromInt
                             String.toInt
@@ -500,17 +500,15 @@ viewQuestion id q =
         viewIconOptions =
             case q.answerType of
                 AIcon ->
-                    [ div [ class "mt-6" ]
-                        [ h3 [ class "text-lg font-bold" ] [ text "Icon options" ]
-                        , ul [ class "flex flex-wrap" ] <|
+                    [ div [ class "mt-4" ]
+                        [ ul [ class "flex flex-wrap" ] <|
                             (List.indexedMap
                                 (\i { iconType, canDelete } ->
                                     li [ class "mt-4 mr-2 w-32 flex items-start" ]
                                         [ div [ class "flex flex-col items-center" ] <|
                                             [ Controls.iconDropdown "flex-shrink-0 flex-grow-0" (IconUpdated id i) (Just iconType) { showFilled = False }
                                             , div []
-                                                [ span [ class "text-lg text-opacity-70" ] [ text "value " ]
-                                                , span [ class "text-lg text-opacity-70" ] [ text <| String.fromInt i ]
+                                                [ span [ class "text-lg font-bold text-opacity-70" ] [ text <| String.fromInt i ]
                                                 ]
                                             ]
                                         , button
@@ -546,10 +544,10 @@ viewQuestion id q =
     in
     div [ class "py-6 px-4 border-t-4", Colour.class "bg" q.colour, Colour.classUp "border" q.colour ] <|
         [ div [ class "flex justify-between items-end" ]
-            [ Controls.textbox [ class "w-full" ] [ A.id <| "q-" ++ Trackable.idToString id ] q.question True (QuestionTextUpdated id)
+            [ Controls.textbox [ class "w-full" ] [ A.id <| "q-" ++ Trackable.idToString id ] q.question { isValid = True, isRequired = False } (QuestionTextUpdated id)
             ]
         , div [ class "flex justify-start items-end" ]
-            [ Controls.textDropdown "mt-4 w-48 flex-shrink-0 flex-grow-0" (QuestionAnswerTypeUpdated id) answerTypeToString answerTypeFromString answerTypes (Just q.answerType) { showFilled = False }
+            [ Controls.textDropdown "mt-4 w-48 h-10 flex-shrink-0 flex-grow-0" (QuestionAnswerTypeUpdated id) answerTypeToString answerTypeFromString answerTypes (Just q.answerType) { showFilled = False }
             , Controls.colourDropdown "ml-auto flex-shrink-0 flex-grow-0" (QuestionColourUpdated id) (Just q.colour) { showFilled = False }
             ]
         ]
