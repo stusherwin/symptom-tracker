@@ -21,28 +21,26 @@ type Msg dataSetId
     | MouseMove ( Float, Float )
 
 
-type alias Model m dataSetId dataSet =
-    { m
-        | today : Date
-        , xScale : Float
-        , data : List ( dataSetId, DataSet dataSet )
-        , selectedDataSet : Maybe dataSetId
-        , hoveredDataSet : Maybe dataSetId
-        , leavingDataSet : Maybe dataSetId
-        , selectedDataPoint : Maybe Int
-        , hoveredDataPoint : Maybe Int
-        , fillLines : Bool
-        , currentWidth : Float
-        , minWidth : Float
+type alias Model dataSetId =
+    { today : Date
+    , xScale : Float
+    , data : List ( dataSetId, DataSet )
+    , selectedDataSet : Maybe dataSetId
+    , hoveredDataSet : Maybe dataSetId
+    , leavingDataSet : Maybe dataSetId
+    , selectedDataPoint : Maybe Int
+    , hoveredDataPoint : Maybe Int
+    , fillLines : Bool
+    , currentWidth : Float
+    , minWidth : Float
     }
 
 
-type alias DataSet dataSet =
-    { dataSet
-        | name : String
-        , colour : Colour
-        , dataPoints : Dict Int Float
-        , visible : Bool
+type alias DataSet =
+    { name : String
+    , colour : Colour
+    , dataPoints : Dict Int Float
+    , visible : Bool
     }
 
 
@@ -50,7 +48,7 @@ type alias DataSet dataSet =
 -- UPDATE
 
 
-update : Msg dataSetId -> Model m dataSetId dataSet -> Model m dataSetId dataSet
+update : Msg dataSetId -> Model dataSetId -> Model dataSetId
 update msg model =
     case msg of
         DataLineHovered id ->
@@ -63,7 +61,7 @@ update msg model =
             model
 
 
-toggleDataSetSelected : dataSetId -> Model m dataSetId dataSet -> Model m dataSetId dataSet
+toggleDataSetSelected : dataSetId -> Model dataSetId -> Model dataSetId
 toggleDataSetSelected targetId model =
     let
         ( newSelectedDataSet, leavingDataSet ) =
@@ -97,7 +95,7 @@ toggleDataSetSelected targetId model =
             model
 
 
-selectDataSet : Maybe dataSetId -> Model m dataSetId dataSet -> Model m dataSetId dataSet
+selectDataSet : Maybe dataSetId -> Model dataSetId -> Model dataSetId
 selectDataSet targetId model =
     let
         leavingDataSet =
@@ -132,7 +130,7 @@ selectDataSet targetId model =
             model
 
 
-hoverDataSet : Maybe dataSetId -> Model m dataSetId dataSet -> Model m dataSetId dataSet
+hoverDataSet : Maybe dataSetId -> Model dataSetId -> Model dataSetId
 hoverDataSet idM model =
     { model
         | hoveredDataSet =
@@ -155,7 +153,7 @@ hoverDataSet idM model =
     }
 
 
-selectNearestDataPoint : ( Float, Float ) -> Model m dataSetId dataSet -> Model m dataSetId dataSet
+selectNearestDataPoint : ( Float, Float ) -> Model dataSetId -> Model dataSetId
 selectNearestDataPoint ( xPerc, yPerc ) model =
     { model
         | selectedDataPoint =
@@ -177,7 +175,7 @@ selectNearestDataPoint ( xPerc, yPerc ) model =
     }
 
 
-hoverNearestDataPoint : ( Float, Float ) -> Model m dataSetId dataSet -> Model m dataSetId dataSet
+hoverNearestDataPoint : ( Float, Float ) -> Model dataSetId -> Model dataSetId
 hoverNearestDataPoint ( xPerc, yPerc ) model =
     { model
         | hoveredDataPoint =
@@ -190,7 +188,7 @@ hoverNearestDataPoint ( xPerc, yPerc ) model =
     }
 
 
-findNearestDataPoint : Float -> dataSetId -> Model m dataSetId dataSet -> Maybe Int
+findNearestDataPoint : Float -> dataSetId -> Model dataSetId -> Maybe Int
 findNearestDataPoint xPerc id model =
     case model.data |> Listx.lookup id |> Maybe.map (Dict.keys << .dataPoints) of
         Just dates ->
@@ -236,7 +234,7 @@ findNearestDataPoint xPerc id model =
             Nothing
 
 
-toggleDataSetVisible : dataSetId -> Model m dataSetId dataSet -> Model m dataSetId dataSet
+toggleDataSetVisible : dataSetId -> Model dataSetId -> Model dataSetId
 toggleDataSetVisible id model =
     let
         wasVisible =
@@ -346,7 +344,7 @@ divideYAxis data =
     }
 
 
-viewJustYAxis : String -> Model m dataSetId dataSet -> Svg msg
+viewJustYAxis : String -> Model dataSetId -> Svg msg
 viewJustYAxis class { data } =
     let
         yDiv =
@@ -376,7 +374,7 @@ viewJustYAxis class { data } =
                 (List.range 0 <| ceiling yDiv.valueSteps)
 
 
-viewLineGraph : String -> String -> Model m dataSetId dataSet -> Svg (Msg dataSetId)
+viewLineGraph : String -> String -> Model dataSetId -> Svg (Msg dataSetId)
 viewLineGraph svgId class m =
     let
         startDate =
@@ -602,7 +600,7 @@ viewLineGraph svgId class m =
         axes =
             xAxis
 
-        dataFill : ( dataSetId, DataSet dataSet ) -> List (Svg (Msg dataSetId))
+        dataFill : ( dataSetId, DataSet ) -> List (Svg (Msg dataSetId))
         dataFill ( id, dataSet ) =
             let
                 plotPoints : List PlotPoint
@@ -657,7 +655,7 @@ viewLineGraph svgId class m =
                 []
             ]
 
-        dataLineBacking : ( dataSetId, DataSet dataSet ) -> List (Svg (Msg dataSetId))
+        dataLineBacking : ( dataSetId, DataSet ) -> List (Svg (Msg dataSetId))
         dataLineBacking ( id, dataSet ) =
             let
                 plotPoints : List PlotPoint
@@ -706,7 +704,7 @@ viewLineGraph svgId class m =
                 []
             ]
 
-        dataLine : ( dataSetId, DataSet dataSet ) -> List (Svg (Msg dataSetId))
+        dataLine : ( dataSetId, DataSet ) -> List (Svg (Msg dataSetId))
         dataLine ( id, dataSet ) =
             let
                 plotPoints : List PlotPoint
@@ -937,7 +935,7 @@ viewLineGraph svgId class m =
             ++ highlightedDataPoint
 
 
-findStartDate : Date -> List ( dataSetId, DataSet dataSet ) -> Date
+findStartDate : Date -> List ( dataSetId, DataSet ) -> Date
 findStartDate today data =
     let
         minDate =
@@ -955,7 +953,7 @@ findStartDate today data =
     Date.add Weeks -fullWeeks today
 
 
-findMaxValue : List ( dataSetId, DataSet dataSet ) -> Float
+findMaxValue : List ( dataSetId, DataSet ) -> Float
 findMaxValue =
     Maybe.withDefault 0
         << List.maximum
