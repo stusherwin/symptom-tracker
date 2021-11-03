@@ -1004,7 +1004,7 @@ viewLineChart fullScreen chartableOptions trackableOptions userData ( chartId, m
                 ]
             ]
             [ div
-                [ class "mx-4 my-0 flex scrollable-parent relative"
+                [ class "mr-4 my-0 flex scrollable-parent relative"
                 , style "height" "300px"
                 ]
                 ([ viewJustYAxis "flex-grow-0 flex-shrink-0" model
@@ -1048,7 +1048,7 @@ viewLineChart fullScreen chartableOptions trackableOptions userData ( chartId, m
                     ++ (case model.selectedDataSet |> Maybe.andThen (\id -> Listx.findBy Tuple.first id chartableOptions) of
                             Just ( id, name ) ->
                                 [ div
-                                    [ class "absolute left-10 top-6 rounded bg-white bg-opacity-80 p-2 min-w-44 max-w-xs" ]
+                                    [ class "absolute left-14 top-6 rounded bg-white bg-opacity-80 p-2 min-w-44 max-w-xs" ]
                                     ([ button
                                         [ class "absolute right-2 top-2 text-black text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
                                         , Htmlx.onClickStopPropagation (ChartableCloseClicked chartId)
