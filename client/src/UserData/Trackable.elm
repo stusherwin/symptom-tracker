@@ -4,7 +4,7 @@ import Array exposing (Array)
 import Colour exposing (Colour(..))
 import Date exposing (Date, Unit(..))
 import Dict exposing (Dict)
-import Dictx
+import Extra.Dict as Dict
 import IdDict exposing (IdDict(..))
 import Json.Decode as D
 import Json.Encode as E
@@ -110,7 +110,7 @@ maybeFloatData (Trackable t) =
 
 onlyFloatData : Trackable -> Dict Int Float
 onlyFloatData =
-    Dictx.concatMaybes << maybeFloatData
+    Dict.concatMaybes << maybeFloatData
 
 
 textData : Trackable -> Dict Int String
@@ -341,8 +341,8 @@ convertToYesNo ((Trackable t) as trackable) =
             convert resps
 
         convert =
-            Dictx.concatMaybes
-                << Dictx.mapMaybes
+            Dict.concatMaybes
+                << Dict.mapMaybes
                     (\v ->
                         if v == 1 then
                             Just True
@@ -371,8 +371,8 @@ convertToIcon icons ((Trackable t) as trackable) =
             convert resps
 
         convert =
-            Dictx.concatMaybes
-                << Dictx.mapMaybes
+            Dict.concatMaybes
+                << Dict.mapMaybes
                     (\v ->
                         if ceiling v == floor v && v >= 0 && floor v <= Array.length icons then
                             Just (floor v)
@@ -398,8 +398,8 @@ convertToScale min max ((Trackable t) as trackable) =
             convert resps
 
         convert =
-            Dictx.concatMaybes
-                << Dictx.mapMaybes
+            Dict.concatMaybes
+                << Dict.mapMaybes
                     (\v ->
                         if ceiling v == floor v && floor v >= min && floor v <= max then
                             Just (floor v)
@@ -425,8 +425,8 @@ convertToInt ((Trackable t) as trackable) =
             convert resps
 
         convert =
-            Dictx.concatMaybes
-                << Dictx.mapMaybes
+            Dict.concatMaybes
+                << Dict.mapMaybes
                     (\v ->
                         if ceiling v == floor v then
                             Just (floor v)
@@ -452,8 +452,8 @@ convertToFloat ((Trackable t) as trackable) =
             convert resps
 
         convert =
-            Dictx.concatMaybes
-                << Dictx.mapMaybes
+            Dict.concatMaybes
+                << Dict.mapMaybes
                     (\v -> Just v)
     in
     if Dict.size resps == Dict.size converted then

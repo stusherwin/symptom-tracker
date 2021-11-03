@@ -1,17 +1,17 @@
 module Page.Chartables exposing (Model, Msg(..), init, update, view)
 
 import Array exposing (Array)
-import Arrayx
 import Browser.Dom as Dom
 import Chart.Chartable
 import Chart.LineChart as Chart
 import Colour exposing (Colour(..))
 import Controls
+import Extra.Array as Array
+import Extra.List as List
 import Html exposing (..)
 import Html.Attributes as A exposing (..)
 import Html.Events exposing (onClick)
 import IdDict
-import Listx
 import Platform.Cmd as Cmd
 import Svg.Icon exposing (IconType(..), icon)
 import Task
@@ -158,7 +158,7 @@ update msg model =
                             ( model, Cmd.none )
                                 |> setUserData userData_
                                 |> (updateChartable <| Chart.Chartable.update userData_ chartableMsg)
-                                |> (Tuple.mapFirst <| \m -> { m | chartables = m.chartables |> Arrayx.swap i (i - 1) })
+                                |> (Tuple.mapFirst <| \m -> { m | chartables = m.chartables |> Array.swap i (i - 1) })
 
                         Chart.Chartable.ChartableDownClicked ->
                             let
@@ -168,7 +168,7 @@ update msg model =
                             ( model, Cmd.none )
                                 |> setUserData userData_
                                 |> (updateChartable <| Chart.Chartable.update userData_ chartableMsg)
-                                |> (Tuple.mapFirst <| \m -> { m | chartables = m.chartables |> Arrayx.swap i (i + 1) })
+                                |> (Tuple.mapFirst <| \m -> { m | chartables = m.chartables |> Array.swap i (i + 1) })
 
                         Chart.Chartable.ChartableNameUpdated name ->
                             let
@@ -213,7 +213,7 @@ update msg model =
                                 |> (Tuple.mapFirst <|
                                         \m ->
                                             { m
-                                                | chartables = m.chartables |> Arrayx.delete i
+                                                | chartables = m.chartables |> Array.delete i
                                                 , editState = NotEditing
                                             }
                                    )

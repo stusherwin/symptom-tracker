@@ -1,12 +1,12 @@
 module Svg.Graph exposing (Model, Msg(..), hoverDataSet, hoverNearestDataPoint, selectDataSet, selectNearestDataPoint, toggleDataSetSelected, toggleDataSetVisible, update, viewJustYAxis, viewLineGraph)
 
 import Array exposing (Array)
-import Arrayx
 import Colour exposing (Colour(..))
 import DataSet exposing (DataSet)
 import Date exposing (Date, Unit(..))
 import Dict
-import Htmlx
+import Extra.Array as Array
+import Extra.Html exposing (..)
 import Json.Decode as D
 import Svg as S exposing (..)
 import Svg.Attributes as A exposing (..)
@@ -242,7 +242,7 @@ toggleDataSetVisible i model =
             model.data |> Array.get i |> Maybe.map .isVisible
     in
     { model
-        | data = model.data |> Arrayx.update i (\ds -> { ds | isVisible = not ds.isVisible })
+        | data = model.data |> Array.update i (\ds -> { ds | isVisible = not ds.isVisible })
         , selectedDataSet = Nothing
         , hoveredDataSet = Nothing
         , leavingDataSet =
@@ -589,7 +589,7 @@ viewLineGraph svgId class m =
                  , dSmoothLine h Closed <| plotPoints dataSet
                  ]
                     ++ (if m.selectedDataSet == Nothing then
-                            [ Htmlx.onClickStopPropagation <| DataSetClicked i
+                            [ onClickStopPropagation <| DataSetClicked i
                             , onMouseOver <| DataSetHovered <| Just i
                             , onMouseOut <| DataSetHovered Nothing
                             ]
@@ -624,7 +624,7 @@ viewLineGraph svgId class m =
                  , dSmoothLine h Open <| plotPoints dataSet
                  ]
                     ++ (if m.selectedDataSet == Nothing then
-                            [ Htmlx.onClickStopPropagation <| DataSetClicked i
+                            [ onClickStopPropagation <| DataSetClicked i
                             , onMouseOver <| DataSetHovered <| Just i
                             , onMouseOut <| DataSetHovered Nothing
                             ]
@@ -662,7 +662,7 @@ viewLineGraph svgId class m =
                  , dSmoothLine h Open <| points
                  ]
                     ++ (if m.selectedDataSet == Nothing then
-                            [ Htmlx.onClickStopPropagation <| DataSetClicked i
+                            [ onClickStopPropagation <| DataSetClicked i
                             , onMouseOver <| DataSetHovered <| Just i
                             , onMouseOut <| DataSetHovered Nothing
                             ]

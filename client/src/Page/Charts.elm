@@ -5,11 +5,11 @@ import Browser.Navigation as Nav
 import Chart.LineChart as Chart
 import Controls
 import Date exposing (Date, Unit(..))
+import Extra.Html exposing (..)
+import Extra.List as List
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Htmlx
 import IdDict
-import Listx
 import Page.Chart as ChartPage
 import Stringx
 import Svg.Icon exposing (IconType(..), icon)
@@ -62,7 +62,7 @@ init today userData navKey chartIdM =
             let
                 chartsWithCmds =
                     UserData.activeLineCharts userData
-                        |> Listx.mapLookup (toChartModel today userData)
+                        |> List.mapLookup (toChartModel today userData)
             in
             ( { today = today
               , chartableOptions =
@@ -122,7 +122,7 @@ update msg model =
                 | state =
                     case m.state of
                         Charts charts ->
-                            Charts (charts |> Listx.updateLookup chartId fn)
+                            Charts (charts |> List.updateLookup chartId fn)
 
                         Chart chart ->
                             Chart { chart | chart = fn chart.chart }
@@ -133,7 +133,7 @@ update msg model =
                 | state =
                     case m.state of
                         Charts charts ->
-                            Charts (charts |> Listx.insertLookup chartId chart)
+                            Charts (charts |> List.insertLookup chartId chart)
 
                         _ ->
                             m.state
@@ -155,7 +155,7 @@ update msg model =
                 | state =
                     case m.state of
                         Charts charts ->
-                            Charts (charts |> Listx.moveHeadwardsBy Tuple.first chartId)
+                            Charts (charts |> List.moveHeadwardsBy Tuple.first chartId)
 
                         _ ->
                             m.state
@@ -166,7 +166,7 @@ update msg model =
                 | state =
                     case m.state of
                         Charts charts ->
-                            Charts (charts |> Listx.moveTailwardsBy Tuple.first chartId)
+                            Charts (charts |> List.moveTailwardsBy Tuple.first chartId)
 
                         _ ->
                             m.state
@@ -181,7 +181,7 @@ update msg model =
                 Charts charts ->
                     let
                         chartM =
-                            charts |> Listx.lookup chartId
+                            charts |> List.lookup chartId
                     in
                     case chartM of
                         Just chart ->
@@ -306,7 +306,7 @@ urlChanged chartIdM model =
             let
                 chartsWithCmds =
                     UserData.activeLineCharts model.userData
-                        |> Listx.mapLookup (toChartModel model.today model.userData)
+                        |> List.mapLookup (toChartModel model.today model.userData)
             in
             ( { model
                 | state = Charts (chartsWithCmds |> List.map (\( id, ( chart, _ ) ) -> ( id, chart )))
@@ -351,7 +351,7 @@ view model =
                                             ]
                                         , button
                                             [ class "ml-4 rounded text-black text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
-                                            , Htmlx.onClickStopPropagation (ChartDeleteClicked chartId)
+                                            , onClickStopPropagation (ChartDeleteClicked chartId)
                                             ]
                                             [ icon "w-5 h-5" <| SolidTrashAlt ]
                                         , button
@@ -360,7 +360,7 @@ view model =
                                                 [ ( "text-opacity-30 cursor-default", not canMoveUp )
                                                 , ( "text-opacity-70 hover:text-opacity-100 focus:text-opacity-100", canMoveUp )
                                                 ]
-                                            , Htmlx.onClickStopPropagation <| ChartUpClicked chartId
+                                            , onClickStopPropagation <| ChartUpClicked chartId
                                             , disabled (not canMoveUp)
                                             ]
                                             [ icon "w-5 h-5" <| SolidArrowUp
@@ -371,7 +371,7 @@ view model =
                                                 [ ( "text-opacity-30 cursor-default", not canMoveDown )
                                                 , ( "text-opacity-70 hover:text-opacity-100 focus:text-opacity-100", canMoveDown )
                                                 ]
-                                            , Htmlx.onClickStopPropagation <| ChartDownClicked chartId
+                                            , onClickStopPropagation <| ChartDownClicked chartId
                                             , disabled (not canMoveDown)
                                             ]
                                             [ icon "w-5 h-5" <| SolidArrowDown

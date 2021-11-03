@@ -3,10 +3,10 @@ module UserData exposing (UserData, activeChartables, activeLineCharts, activeTr
 import Colour exposing (Colour(..))
 import Date exposing (Date, Unit(..))
 import Dict
+import Extra.List as List
 import IdDict
 import Json.Decode as D
 import Json.Encode as E
-import Listx
 import Svg.Icon exposing (IconType(..))
 import Time exposing (Month(..))
 import UserData.Chartable as C exposing (Chartable(..), ChartableDict)
@@ -306,17 +306,17 @@ deleteTrackable id (UserData data) =
 
 toggleTrackableVisible : TrackableId -> UserData -> UserData
 toggleTrackableVisible id (UserData data) =
-    UserData { data | activeTrackables = data.activeTrackables |> Listx.updateLookup id not }
+    UserData { data | activeTrackables = data.activeTrackables |> List.updateLookup id not }
 
 
 moveTrackableUp : TrackableId -> UserData -> UserData
 moveTrackableUp id (UserData data) =
-    UserData { data | activeTrackables = data.activeTrackables |> Listx.moveHeadwardsBy Tuple.first id }
+    UserData { data | activeTrackables = data.activeTrackables |> List.moveHeadwardsBy Tuple.first id }
 
 
 moveTrackableDown : TrackableId -> UserData -> UserData
 moveTrackableDown id (UserData data) =
-    UserData { data | activeTrackables = data.activeTrackables |> Listx.moveTailwardsBy Tuple.first id }
+    UserData { data | activeTrackables = data.activeTrackables |> List.moveTailwardsBy Tuple.first id }
 
 
 updateChartable : ChartableId -> (Chartable -> Chartable) -> UserData -> UserData
@@ -356,17 +356,17 @@ deleteChartable id (UserData data) =
 
 toggleChartableVisible : ChartableId -> UserData -> UserData
 toggleChartableVisible chartableId (UserData data) =
-    UserData { data | activeChartables = data.activeChartables |> Listx.updateLookup chartableId not }
+    UserData { data | activeChartables = data.activeChartables |> List.updateLookup chartableId not }
 
 
 moveChartableUp : ChartableId -> UserData -> UserData
 moveChartableUp chartableId (UserData data) =
-    UserData { data | activeChartables = data.activeChartables |> Listx.moveHeadwardsBy Tuple.first chartableId }
+    UserData { data | activeChartables = data.activeChartables |> List.moveHeadwardsBy Tuple.first chartableId }
 
 
 moveChartableDown : ChartableId -> UserData -> UserData
 moveChartableDown chartableId (UserData data) =
-    UserData { data | activeChartables = data.activeChartables |> Listx.moveTailwardsBy Tuple.first chartableId }
+    UserData { data | activeChartables = data.activeChartables |> List.moveTailwardsBy Tuple.first chartableId }
 
 
 updateLineChart : LineChartId -> (LineChart -> LineChart) -> UserData -> UserData
@@ -392,12 +392,12 @@ addLineChart lineChartState (UserData data) =
 
 moveLineChartUp : LineChartId -> UserData -> UserData
 moveLineChartUp id (UserData data) =
-    UserData { data | activeLineCharts = data.activeLineCharts |> Listx.moveHeadwards id }
+    UserData { data | activeLineCharts = data.activeLineCharts |> List.moveHeadwards id }
 
 
 moveLineChartDown : LineChartId -> UserData -> UserData
 moveLineChartDown id (UserData data) =
-    UserData { data | activeLineCharts = data.activeLineCharts |> Listx.moveTailwards id }
+    UserData { data | activeLineCharts = data.activeLineCharts |> List.moveTailwards id }
 
 
 deleteLineChart : LineChartId -> UserData -> UserData

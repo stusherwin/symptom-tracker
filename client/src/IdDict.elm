@@ -1,7 +1,7 @@
 module IdDict exposing (IdDict(..), IdDictProps, add, concatMaybes, decode, delete, encode, filter, fromList, get, insert, keys, map, toDict, toList, tryAdd, tryDelete, tryUpdate, update, values)
 
 import Dict exposing (Dict)
-import Dictx
+import Extra.Dict as Dict
 import Json.Decode as D
 import Json.Encode as E
 
@@ -44,7 +44,7 @@ keys (IdDict p dict) =
 
 concatMaybes : IdDict id (Maybe a) -> IdDict id a
 concatMaybes (IdDict p dict) =
-    IdDict p (Dictx.concatMaybes dict)
+    IdDict p (Dict.concatMaybes dict)
 
 
 toDict : (id -> entity -> a) -> IdDict id entity -> Dict Int a

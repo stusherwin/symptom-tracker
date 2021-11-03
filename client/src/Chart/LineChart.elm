@@ -1,15 +1,15 @@
 module Chart.LineChart exposing (Model, Msg, addChartableDataSet, addTrackableDataSet, hoverDataSet, init, moveDataSetBack, moveDataSetForward, removeDataSet, replaceDataSetWithChartable, replaceDataSetWithTrackable, selectDataSet, subscriptions, toggleDataSetSelected, toggleDataSetVisible, update, updateChartableDataSet, updateDataSetName, updateName, updateTrackableDataSet, view)
 
-import Array exposing (Array)
-import Arrayx
+import Array
 import Browser.Dom as Dom
 import Browser.Events as E
 import DataSet exposing (DataSet)
 import Date exposing (Date, Unit(..))
 import Dict exposing (Dict)
+import Extra.Array as Array
+import Extra.Html exposing (..)
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Htmlx
 import Maybe exposing (Maybe)
 import Ports exposing (fullScreenChanged, toggleElementFullScreen)
 import Svg.Graph as Graph exposing (Msg, viewJustYAxis, viewLineGraph)
@@ -239,7 +239,7 @@ selectDataSet i model =
 
 updateDataSetName : Int -> String -> Model -> ( Model, Cmd Msg )
 updateDataSetName i name ({ graph } as model) =
-    ( { model | graph = { graph | data = graph.data |> Arrayx.update i (\d -> { d | name = name }) } }
+    ( { model | graph = { graph | data = graph.data |> Array.update i (\d -> { d | name = name }) } }
     , Cmd.none
     )
 
@@ -250,7 +250,7 @@ updateChartableDataSet i userData chartableId ({ graph } as model) =
         |> UserData.getChartable chartableId
         |> Maybe.map
             (\chartable ->
-                ( { model | graph = { graph | data = graph.data |> Arrayx.update i (\d -> DataSet.fromChartable chartable d.isVisible) } }
+                ( { model | graph = { graph | data = graph.data |> Array.update i (\d -> DataSet.fromChartable chartable d.isVisible) } }
                 , Cmd.none
                 )
             )
@@ -277,7 +277,7 @@ updateTrackableDataSet i userData trackableId updatedMultiplierM updatedIsInvert
                                             multiplier =
                                                 Maybe.withDefault m updatedMultiplierM
                                         in
-                                        ( { model | graph = { graph | data = graph.data |> Arrayx.update i (\d -> DataSet.fromTrackable trackable multiplier isInverted d.isVisible) } }
+                                        ( { model | graph = { graph | data = graph.data |> Array.update i (\d -> DataSet.fromTrackable trackable multiplier isInverted d.isVisible) } }
                                         , Cmd.none
                                         )
                                     )
@@ -340,7 +340,7 @@ addTrackableDataSet userData trackableId ({ graph } as model) =
 
 removeDataSet : Int -> Model -> ( Model, Cmd Msg )
 removeDataSet i ({ graph } as model) =
-    ( { model | graph = { graph | data = graph.data |> Arrayx.delete i } }
+    ( { model | graph = { graph | data = graph.data |> Array.delete i } }
     , Dom.getViewportOf ("chart" ++ LCId.toString model.chartId ++ "-scrollable")
         |> Task.attempt ViewportUpdated
     )
@@ -348,12 +348,12 @@ removeDataSet i ({ graph } as model) =
 
 moveDataSetBack : Int -> Model -> ( Model, Cmd Msg )
 moveDataSetBack i ({ graph } as model) =
-    ( { model | graph = { graph | data = graph.data |> Arrayx.swap i (i - 1) } }, Cmd.none )
+    ( { model | graph = { graph | data = graph.data |> Array.swap i (i - 1) } }, Cmd.none )
 
 
 moveDataSetForward : Int -> Model -> ( Model, Cmd Msg )
 moveDataSetForward i ({ graph } as model) =
-    ( { model | graph = { graph | data = graph.data |> Arrayx.swap i (i + 1) } }, Cmd.none )
+    ( { model | graph = { graph | data = graph.data |> Array.swap i (i + 1) } }, Cmd.none )
 
 
 subscriptions : Model -> Sub Msg
@@ -393,7 +393,7 @@ view model =
              , div [ class "absolute right-2 top-6 flex flex-col" ]
                 [ button
                     [ class "rounded shadow p-2 bg-white bg-opacity-80 text-black focus:outline-none text-opacity-70 hover:bg-opacity-100 hover:text-opacity-100 focus:text-opacity-100"
-                    , Htmlx.onClickStopPropagation ChartFullScreenClicked
+                    , onClickStopPropagation ChartFullScreenClicked
                     ]
                     [ icon "w-5 h-5" <|
                         if model.fullScreen then
@@ -408,7 +408,7 @@ view model =
                         [ ( "text-opacity-30 cursor-default", Array.isEmpty model.graph.data )
                         , ( "text-opacity-70 hover:text-opacity-100 hover:bg-opacity-100 focus:text-opacity-100 focus:bg-opacity-100", not (Array.isEmpty model.graph.data) )
                         ]
-                    , Htmlx.onClickStopPropagation ChartZoomInClicked
+                    , onClickStopPropagation ChartZoomInClicked
                     , disabled (Array.isEmpty model.graph.data)
                     ]
                     [ icon "w-5 h-5" SolidPlus
@@ -419,7 +419,7 @@ view model =
                         [ ( "text-opacity-30 cursor-default", Array.isEmpty model.graph.data || model.graph.currentWidth > 0 && model.graph.currentWidth <= model.graph.minWidth )
                         , ( "text-opacity-70 hover:text-opacity-100 hover:bg-opacity-100 focus:text-opacity-100 focus:bg-opacity-100", not (Array.isEmpty model.graph.data) && model.graph.currentWidth > model.graph.minWidth )
                         ]
-                    , Htmlx.onClickStopPropagation ChartZoomOutClicked
+                    , onClickStopPropagation ChartZoomOutClicked
                     , disabled (Array.isEmpty model.graph.data || model.graph.currentWidth > 0 && model.graph.currentWidth <= model.graph.minWidth)
                     ]
                     [ icon "w-5 h-5" SolidMinus
@@ -429,7 +429,7 @@ view model =
                     , classList
                         [ ( "disabled cursor-default", Array.isEmpty model.graph.data )
                         ]
-                    , Htmlx.onClickStopPropagation (ChartFillLinesChecked <| not model.graph.fillLines)
+                    , onClickStopPropagation (ChartFillLinesChecked <| not model.graph.fillLines)
                     , disabled (Array.isEmpty model.graph.data)
                     ]
                     [ fillIcon "w-5 h-5" model.graph.fillLines ]
@@ -441,7 +441,7 @@ view model =
                                 [ class "absolute left-14 top-6 rounded bg-white bg-opacity-80 p-2 min-w-44 max-w-xs" ]
                                 ([ button
                                     [ class "absolute right-2 top-2 text-black text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
-                                    , Htmlx.onClickStopPropagation ChartExpandValueCloseClicked
+                                    , onClickStopPropagation ChartExpandValueCloseClicked
                                     ]
                                     [ icon "w-4 h-4" SolidTimes
                                     ]
@@ -499,7 +499,7 @@ view model =
                                                         [ href "#"
                                                         , target "_self"
                                                         , class "ml-2 text-sm text-blue-600 hover:text-blue-800 underline"
-                                                        , Htmlx.onClickPreventDefault ChartExpandValueClicked
+                                                        , onClickPreventDefault ChartExpandValueClicked
                                                         ]
                                                       <|
                                                         if model.expandedValue then

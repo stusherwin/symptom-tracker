@@ -4,7 +4,7 @@ import Array exposing (Array)
 import Colour exposing (Colour(..))
 import Date exposing (Date, Unit(..))
 import Dict exposing (Dict)
-import Dictx
+import Extra.Dict as Dict
 import UserData.Chartable as C exposing (Chartable)
 import UserData.ChartableId exposing (ChartableId)
 import UserData.LineChart as LC exposing (LineChart(..))
@@ -44,7 +44,7 @@ fromChartable c isVisible =
                         |> T.onlyFloatData
                         |> Dict.map (\_ v -> v * multiplier)
                 )
-            |> List.foldl (Dictx.unionWith (\v1 v2 -> v1 + v2)) Dict.empty
+            |> List.foldl (Dict.unionWith (\v1 v2 -> v1 + v2)) Dict.empty
             |> (if C.isInverted c then
                     invert
 

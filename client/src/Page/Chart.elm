@@ -1,16 +1,16 @@
 module Page.Chart exposing (Model, Msg(..), init, subscriptions, update, view)
 
 import Array exposing (Array)
-import Arrayx
 import Browser.Dom as Dom
 import Chart.Chartable
 import Chart.LineChart as Chart
 import Chart.Trackable
 import Controls
 import Date exposing (Date, Unit(..))
+import Extra.Array as Array
+import Extra.Html exposing (..)
 import Html exposing (..)
 import Html.Attributes exposing (..)
-import Htmlx
 import Maybe exposing (Maybe)
 import Stringx
 import Svg.Attributes exposing (in_)
@@ -311,7 +311,7 @@ update msg model =
                                 |> setUserData userData_
                                 |> (updateChartable <| Chart.Chartable.update userData_ chartableMsg)
                                 |> (updateChart <| Chart.moveDataSetBack i)
-                                |> (Tuple.mapFirst <| \m -> { m | data = m.data |> Arrayx.swap i (i - 1) })
+                                |> (Tuple.mapFirst <| \m -> { m | data = m.data |> Array.swap i (i - 1) })
 
                         Chart.Chartable.ChartableDownClicked ->
                             let
@@ -322,7 +322,7 @@ update msg model =
                                 |> setUserData userData_
                                 |> (updateChartable <| Chart.Chartable.update userData_ chartableMsg)
                                 |> (updateChart <| Chart.moveDataSetForward i)
-                                |> (Tuple.mapFirst <| \m -> { m | data = m.data |> Arrayx.swap i (i + 1) })
+                                |> (Tuple.mapFirst <| \m -> { m | data = m.data |> Array.swap i (i + 1) })
 
                         Chart.Chartable.ChartableNameUpdated name ->
                             let
@@ -373,7 +373,7 @@ update msg model =
                                 |> (Tuple.mapFirst <|
                                         \m ->
                                             { m
-                                                | data = m.data |> Arrayx.delete i
+                                                | data = m.data |> Array.delete i
                                                 , addState = NotAdding
                                             }
                                    )
@@ -505,7 +505,7 @@ update msg model =
                                 |> setUserData userData_
                                 |> (updateTrackable <| Chart.Trackable.update userData_ Nothing trackableMsg)
                                 |> (updateChart <| Chart.moveDataSetBack i)
-                                |> (Tuple.mapFirst <| \m -> { m | data = m.data |> Arrayx.swap i (i - 1) })
+                                |> (Tuple.mapFirst <| \m -> { m | data = m.data |> Array.swap i (i - 1) })
 
                         Chart.Trackable.TrackableDownClicked ->
                             let
@@ -516,7 +516,7 @@ update msg model =
                                 |> setUserData userData_
                                 |> (updateTrackable <| Chart.Trackable.update userData_ Nothing trackableMsg)
                                 |> (updateChart <| Chart.moveDataSetForward i)
-                                |> (Tuple.mapFirst <| \m -> { m | data = m.data |> Arrayx.swap i (i + 1) })
+                                |> (Tuple.mapFirst <| \m -> { m | data = m.data |> Array.swap i (i + 1) })
 
                         Chart.Trackable.TrackableInvertedChanged inverted ->
                             let
@@ -590,7 +590,7 @@ update msg model =
                                 |> (Tuple.mapFirst <|
                                         \m ->
                                             { m
-                                                | data = m.data |> Arrayx.delete i
+                                                | data = m.data |> Array.delete i
                                                 , addState = NotAdding
                                             }
                                    )
@@ -877,7 +877,7 @@ view model =
                                     , Controls.button "ml-4" Controls.ButtonGrey ChartableAddConfirmClicked SolidPlusCircle "Add" True
                                     , button
                                         [ class "ml-4 rounded text-black text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
-                                        , Htmlx.onClickStopPropagation ChartableAddCancelClicked
+                                        , onClickStopPropagation ChartableAddCancelClicked
                                         ]
                                         [ icon "w-5 h-5" <| SolidTimes ]
                                     ]

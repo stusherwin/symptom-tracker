@@ -1,4 +1,4 @@
-module Htmlx exposing (..)
+module Extra.Html exposing (..)
 
 import Html exposing (..)
 import Html.Attributes exposing (..)

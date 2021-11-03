@@ -2,11 +2,11 @@ module UserData.Chartable exposing (Chartable, ChartableDict, New, add, addTrack
 
 import Colour exposing (Colour)
 import Dict exposing (Dict)
-import Dictx
+import Extra.Dict as Dict
+import Extra.List as List
 import IdDict exposing (IdDict(..))
 import Json.Decode as D
 import Json.Encode as E
-import Listx
 import Tuple
 import UserData.ChartableId exposing (ChartableId)
 import UserData.Trackable as T exposing (Trackable, TrackableDict)
@@ -147,7 +147,7 @@ buildColour s col =
 --                     |> T.onlyFloatData
 --                     |> Dict.map (\_ v -> v * multiplier)
 --             )
---         |> List.foldl (Dictx.unionWith (\v1 v2 -> v1 + v2)) Dict.empty
+--         |> List.foldl (Dict.unionWith (\v1 v2 -> v1 + v2)) Dict.empty
 --         |> (if inv then
 --                 invert
 --             else
@@ -183,7 +183,7 @@ deleteTrackable : TrackableId -> Chartable -> Chartable
 deleteTrackable trackableId (Chartable c) =
     let
         sum_ =
-            c.sum |> Listx.deleteBy Tuple.first trackableId
+            c.sum |> List.deleteBy Tuple.first trackableId
     in
     Chartable
         { c
@@ -196,7 +196,7 @@ replaceTrackable : TrackableId -> TrackableId -> Trackable -> Chartable -> Chart
 replaceTrackable oldTrackableId newTrackableId newTrackable (Chartable c) =
     let
         sum_ =
-            c.sum |> Listx.updateLookupWithKey oldTrackableId (\( _, ( _, multiplier ) ) -> ( newTrackableId, ( newTrackable, multiplier ) ))
+            c.sum |> List.updateLookupWithKey oldTrackableId (\( _, ( _, multiplier ) ) -> ( newTrackableId, ( newTrackable, multiplier ) ))
     in
     Chartable
         { c
@@ -209,7 +209,7 @@ setMultiplier : TrackableId -> Float -> Chartable -> Chartable
 setMultiplier trackableId multiplier (Chartable c) =
     let
         sum_ =
-            c.sum |> Listx.updateLookup trackableId (Tuple.mapSecond <| always multiplier)
+            c.sum |> List.updateLookup trackableId (Tuple.mapSecond <| always multiplier)
     in
     Chartable
         { c

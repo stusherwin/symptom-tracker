@@ -1,4 +1,4 @@
-module Dictx exposing (..)
+module Extra.Dict exposing (..)
 
 import Dict exposing (Dict)
 

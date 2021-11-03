@@ -1,7 +1,7 @@
 module UserData.LineChart exposing (DataSet(..), LineChart, LineChartDict, New, StateDataSet(..), add, addChartable, addTrackable, buildDict, dataSets, decode, decodeV5, deleteData, encode, fillLines, moveDataDown, moveDataUp, name, replaceTrackable, replaceTrackableWithChartable, setFillLines, setName, setTrackableInverted, setTrackableMultiplier, toggleDataVisible)
 
 import Array exposing (Array)
-import Arrayx
+import Extra.Array as Array
 import IdDict exposing (IdDict(..))
 import Json.Decode as D
 import Json.Encode as E
@@ -134,7 +134,7 @@ setTrackableInverted i isInverted (LineChart c) =
         { c
             | dataSets =
                 c.dataSets
-                    |> Arrayx.update i
+                    |> Array.update i
                         (\d ->
                             case d of
                                 ( Trackable t, visible ) ->
@@ -152,7 +152,7 @@ setTrackableMultiplier i multiplier (LineChart c) =
         { c
             | dataSets =
                 c.dataSets
-                    |> Arrayx.update i
+                    |> Array.update i
                         (\d ->
                             case d of
                                 ( Trackable t, visible ) ->
@@ -167,25 +167,25 @@ setTrackableMultiplier i multiplier (LineChart c) =
 deleteData : Int -> LineChart -> LineChart
 deleteData i (LineChart c) =
     LineChart
-        { c | dataSets = c.dataSets |> Arrayx.delete i }
+        { c | dataSets = c.dataSets |> Array.delete i }
 
 
 toggleDataVisible : Int -> LineChart -> LineChart
 toggleDataVisible i (LineChart c) =
     LineChart
-        { c | dataSets = c.dataSets |> Arrayx.update i (Tuple.mapSecond not) }
+        { c | dataSets = c.dataSets |> Array.update i (Tuple.mapSecond not) }
 
 
 moveDataUp : Int -> LineChart -> LineChart
 moveDataUp i (LineChart c) =
     LineChart
-        { c | dataSets = c.dataSets |> Arrayx.swap i (i - 1) }
+        { c | dataSets = c.dataSets |> Array.swap i (i - 1) }
 
 
 moveDataDown : Int -> LineChart -> LineChart
 moveDataDown i (LineChart c) =
     LineChart
-        { c | dataSets = c.dataSets |> Arrayx.swap i (i + 1) }
+        { c | dataSets = c.dataSets |> Array.swap i (i + 1) }
 
 
 buildDict : ChartableDict -> TrackableDict -> IdDict LineChartId State -> LineChartDict

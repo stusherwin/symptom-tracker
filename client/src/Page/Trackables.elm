@@ -6,12 +6,12 @@ import Chart.LineChart as Chart
 import Colour exposing (Colour(..))
 import Controls
 import Dict
+import Extra.Html exposing (..)
+import Extra.List as List
 import Html exposing (..)
 import Html.Attributes as A exposing (..)
 import Html.Events exposing (onClick)
-import Htmlx
 import IdDict
-import Listx
 import Platform.Cmd as Cmd
 import Svg.Icon exposing (IconType(..), icon)
 import Task
@@ -78,7 +78,7 @@ type AnswerType
 
 init : UserData -> Model
 init userData =
-    { trackables = UserData.activeTrackables userData |> Listx.mapLookup (toModel userData)
+    { trackables = UserData.activeTrackables userData |> List.mapLookup (toModel userData)
     , userData = userData
     , editState = NotEditing
     }
@@ -115,8 +115,8 @@ toModel userData tId ( t, visible ) =
     , scaleOptions =
         let
             ( maybeMin, maybeMax ) =
-                ( Maybe.map truncate << List.minimum << Listx.concatMaybes <| floatData
-                , Maybe.map truncate << List.maximum << Listx.concatMaybes <| floatData
+                ( Maybe.map truncate << List.minimum << List.concatMaybes <| floatData
+                , Maybe.map truncate << List.maximum << List.concatMaybes <| floatData
                 )
 
             ( from, to ) =
@@ -159,7 +159,7 @@ toModel userData tId ( t, visible ) =
             _ ->
                 let
                     max =
-                        Maybe.map truncate << List.maximum << Listx.concatMaybes <| floatData
+                        Maybe.map truncate << List.maximum << List.concatMaybes <| floatData
                 in
                 case max of
                     Just m ->
@@ -295,7 +295,7 @@ update msg model =
             in
             ( { model
                 | userData = userData_
-                , trackables = model.trackables |> Listx.moveHeadwardsBy Tuple.first id
+                , trackables = model.trackables |> List.moveHeadwardsBy Tuple.first id
               }
             , Task.perform UserDataUpdated <| Task.succeed userData_
             )
@@ -308,7 +308,7 @@ update msg model =
             in
             ( { model
                 | userData = userData_
-                , trackables = model.trackables |> Listx.moveTailwardsBy Tuple.first id
+                , trackables = model.trackables |> List.moveTailwardsBy Tuple.first id
               }
             , Task.perform UserDataUpdated <| Task.succeed userData_
             )
@@ -321,7 +321,7 @@ update msg model =
             in
             ( { model
                 | userData = userData_
-                , trackables = model.trackables |> Listx.updateLookup id (\t -> { t | isVisible = not t.isVisible })
+                , trackables = model.trackables |> List.updateLookup id (\t -> { t | isVisible = not t.isVisible })
               }
             , Task.perform UserDataUpdated <| Task.succeed userData_
             )
@@ -334,7 +334,7 @@ update msg model =
             in
             ( { model
                 | userData = userData_
-                , trackables = model.trackables |> Listx.updateLookup id (\q -> { q | colour = colour })
+                , trackables = model.trackables |> List.updateLookup id (\q -> { q | colour = colour })
               }
             , Task.perform UserDataUpdated <| Task.succeed userData_
             )
@@ -347,7 +347,7 @@ update msg model =
             in
             ( { model
                 | userData = userData_
-                , trackables = model.trackables |> Listx.updateLookup id (\q -> { q | question = question })
+                , trackables = model.trackables |> List.updateLookup id (\q -> { q | question = question })
               }
             , Task.perform UserDataUpdated <| Task.succeed userData_
             )
@@ -355,7 +355,7 @@ update msg model =
         TrackableAnswerTypeUpdated id (Just answerType) ->
             let
                 userData_ =
-                    case model.trackables |> Listx.lookup id of
+                    case model.trackables |> List.lookup id of
                         Just q ->
                             model.userData
                                 |> (UserData.updateTrackable id <|
@@ -384,7 +384,7 @@ update msg model =
             in
             ( { model
                 | userData = userData_
-                , trackables = model.trackables |> Listx.updateLookup id (\q -> { q | answerType = answerType })
+                , trackables = model.trackables |> List.updateLookup id (\q -> { q | answerType = answerType })
               }
             , Task.perform UserDataUpdated <| Task.succeed userData_
             )
@@ -403,7 +403,7 @@ update msg model =
             case idM of
                 Just ( id, trackable ) ->
                     ( { model
-                        | trackables = model.trackables |> Listx.insertLookup id (toModel userData_ id ( trackable, True ))
+                        | trackables = model.trackables |> List.insertLookup id (toModel userData_ id ( trackable, True ))
                         , editState = EditingTrackable id
                       }
                     , Cmd.batch
@@ -424,7 +424,7 @@ update msg model =
                     model.userData
                         |> UserData.deleteTrackable id
             in
-            ( { model | userData = userData_, trackables = model.trackables |> Listx.deleteLookup id }
+            ( { model | userData = userData_, trackables = model.trackables |> List.deleteLookup id }
             , Task.perform UserDataUpdated <| Task.succeed userData_
             )
 
@@ -438,7 +438,7 @@ update msg model =
                 | userData = userData_
                 , trackables =
                     model.trackables
-                        |> Listx.updateLookup id
+                        |> List.updateLookup id
                             (\q ->
                                 let
                                     scaleOptions =
@@ -460,7 +460,7 @@ update msg model =
                 | userData = userData_
                 , trackables =
                     model.trackables
-                        |> Listx.updateLookup id
+                        |> List.updateLookup id
                             (\q ->
                                 let
                                     scaleOptions =
@@ -482,7 +482,7 @@ update msg model =
                 | userData = userData_
                 , trackables =
                     model.trackables
-                        |> Listx.updateLookup id
+                        |> List.updateLookup id
                             (\q ->
                                 { q
                                     | iconOptions =
@@ -506,7 +506,7 @@ update msg model =
             in
             ( { model
                 | userData = userData_
-                , trackables = model.trackables |> Listx.updateLookup id (\q -> { q | iconOptions = Array.push { iconType = SolidQuestionCircle, canDelete = True } q.iconOptions })
+                , trackables = model.trackables |> List.updateLookup id (\q -> { q | iconOptions = Array.push { iconType = SolidQuestionCircle, canDelete = True } q.iconOptions })
               }
             , Task.perform UserDataUpdated <| Task.succeed userData_
             )
@@ -519,7 +519,7 @@ update msg model =
             in
             ( { model
                 | userData = userData_
-                , trackables = model.trackables |> Listx.updateLookup id (\q -> { q | iconOptions = Array.append (Array.slice 0 i q.iconOptions) (Array.slice (i + 1) (Array.length q.iconOptions) q.iconOptions) })
+                , trackables = model.trackables |> List.updateLookup id (\q -> { q | iconOptions = Array.append (Array.slice 0 i q.iconOptions) (Array.slice (i + 1) (Array.length q.iconOptions) q.iconOptions) })
               }
             , Task.perform UserDataUpdated <| Task.succeed userData_
             )
@@ -694,12 +694,12 @@ viewTrackable editState first last ( id, q ) =
                             SolidEyeSlash
                     ]
                 , if q.isVisible then
-                    span [ class "ml-4 w-full", Htmlx.onClickStopPropagation NoOp ]
+                    span [ class "ml-4 w-full", onClickStopPropagation NoOp ]
                         [ a
                             [ class "block w-full font-bold flex items-center relative text-opacity-70 hover:text-opacity-100 text-black pr-8"
                             , href "#"
                             , target "_self"
-                            , Htmlx.onClickPreventDefault (TrackableEditClicked id)
+                            , onClickPreventDefault (TrackableEditClicked id)
                             ]
                             [ span []
                                 [ text <|
@@ -789,7 +789,7 @@ viewTrackable editState first last ( id, q ) =
                 , Controls.textbox [ class "w-full ml-4 mr-4" ] [ A.id <| "q-" ++ TId.toString id, placeholder "Question" ] q.question { isValid = True, isRequired = False, isPristine = False } (TrackableQuestionUpdated id)
                 , button
                     [ class "ml-auto rounded text-black text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
-                    , Htmlx.onClickStopPropagation TrackableCloseClicked
+                    , onClickStopPropagation TrackableCloseClicked
                     ]
                     [ icon "w-5 h-5" <| SolidTimes ]
                 ]

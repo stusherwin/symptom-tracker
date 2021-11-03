@@ -5,11 +5,11 @@ import Chart.LineChart as Chart
 import Colour exposing (Colour)
 import Controls
 import Date exposing (Unit(..))
+import Extra.Html exposing (..)
+import Extra.List as List
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onCheck, onMouseEnter, onMouseLeave)
-import Htmlx
-import Listx
 import Maybe exposing (Maybe)
 import Stringx
 import Svg.Icon exposing (IconType(..), icon)
@@ -158,13 +158,13 @@ update userData msg model =
 
                         trackableOptionM =
                             trackableOptions
-                                |> Listx.lookup newTrackableId
+                                |> List.lookup newTrackableId
                                 |> Maybe.map Tuple.first
                     in
                     case trackableOptionM of
                         Just question ->
                             ( { model
-                                | trackables = model.trackables |> Listx.updateLookupWithKey trackableId (\( _, t ) -> ( newTrackableId, { t | question = question } ))
+                                | trackables = model.trackables |> List.updateLookupWithKey trackableId (\( _, t ) -> ( newTrackableId, { t | question = question } ))
                                 , colour = C.colour c
                                 , trackableOptions = trackableOptions
                               }
@@ -178,7 +178,7 @@ update userData msg model =
                     ( { model
                         | trackables =
                             model.trackables
-                                |> Listx.updateLookup trackableId (\t -> { t | multiplier = stringValue, isValid = T.parseMultiplier stringValue /= Nothing })
+                                |> List.updateLookup trackableId (\t -> { t | multiplier = stringValue, isValid = T.parseMultiplier stringValue /= Nothing })
                       }
                     , Cmd.none
                     )
@@ -245,7 +245,7 @@ view { canMoveUp, canMoveDown, isSelected } model =
                 ]
                 [ button
                     [ class "text-black focus:outline-none flex-grow-0 flex-shrink-0 text-opacity-70 hover:text-opacity-100 focus:text-opacity-100"
-                    , Htmlx.onClickStopPropagation <| ChartableVisibleClicked
+                    , onClickStopPropagation <| ChartableVisibleClicked
                     ]
                     [ icon "w-5 h-5" <|
                         if model.visible then
@@ -255,8 +255,8 @@ view { canMoveUp, canMoveDown, isSelected } model =
                             SolidEyeSlash
                     ]
                 , if model.visible then
-                    span [ class "ml-4 w-full", Htmlx.onClickStopPropagation NoOp ]
-                        [ a [ class "block w-full font-bold flex items-center relative text-opacity-70 hover:text-opacity-100 text-black pr-8", href "#", target "_self", Htmlx.onClickPreventDefault ChartableEditClicked ]
+                    span [ class "ml-4 w-full", onClickStopPropagation NoOp ]
+                        [ a [ class "block w-full font-bold flex items-center relative text-opacity-70 hover:text-opacity-100 text-black pr-8", href "#", target "_self", onClickPreventDefault ChartableEditClicked ]
                             [ if isSelected {- selectedDataSet == Just (ChartableId chartableId) -} then
                                 icon "w-5 h-5 relative -ml-1 mr-0.5" SolidCaretRight
 
@@ -284,7 +284,7 @@ view { canMoveUp, canMoveDown, isSelected } model =
                         [ ( "text-opacity-30 cursor-default", not model.canDelete )
                         , ( "text-opacity-70 hover:text-opacity-100 focus:text-opacity-100", model.canDelete )
                         ]
-                    , Htmlx.onClickStopPropagation <| ChartableDeleteClicked
+                    , onClickStopPropagation <| ChartableDeleteClicked
                     , disabled (not model.canDelete)
                     ]
                     [ icon "w-5 h-5" <| SolidTrashAlt
@@ -295,7 +295,7 @@ view { canMoveUp, canMoveDown, isSelected } model =
                         [ ( "text-opacity-30 cursor-default", not canMoveUp )
                         , ( "text-opacity-70 hover:text-opacity-100 focus:text-opacity-100", canMoveUp )
                         ]
-                    , Htmlx.onClickStopPropagation <| ChartableUpClicked
+                    , onClickStopPropagation <| ChartableUpClicked
                     , disabled (not canMoveUp)
                     ]
                     [ icon "w-5 h-5" <| SolidArrowUp
@@ -306,7 +306,7 @@ view { canMoveUp, canMoveDown, isSelected } model =
                         [ ( "text-opacity-30 cursor-default", not canMoveDown )
                         , ( "text-opacity-70 hover:text-opacity-100 focus:text-opacity-100", canMoveDown )
                         ]
-                    , Htmlx.onClickStopPropagation <| ChartableDownClicked
+                    , onClickStopPropagation <| ChartableDownClicked
                     , disabled (not canMoveDown)
                     ]
                     [ icon "w-5 h-5" <| SolidArrowDown
@@ -323,7 +323,7 @@ view { canMoveUp, canMoveDown, isSelected } model =
                 ]
                 [ button
                     [ class "text-black focus:outline-none flex-grow-0 flex-shrink-0 text-opacity-70 hover:text-opacity-100 focus:text-opacity-100"
-                    , Htmlx.onClickStopPropagation <| ChartableVisibleClicked
+                    , onClickStopPropagation <| ChartableVisibleClicked
                     ]
                     [ icon "w-5 h-5" <|
                         if model.visible then
@@ -355,7 +355,7 @@ view { canMoveUp, canMoveDown, isSelected } model =
                     span [ class "ml-4" ] []
                 , button
                     [ class "ml-auto rounded text-black text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
-                    , Htmlx.onClickStopPropagation ChartableCloseClicked
+                    , onClickStopPropagation ChartableCloseClicked
                     ]
                     [ icon "w-5 h-5" <| SolidTimes ]
                 ]
@@ -388,7 +388,7 @@ view { canMoveUp, canMoveDown, isSelected } model =
                             , Controls.textbox [ class "ml-4 w-20 flex-grow-0 flex-shrink-0" ] [] t.multiplier { isValid = t.isValid, isRequired = True, isPristine = False } (TrackableMultiplierUpdated trackableId)
                             , button
                                 [ class "ml-4 rounded text-black text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
-                                , Htmlx.onClickStopPropagation (TrackableDeleteClicked trackableId)
+                                , onClickStopPropagation (TrackableDeleteClicked trackableId)
                                 ]
                                 [ icon "w-5 h-5" <| SolidTrashAlt ]
                             ]

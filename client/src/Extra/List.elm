@@ -1,4 +1,4 @@
-module Listx exposing (..)
+module Extra.List exposing (..)
 
 
 moveHeadwards : a -> List a -> List a

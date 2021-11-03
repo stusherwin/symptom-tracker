@@ -1,9 +1,9 @@
-module Arrayx exposing (..)
+module Extra.Array exposing (..)
 
 import Array exposing (Array)
+import Extra.List as List
 import Html exposing (a, i)
 import Json.Decode exposing (array)
-import Listx
 
 
 update : Int -> (a -> a) -> Array a -> Array a
@@ -44,14 +44,14 @@ delete i array =
 
 updateLookup : id -> (a -> a) -> Array ( id, a ) -> Array ( id, a )
 updateLookup id fn =
-    Array.fromList << Listx.updateLookup id fn << Array.toList
+    Array.fromList << List.updateLookup id fn << Array.toList
 
 
 updateLookupWithKey : id -> (( id, a ) -> ( id, a )) -> Array ( id, a ) -> Array ( id, a )
 updateLookupWithKey id fn =
-    Array.fromList << Listx.updateLookupWithKey id fn << Array.toList
+    Array.fromList << List.updateLookupWithKey id fn << Array.toList
 
 
 lookup : id -> Array ( id, a ) -> Maybe a
 lookup id =
-    Listx.lookup id << Array.toList
+    List.lookup id << Array.toList
