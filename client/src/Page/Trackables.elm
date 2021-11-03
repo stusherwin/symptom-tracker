@@ -25,7 +25,6 @@ import UserData.TrackableId as TId exposing (TrackableId)
 
 type alias Model =
     { trackables : List ( TrackableId, TrackableModel )
-    , userData : UserData
     , editState : EditState
     }
 
@@ -79,7 +78,6 @@ type AnswerType
 init : UserData -> Model
 init userData =
     { trackables = UserData.activeTrackables userData |> List.mapLookup (toModel userData)
-    , userData = userData
     , editState = NotEditing
     }
 
@@ -278,20 +276,20 @@ type Msg
     | UserDataUpdated UserData
 
 
-update : Msg -> Model -> ( Model, Cmd Msg )
-update msg model =
+update : UserData -> Msg -> Model -> ( Model, Cmd Msg )
+update userData msg model =
     let
         setUserData userData_ ( m, cmd ) =
-            ( { m | userData = userData_ }
+            ( m
             , Cmd.batch [ cmd, Task.perform UserDataUpdated <| Task.succeed userData_ ]
             )
 
         updateUserData fn ( m, cmd ) =
             let
                 userData_ =
-                    model.userData |> fn
+                    userData |> fn
             in
-            ( { m | userData = userData_ }
+            ( m
             , Cmd.batch [ cmd, Task.perform UserDataUpdated <| Task.succeed userData_ ]
             )
     in
@@ -334,7 +332,7 @@ update msg model =
                 |> (setUserData <|
                         case model.trackables |> List.lookup id of
                             Just q ->
-                                model.userData
+                                userData
                                     |> (UserData.updateTrackable id <|
                                             case answerType of
                                                 AYesNo ->
@@ -357,14 +355,14 @@ update msg model =
                                        )
 
                             _ ->
-                                model.userData
+                                userData
                    )
                 |> (Tuple.mapFirst <| \m -> { m | trackables = model.trackables |> List.updateLookup id (\q -> { q | answerType = answerType }) })
 
         TrackableAddClicked ->
             let
                 ( idM, userData_ ) =
-                    model.userData
+                    userData
                         |> UserData.addTrackable
                             { question = ""
                             , colour = Colour.Red

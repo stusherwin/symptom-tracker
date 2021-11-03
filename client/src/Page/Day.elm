@@ -20,7 +20,7 @@ import UserData.TrackableId as TId exposing (TrackableId)
 type alias Model =
     { currentDay : Date
     , today : Date
-    , userData : UserData
+    , trackables : List ( TrackableId, ( Trackable, Bool ) )
     , textInputs : IdDict TrackableId ( String, Bool )
     }
 
@@ -29,7 +29,7 @@ init : Date -> Date -> UserData -> Model
 init today currentDay userData =
     { today = today
     , currentDay = currentDay
-    , userData = userData
+    , trackables = UserData.activeTrackables userData
     , textInputs =
         IdDict.map (\_ v -> ( v, True )) <|
             IdDict.map
@@ -61,15 +61,15 @@ type Msg
     | UserDataUpdated UserData
 
 
-update : Msg -> Model -> ( Model, Cmd Msg )
-update msg model =
+update : UserData -> Msg -> Model -> ( Model, Cmd Msg )
+update userData msg model =
     let
         updateUserData fn ( m, cmd ) =
             let
                 userData_ =
-                    model.userData |> fn
+                    userData |> fn
             in
-            ( { m | userData = userData_ }
+            ( { m | trackables = UserData.activeTrackables userData }
             , Cmd.batch [ cmd, Task.perform UserDataUpdated <| Task.succeed userData_ ]
             )
 
@@ -147,7 +147,7 @@ update msg model =
 
 
 view : Model -> Html Msg
-view { currentDay, today, userData, textInputs } =
+view { currentDay, today, trackables, textInputs } =
     let
         dayText =
             if currentDay == today then
@@ -173,7 +173,7 @@ view { currentDay, today, userData, textInputs } =
             ++ (List.map (viewQuestion currentDay textInputs) <|
                     List.map (\( id, ( t, _ ) ) -> ( id, t )) <|
                         List.filter (\( _, ( _, visible ) ) -> visible) <|
-                            UserData.activeTrackables userData
+                            trackables
                )
 
 

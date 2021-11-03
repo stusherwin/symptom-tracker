@@ -31,7 +31,6 @@ type alias Model =
     , chart : Chart.Model
     , chartableOptions : List ( ( DataOption, Bool ), String )
     , addState : EditState
-    , userData : UserData
     , elements : Array ChartElement
     , nameIsPristine : Bool
     }
@@ -65,7 +64,6 @@ init today userData chartId chart =
       , chart = chartModel
       , chartableOptions = buildChartableOptions userData chartId
       , addState = NotAdding
-      , userData = userData
       , elements =
             LC.dataSets chart
                 |> Array.map
@@ -199,8 +197,8 @@ type Msg
     | MoveDataClicked
 
 
-update : Msg -> Model -> ( Model, Cmd Msg )
-update msg model =
+update : UserData -> Msg -> Model -> ( Model, Cmd Msg )
+update userData msg model =
     let
         updateChart : (Chart.Model -> ( Chart.Model, Cmd Chart.Msg )) -> ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
         updateChart fn ( m, cmd ) =
@@ -227,13 +225,13 @@ update msg model =
             , cmd
             )
 
-        updateChartableOptions userData chartId ( m, cmd ) =
-            ( { m | chartableOptions = buildChartableOptions userData chartId }
+        updateChartableOptions userData_ chartId ( m, cmd ) =
+            ( { m | chartableOptions = buildChartableOptions userData_ chartId }
             , cmd
             )
 
         setUserData userData_ ( m, cmd ) =
-            ( { m | userData = userData_ }
+            ( m
             , Cmd.batch [ cmd, Task.perform UserDataUpdated <| Task.succeed userData_ ]
             )
     in
@@ -244,7 +242,7 @@ update msg model =
                     model.chart
 
                 userData_ =
-                    model.userData
+                    userData
                         |> (if not <| String.isEmpty name then
                                 UserData.updateLineChart model.chartId (LC.setName name)
 
@@ -273,29 +271,29 @@ update msg model =
                     case chartableMsg of
                         Chart.Chartable.ChartableHovered True ->
                             ( model, Cmd.none )
-                                |> (updateChartable <| Chart.Chartable.update model.userData chartableMsg)
+                                |> (updateChartable <| Chart.Chartable.update userData chartableMsg)
                                 |> (updateChart <| Chart.hoverDataSet (Just i))
 
                         Chart.Chartable.ChartableHovered False ->
                             ( model, Cmd.none )
-                                |> (updateChartable <| Chart.Chartable.update model.userData chartableMsg)
+                                |> (updateChartable <| Chart.Chartable.update userData chartableMsg)
                                 |> (updateChart <| Chart.hoverDataSet Nothing)
 
                         Chart.Chartable.ChartableEditClicked ->
                             ( model, Cmd.none )
-                                |> (updateChartable <| Chart.Chartable.update model.userData chartableMsg)
+                                |> (updateChartable <| Chart.Chartable.update userData chartableMsg)
                                 |> (updateChart <| Chart.selectDataSet (Just i))
 
                         Chart.Chartable.ChartableCloseClicked ->
                             ( model, Cmd.none )
-                                |> (updateChartable <| Chart.Chartable.update model.userData chartableMsg)
+                                |> (updateChartable <| Chart.Chartable.update userData chartableMsg)
                                 |> (updateChart <| \c -> ( { c | expandedValue = False }, Cmd.none ))
                                 |> (updateChart <| Chart.selectDataSet Nothing)
 
                         Chart.Chartable.ChartableVisibleClicked ->
                             let
                                 userData_ =
-                                    model.userData |> UserData.updateLineChart model.chartId (LC.toggleDataVisible i)
+                                    userData |> UserData.updateLineChart model.chartId (LC.toggleDataVisible i)
                             in
                             ( model, Cmd.none )
                                 |> setUserData userData_
@@ -305,7 +303,7 @@ update msg model =
                         Chart.Chartable.ChartableUpClicked ->
                             let
                                 userData_ =
-                                    model.userData |> UserData.updateLineChart model.chartId (LC.moveDataUp i)
+                                    userData |> UserData.updateLineChart model.chartId (LC.moveDataUp i)
                             in
                             ( model, Cmd.none )
                                 |> setUserData userData_
@@ -316,7 +314,7 @@ update msg model =
                         Chart.Chartable.ChartableDownClicked ->
                             let
                                 userData_ =
-                                    model.userData |> UserData.updateLineChart model.chartId (LC.moveDataDown i)
+                                    userData |> UserData.updateLineChart model.chartId (LC.moveDataDown i)
                             in
                             ( model, Cmd.none )
                                 |> setUserData userData_
@@ -328,10 +326,10 @@ update msg model =
                             let
                                 userData_ =
                                     if not <| String.isEmpty name then
-                                        model.userData |> UserData.updateChartable chartable.chartableId (C.setName name)
+                                        userData |> UserData.updateChartable chartable.chartableId (C.setName name)
 
                                     else
-                                        model.userData
+                                        userData
                             in
                             ( model, Cmd.none )
                                 |> setUserData userData_
@@ -342,7 +340,7 @@ update msg model =
                         Chart.Chartable.ChartableColourUpdated colour ->
                             let
                                 userData_ =
-                                    model.userData
+                                    userData
                                         |> UserData.updateChartable chartable.chartableId (C.setOwnColour colour)
                             in
                             ( model, Cmd.none )
@@ -353,7 +351,7 @@ update msg model =
                         Chart.Chartable.ChartableInvertedChanged inverted ->
                             let
                                 userData_ =
-                                    model.userData |> UserData.updateChartable chartable.chartableId (C.setInverted inverted)
+                                    userData |> UserData.updateChartable chartable.chartableId (C.setInverted inverted)
                             in
                             ( model, Cmd.none )
                                 |> setUserData userData_
@@ -363,7 +361,7 @@ update msg model =
                         Chart.Chartable.ChartableDeleteClicked ->
                             let
                                 userData_ =
-                                    model.userData |> UserData.updateLineChart model.chartId (LC.deleteData i)
+                                    userData |> UserData.updateLineChart model.chartId (LC.deleteData i)
                             in
                             ( model, Cmd.none )
                                 |> setUserData userData_
@@ -382,15 +380,15 @@ update msg model =
                         Chart.Chartable.TrackableChanged trackableId (Just newTrackableId) ->
                             let
                                 newTrackableM =
-                                    model.userData |> UserData.getTrackable newTrackableId
+                                    userData |> UserData.getTrackable newTrackableId
 
                                 userData_ =
                                     case newTrackableM of
                                         Just newTrackable ->
-                                            model.userData |> UserData.updateChartable chartable.chartableId (C.replaceTrackable trackableId newTrackableId newTrackable)
+                                            userData |> UserData.updateChartable chartable.chartableId (C.replaceTrackable trackableId newTrackableId newTrackable)
 
                                         _ ->
-                                            model.userData
+                                            userData
                             in
                             ( model, Cmd.none )
                                 |> setUserData userData_
@@ -403,10 +401,10 @@ update msg model =
                                 userData_ =
                                     case T.parseMultiplier stringValue of
                                         Just multiplier ->
-                                            model.userData |> UserData.updateChartable chartable.chartableId (C.setMultiplier trackableId multiplier)
+                                            userData |> UserData.updateChartable chartable.chartableId (C.setMultiplier trackableId multiplier)
 
                                         _ ->
-                                            model.userData
+                                            userData
                             in
                             ( model, Cmd.none )
                                 |> setUserData userData_
@@ -416,15 +414,15 @@ update msg model =
                         Chart.Chartable.TrackableAddClicked (Just trackableId) ->
                             let
                                 trackableM =
-                                    model.userData |> UserData.getTrackable trackableId
+                                    userData |> UserData.getTrackable trackableId
 
                                 userData_ =
                                     case trackableM of
                                         Just trackable ->
-                                            model.userData |> UserData.updateChartable chartable.chartableId (C.addTrackable trackableId trackable 1.0)
+                                            userData |> UserData.updateChartable chartable.chartableId (C.addTrackable trackableId trackable 1.0)
 
                                         _ ->
-                                            model.userData
+                                            userData
                             in
                             ( model, Cmd.none )
                                 |> setUserData userData_
@@ -435,7 +433,7 @@ update msg model =
                         Chart.Chartable.TrackableDeleteClicked trackableId ->
                             let
                                 userData_ =
-                                    model.userData |> UserData.updateChartable chartable.chartableId (C.deleteTrackable trackableId)
+                                    userData |> UserData.updateChartable chartable.chartableId (C.deleteTrackable trackableId)
                             in
                             ( model, Cmd.none )
                                 |> setUserData userData_
@@ -445,7 +443,7 @@ update msg model =
                         -- |> (updateChart <| Chart.updateDataSetColour i userData_ (ChartableId chartable.chartableId))
                         _ ->
                             ( model, Cmd.none )
-                                |> (updateChartable <| Chart.Chartable.update model.userData chartableMsg)
+                                |> (updateChartable <| Chart.Chartable.update userData chartableMsg)
 
                 _ ->
                     ( model, Cmd.none )
@@ -467,29 +465,29 @@ update msg model =
                     case trackableMsg of
                         Chart.Trackable.TrackableHovered True ->
                             ( model, Cmd.none )
-                                |> (updateTrackable <| Chart.Trackable.update model.userData Nothing trackableMsg)
+                                |> (updateTrackable <| Chart.Trackable.update userData Nothing trackableMsg)
                                 |> (updateChart <| Chart.hoverDataSet (Just i))
 
                         Chart.Trackable.TrackableHovered False ->
                             ( model, Cmd.none )
-                                |> (updateTrackable <| Chart.Trackable.update model.userData Nothing trackableMsg)
+                                |> (updateTrackable <| Chart.Trackable.update userData Nothing trackableMsg)
                                 |> (updateChart <| Chart.hoverDataSet Nothing)
 
                         Chart.Trackable.TrackableEditClicked ->
                             ( model, Cmd.none )
-                                |> (updateTrackable <| Chart.Trackable.update model.userData Nothing trackableMsg)
+                                |> (updateTrackable <| Chart.Trackable.update userData Nothing trackableMsg)
                                 |> (updateChart <| Chart.selectDataSet (Just i))
 
                         Chart.Trackable.TrackableCloseClicked ->
                             ( model, Cmd.none )
-                                |> (updateTrackable <| Chart.Trackable.update model.userData Nothing trackableMsg)
+                                |> (updateTrackable <| Chart.Trackable.update userData Nothing trackableMsg)
                                 |> (updateChart <| \c -> ( { c | expandedValue = False }, Cmd.none ))
                                 |> (updateChart <| Chart.selectDataSet Nothing)
 
                         Chart.Trackable.TrackableVisibleClicked ->
                             let
                                 userData_ =
-                                    model.userData |> UserData.updateLineChart model.chartId (LC.toggleDataVisible i)
+                                    userData |> UserData.updateLineChart model.chartId (LC.toggleDataVisible i)
                             in
                             ( model, Cmd.none )
                                 |> setUserData userData_
@@ -499,7 +497,7 @@ update msg model =
                         Chart.Trackable.TrackableUpClicked ->
                             let
                                 userData_ =
-                                    model.userData |> UserData.updateLineChart model.chartId (LC.moveDataUp i)
+                                    userData |> UserData.updateLineChart model.chartId (LC.moveDataUp i)
                             in
                             ( model, Cmd.none )
                                 |> setUserData userData_
@@ -510,7 +508,7 @@ update msg model =
                         Chart.Trackable.TrackableDownClicked ->
                             let
                                 userData_ =
-                                    model.userData |> UserData.updateLineChart model.chartId (LC.moveDataDown i)
+                                    userData |> UserData.updateLineChart model.chartId (LC.moveDataDown i)
                             in
                             ( model, Cmd.none )
                                 |> setUserData userData_
@@ -521,7 +519,7 @@ update msg model =
                         Chart.Trackable.TrackableInvertedChanged inverted ->
                             let
                                 userData_ =
-                                    model.userData |> UserData.updateLineChart model.chartId (LC.setTrackableInverted i inverted)
+                                    userData |> UserData.updateLineChart model.chartId (LC.setTrackableInverted i inverted)
                             in
                             ( model, Cmd.none )
                                 |> setUserData userData_
@@ -536,10 +534,10 @@ update msg model =
                                 userData_ =
                                     case multiplierM of
                                         Just multiplier ->
-                                            model.userData |> UserData.updateLineChart model.chartId (LC.setTrackableMultiplier i multiplier)
+                                            userData |> UserData.updateLineChart model.chartId (LC.setTrackableMultiplier i multiplier)
 
                                         _ ->
-                                            model.userData
+                                            userData
                             in
                             ( model, Cmd.none )
                                 |> setUserData userData_
@@ -549,16 +547,16 @@ update msg model =
                         Chart.Trackable.TrackableChanged (Just newTrackableId) ->
                             let
                                 oldTrackableStateM =
-                                    model.userData |> UserData.getLineChart model.chartId |> Maybe.map LC.dataSets |> Maybe.andThen (Array.get i)
+                                    userData |> UserData.getLineChart model.chartId |> Maybe.map LC.dataSets |> Maybe.andThen (Array.get i)
 
                                 newTrackableM =
-                                    model.userData |> UserData.getTrackable newTrackableId
+                                    userData |> UserData.getTrackable newTrackableId
                             in
                             case ( oldTrackableStateM, newTrackableM ) of
                                 ( Just ( LC.TrackableElement { multiplier, isInverted }, visible ), Just newTrackable ) ->
                                     let
                                         userData_ =
-                                            model.userData |> UserData.updateLineChart model.chartId (LC.replaceTrackable i newTrackableId newTrackable multiplier isInverted)
+                                            userData |> UserData.updateLineChart model.chartId (LC.replaceTrackable i newTrackableId newTrackable multiplier isInverted)
 
                                         trackableOptions =
                                             buildTrackableOptions userData_ model.chartId
@@ -578,7 +576,7 @@ update msg model =
                         Chart.Trackable.TrackableDeleteClicked ->
                             let
                                 userData_ =
-                                    model.userData |> UserData.updateLineChart model.chartId (LC.deleteData i)
+                                    userData |> UserData.updateLineChart model.chartId (LC.deleteData i)
 
                                 trackableOptions =
                                     buildTrackableOptions userData_ model.chartId
@@ -599,7 +597,7 @@ update msg model =
                                 |> (updateChart <| Chart.removeDataSet i)
 
                         Chart.Trackable.TrackableAddClicked ->
-                            case model.userData |> UserData.getLineChart model.chartId |> Maybe.andThen (LC.dataSets >> Array.get i) of
+                            case userData |> UserData.getLineChart model.chartId |> Maybe.andThen (LC.dataSets >> Array.get i) of
                                 Just ( LC.TrackableElement { isInverted, multiplier }, _ ) ->
                                     let
                                         nextTrackableOption =
@@ -647,7 +645,7 @@ update msg model =
                                             }
 
                                         ( chartableIdM, userData_ ) =
-                                            model.userData |> UserData.addChartable newChartable
+                                            userData |> UserData.addChartable newChartable
                                     in
                                     case chartableIdM of
                                         Just ( chartableId, chartable ) ->
@@ -681,7 +679,7 @@ update msg model =
 
                                 _ ->
                                     ( model, Cmd.none )
-                                        |> (updateTrackable <| Chart.Trackable.update model.userData Nothing trackableMsg)
+                                        |> (updateTrackable <| Chart.Trackable.update userData Nothing trackableMsg)
 
                         _ ->
                             ( model, Cmd.none )
@@ -713,14 +711,14 @@ update msg model =
         ChartableAddConfirmClicked ->
             case model.addState of
                 AddingChartable (Just (ChartableOption chartableId)) ->
-                    case model.userData |> UserData.getChartable chartableId of
+                    case userData |> UserData.getChartable chartableId of
                         Just chartable ->
                             let
                                 newChartableModel =
                                     Chart.Chartable.init userData_ True chartableId ( chartable, True )
 
                                 userData_ =
-                                    model.userData |> UserData.updateLineChart model.chartId (LC.addChartable chartableId chartable)
+                                    userData |> UserData.updateLineChart model.chartId (LC.addChartable chartableId chartable)
                             in
                             ( model, Cmd.none )
                                 |> setUserData userData_
@@ -739,14 +737,14 @@ update msg model =
                             ( model, Cmd.none )
 
                 AddingChartable (Just (TrackableOption trackableId)) ->
-                    case model.userData |> UserData.getTrackable trackableId of
+                    case userData |> UserData.getTrackable trackableId of
                         Just trackable ->
                             let
                                 newTrackableModel =
                                     Chart.Trackable.init trackableOptions True trackableId trackable "1" False True
 
                                 userData_ =
-                                    model.userData |> UserData.updateLineChart model.chartId (LC.addTrackable trackableId trackable)
+                                    userData |> UserData.updateLineChart model.chartId (LC.addTrackable trackableId trackable)
 
                                 trackableOptions =
                                     buildTrackableOptions userData_ model.chartId
@@ -778,12 +776,12 @@ update msg model =
 
         ChartMsg chartMsg ->
             ( model, Cmd.none )
-                |> updateChart (Chart.update chartMsg)
+                |> updateChart (Chart.update userData chartMsg)
 
         MoveDataClicked ->
             let
                 userData_ =
-                    model.userData |> UserData.moveData model.chart.graph.today
+                    userData |> UserData.moveData model.chart.graph.today
             in
             ( model, Cmd.none )
                 |> setUserData userData_

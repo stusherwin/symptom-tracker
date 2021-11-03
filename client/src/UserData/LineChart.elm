@@ -1,4 +1,4 @@
-module UserData.LineChart exposing (LineChart, LineChartDict, LineChartElement(..), New, StateDataSet(..), add, addChartable, addTrackable, buildDict, dataSets, decode, decodeV5, deleteData, encode, fillLines, moveDataDown, moveDataUp, name, replaceTrackable, replaceTrackableWithChartable, setFillLines, setName, setTrackableInverted, setTrackableMultiplier, toggleDataVisible)
+module UserData.LineChart exposing (LineChart, LineChartDict, LineChartElement(..), New, StateDataSet(..), add, addChartable, addTrackable, buildDict, dataSets, decode, decodeV5, deleteData, encode, fillLines, moveDataDown, moveDataUp, name, replaceTrackable, replaceTrackableWithChartable, setFillLines, setName, setTrackableInverted, setTrackableMultiplier, toggleDataVisible, updateTrackable)
 
 import Array exposing (Array)
 import Extra.Array as Array
@@ -117,7 +117,9 @@ addTrackable id trackable (LineChart c) =
 replaceTrackableWithChartable : Int -> ChartableId -> Chartable -> LineChart -> Result String LineChart
 replaceTrackableWithChartable i id chartable (LineChart c) =
     case c.dataSets |> Array.get i of
-        Nothing -> Err <| "Trackable with index " ++ String.fromInt i ++ " does not exist in LineChart"
+        Nothing ->
+            Err <| "Trackable with index " ++ String.fromInt i ++ " does not exist in LineChart"
+
         Just _ ->
             Ok <| LineChart { c | dataSets = c.dataSets |> Array.set i ( ChartableElement { chartableId = id, chartable = chartable }, True ) }
 
@@ -125,57 +127,91 @@ replaceTrackableWithChartable i id chartable (LineChart c) =
 replaceTrackable : Int -> TrackableId -> Trackable -> Float -> Bool -> LineChart -> Result String LineChart
 replaceTrackable i id trackable multiplier isInverted (LineChart c) =
     case c.dataSets |> Array.get i of
-        Nothing -> Err <| "Trackable with index " ++ String.fromInt i ++ " does not exist in LineChart"
+        Nothing ->
+            Err <| "Trackable with index " ++ String.fromInt i ++ " does not exist in LineChart"
+
         Just _ ->
             Ok <| LineChart { c | dataSets = c.dataSets |> Array.set i ( TrackableElement { trackableId = id, trackable = trackable, multiplier = multiplier, isInverted = isInverted }, True ) }
+
+
+updateTrackable : TrackableId -> Trackable -> LineChart -> Result String LineChart
+updateTrackable id trackable (LineChart c) =
+    Ok <|
+        LineChart <|
+            { c
+                | dataSets =
+                    c.dataSets
+                        |> (Array.map <|
+                                Tuple.mapFirst <|
+                                    \ds ->
+                                        case ds of
+                                            TrackableElement e ->
+                                                if e.trackableId == id then
+                                                    TrackableElement { e | trackable = trackable }
+
+                                                else
+                                                    TrackableElement e
+
+                                            x ->
+                                                x
+                           )
+            }
 
 
 setTrackableInverted : Int -> Bool -> LineChart -> Result String LineChart
 setTrackableInverted i isInverted (LineChart c) =
     case c.dataSets |> Array.get i of
-        Nothing -> Err <| "Trackable with index " ++ String.fromInt i ++ " does not exist in LineChart"
-        Just _ ->
-            Ok <| LineChart
-                { c
-                    | dataSets =
-                        c.dataSets
-                            |> Array.update i
-                                (\d ->
-                                    case d of
-                                        ( TrackableElement t, visible ) ->
-                                            ( TrackableElement { t | isInverted = isInverted }, visible )
+        Nothing ->
+            Err <| "Trackable with index " ++ String.fromInt i ++ " does not exist in LineChart"
 
-                                        _ ->
-                                            d
-                                )
-                }
+        Just _ ->
+            Ok <|
+                LineChart
+                    { c
+                        | dataSets =
+                            c.dataSets
+                                |> Array.update i
+                                    (\d ->
+                                        case d of
+                                            ( TrackableElement t, visible ) ->
+                                                ( TrackableElement { t | isInverted = isInverted }, visible )
+
+                                            _ ->
+                                                d
+                                    )
+                    }
 
 
 setTrackableMultiplier : Int -> Float -> LineChart -> Result String LineChart
 setTrackableMultiplier i multiplier (LineChart c) =
     case c.dataSets |> Array.get i of
-        Nothing -> Err <| "Trackable with index " ++ String.fromInt i ++ " does not exist in LineChart"
-        Just _ ->
-            Ok <| LineChart
-                { c
-                    | dataSets =
-                        c.dataSets
-                            |> Array.update i
-                                (\d ->
-                                    case d of
-                                        ( TrackableElement t, visible ) ->
-                                            ( TrackableElement { t | multiplier = multiplier }, visible )
+        Nothing ->
+            Err <| "Trackable with index " ++ String.fromInt i ++ " does not exist in LineChart"
 
-                                        _ ->
-                                            d
-                                )
-                }
+        Just _ ->
+            Ok <|
+                LineChart
+                    { c
+                        | dataSets =
+                            c.dataSets
+                                |> Array.update i
+                                    (\d ->
+                                        case d of
+                                            ( TrackableElement t, visible ) ->
+                                                ( TrackableElement { t | multiplier = multiplier }, visible )
+
+                                            _ ->
+                                                d
+                                    )
+                    }
 
 
 deleteData : Int -> LineChart -> Result String LineChart
 deleteData i (LineChart c) =
     case c.dataSets |> Array.get i of
-        Nothing -> Err <| "Data with index " ++ String.fromInt i ++ " does not exist in LineChart"
+        Nothing ->
+            Err <| "Data with index " ++ String.fromInt i ++ " does not exist in LineChart"
+
         Just _ ->
             Ok <| LineChart { c | dataSets = c.dataSets |> Array.delete i }
 
@@ -183,7 +219,9 @@ deleteData i (LineChart c) =
 toggleDataVisible : Int -> LineChart -> Result String LineChart
 toggleDataVisible i (LineChart c) =
     case c.dataSets |> Array.get i of
-        Nothing -> Err <| "Data with index " ++ String.fromInt i ++ " does not exist in LineChart"
+        Nothing ->
+            Err <| "Data with index " ++ String.fromInt i ++ " does not exist in LineChart"
+
         Just _ ->
             Ok <| LineChart { c | dataSets = c.dataSets |> Array.update i (Tuple.mapSecond not) }
 
@@ -191,7 +229,9 @@ toggleDataVisible i (LineChart c) =
 moveDataUp : Int -> LineChart -> Result String LineChart
 moveDataUp i (LineChart c) =
     case c.dataSets |> Array.get i of
-        Nothing -> Err <| "Data with index " ++ String.fromInt i ++ " does not exist in LineChart"
+        Nothing ->
+            Err <| "Data with index " ++ String.fromInt i ++ " does not exist in LineChart"
+
         Just _ ->
             Ok <| LineChart { c | dataSets = c.dataSets |> Array.swap i (i - 1) }
 
@@ -199,7 +239,9 @@ moveDataUp i (LineChart c) =
 moveDataDown : Int -> LineChart -> Result String LineChart
 moveDataDown i (LineChart c) =
     case c.dataSets |> Array.get i of
-        Nothing -> Err <| "Data with index " ++ String.fromInt i ++ " does not exist in LineChart"
+        Nothing ->
+            Err <| "Data with index " ++ String.fromInt i ++ " does not exist in LineChart"
+
         Just _ ->
             Ok <| LineChart { c | dataSets = c.dataSets |> Array.swap i (i + 1) }
 

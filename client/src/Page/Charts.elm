@@ -26,7 +26,6 @@ import UserData.Trackable exposing (Responses(..))
 type alias Model =
     { today : Date
     , chartableOptions : List ( ChartableId, String )
-    , userData : UserData
     , state : State
     , navKey : Nav.Key
     }
@@ -51,7 +50,6 @@ init today userData navKey chartIdM =
                         |> IdDict.toList
                         |> (List.map <| Tuple.mapSecond (Stringx.withDefault "[no name]" << C.name))
                         |> List.sortBy (String.toUpper << Tuple.second)
-              , userData = userData
               , state = Chart chartModel
               , navKey = navKey
               }
@@ -70,7 +68,6 @@ init today userData navKey chartIdM =
                         |> IdDict.toList
                         |> (List.map <| Tuple.mapSecond (Stringx.withDefault "[no name]" << C.name))
                         |> List.sortBy (String.toUpper << Tuple.second)
-              , userData = userData
               , state = Charts (chartsWithCmds |> List.map (\( id, ( chart, _ ) ) -> ( id, chart )))
               , navKey = navKey
               }
@@ -114,8 +111,8 @@ type Msg
     | ChartPageMsg ChartPage.Msg
 
 
-update : Msg -> Model -> ( Model, Cmd Msg )
-update msg model =
+update : UserData -> Msg -> Model -> ( Model, Cmd Msg )
+update userData msg model =
     let
         updateChart chartId fn =
             Tuple.mapFirst <|
@@ -183,16 +180,16 @@ update msg model =
                     }
 
         setUserData userData_ ( m, cmd ) =
-            ( { m | userData = userData_ }
+            ( m
             , Cmd.batch [ cmd, Task.perform UserDataUpdated <| Task.succeed userData_ ]
             )
 
         updateUserData fn ( m, cmd ) =
             let
                 userData_ =
-                    model.userData |> fn
+                    userData |> fn
             in
-            ( { m | userData = userData_ }
+            ( m
             , Cmd.batch [ cmd, Task.perform UserDataUpdated <| Task.succeed userData_ ]
             )
     in
@@ -204,7 +201,7 @@ update msg model =
                         Just chart ->
                             let
                                 ( chart_, cmd ) =
-                                    Chart.update chartMsg chart
+                                    Chart.update userData chartMsg chart
                             in
                             ( model, Cmd.none )
                                 |> updateChart chartId (always chart_)
@@ -216,7 +213,7 @@ update msg model =
                 Chart chart ->
                     let
                         ( chart_, cmd ) =
-                            Chart.update chartMsg chart.chart
+                            Chart.update userData chartMsg chart.chart
                     in
                     ( model, Cmd.none )
                         |> updateChart chart.chartId (always chart_)
@@ -231,7 +228,7 @@ update msg model =
                 Chart chartModel ->
                     let
                         ( chart_, cmd ) =
-                            ChartPage.update chartPageMsg chartModel
+                            ChartPage.update userData chartPageMsg chartModel
                     in
                     ( model, Cmd.none )
                         |> (Tuple.mapFirst <| \m -> { m | state = Chart chart_ })
@@ -243,7 +240,7 @@ update msg model =
         ChartAddClicked ->
             let
                 chartNames =
-                    model.userData |> UserData.lineCharts |> IdDict.values |> List.map LC.name
+                    userData |> UserData.lineCharts |> IdDict.values |> List.map LC.name
 
                 newChartState =
                     { name = Stringx.nextName chartNames "Line Chart " 1
@@ -252,7 +249,7 @@ update msg model =
                     }
 
                 ( resultM, userData_ ) =
-                    model.userData |> UserData.addLineChart newChartState
+                    userData |> UserData.addLineChart newChartState
             in
             case resultM of
                 Just ( newId, newChart ) ->
@@ -294,13 +291,13 @@ update msg model =
             ( model, Cmd.none )
 
 
-urlChanged : Maybe LineChartId -> Model -> ( Model, Cmd Msg )
-urlChanged chartIdM model =
-    case ( chartIdM, chartIdM |> Maybe.andThen (\chartId -> model.userData |> UserData.getLineChart chartId) ) of
+urlChanged : UserData -> Maybe LineChartId -> Model -> ( Model, Cmd Msg )
+urlChanged userData chartIdM model =
+    case ( chartIdM, chartIdM |> Maybe.andThen (\chartId -> userData |> UserData.getLineChart chartId) ) of
         ( Just chartId, Just chart ) ->
             let
                 ( chartModel, cmd ) =
-                    ChartPage.init model.today model.userData chartId chart
+                    ChartPage.init model.today userData chartId chart
             in
             ( { model
                 | state = Chart chartModel
@@ -311,8 +308,8 @@ urlChanged chartIdM model =
         _ ->
             let
                 chartsWithCmds =
-                    UserData.activeLineCharts model.userData
-                        |> List.mapLookup (toChartModel model.today model.userData)
+                    UserData.activeLineCharts userData
+                        |> List.mapLookup (toChartModel model.today userData)
             in
             ( { model
                 | state = Charts (chartsWithCmds |> List.map (\( id, ( chart, _ ) ) -> ( id, chart )))

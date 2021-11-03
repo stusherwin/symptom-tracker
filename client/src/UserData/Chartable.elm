@@ -1,4 +1,4 @@
-module UserData.Chartable exposing (Chartable, ChartableDict, New, add, addTrackable, buildDict, colour, decode, deleteTrackable, encode, isInverted, name, ownColour, replaceTrackable, setInverted, setMultiplier, setName, setOwnColour, sum)
+module UserData.Chartable exposing (Chartable, ChartableDict, New, add, addTrackable, buildDict, colour, decode, deleteTrackable, encode, isInverted, name, ownColour, replaceTrackable, setInverted, setMultiplier, setName, setOwnColour, sum, updateTrackable)
 
 import Colour exposing (Colour)
 import Dict exposing (Dict)
@@ -218,6 +218,25 @@ replaceTrackable oldTrackableId newTrackableId newTrackable (Chartable c) =
             let
                 sum_ =
                     c.sum |> List.updateLookupWithKey oldTrackableId (\( _, ( _, multiplier ) ) -> ( newTrackableId, ( newTrackable, multiplier ) ))
+            in
+            Ok <|
+                Chartable
+                    { c
+                        | sum = sum_
+                        , colour = buildColour sum_ c.ownColour
+                    }
+
+
+updateTrackable : TrackableId -> Trackable -> Chartable -> Result String Chartable
+updateTrackable trackableId trackable (Chartable c) =
+    case c.sum |> List.lookup trackableId of
+        Nothing ->
+            Err <| "Trackable " ++ TId.toString trackableId ++ " does not exist in Chartable"
+
+        Just _ ->
+            let
+                sum_ =
+                    c.sum |> List.updateLookup trackableId (Tuple.mapFirst (always trackable))
             in
             Ok <|
                 Chartable

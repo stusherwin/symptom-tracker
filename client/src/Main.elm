@@ -213,7 +213,7 @@ update msg model =
                         ( ChartsPage chartsPageModel, Just (Charts chartId) ) ->
                             let
                                 ( page, cmd ) =
-                                    ChartsPage.urlChanged chartId chartsPageModel
+                                    ChartsPage.urlChanged userData chartId chartsPageModel
                             in
                             ( { model | pageState = Loaded today userData (ChartsPage page) }, Cmd.map ChartsPageMsg cmd )
 
@@ -247,7 +247,7 @@ update msg model =
                 Loaded today userData (DayPage dayPageModel) ->
                     let
                         ( newModel, cmd ) =
-                            DayPage.update dayPageMsg dayPageModel
+                            DayPage.update userData dayPageMsg dayPageModel
                     in
                     ( { model | pageState = Loaded today userData (DayPage newModel) }, Cmd.map DayPageMsg cmd )
 
@@ -262,7 +262,7 @@ update msg model =
                 Loaded today userData (ChartsPage chartsPageModel) ->
                     let
                         ( newModel, cmd ) =
-                            ChartsPage.update chartsPageMsg chartsPageModel
+                            ChartsPage.update userData chartsPageMsg chartsPageModel
                     in
                     ( { model | pageState = Loaded today userData (ChartsPage newModel) }, Cmd.map ChartsPageMsg cmd )
 
@@ -277,7 +277,7 @@ update msg model =
                 Loaded today userData (TrackablesPage trackablesPageModel) ->
                     let
                         ( newModel, cmd ) =
-                            TrackablesPage.update trackablesPageMsg trackablesPageModel
+                            TrackablesPage.update userData trackablesPageMsg trackablesPageModel
                     in
                     ( { model | pageState = Loaded today userData (TrackablesPage newModel) }, Cmd.map TrackablesPageMsg cmd )
 

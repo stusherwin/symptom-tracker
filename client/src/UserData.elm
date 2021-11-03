@@ -7,6 +7,7 @@ import Extra.List as List
 import IdDict
 import Json.Decode as D
 import Json.Encode as E
+import Result
 import Svg.Icon exposing (IconType(..))
 import Time exposing (Month(..))
 import UserData.Chartable as C exposing (Chartable(..), ChartableDict)
@@ -266,12 +267,33 @@ init =
 
 updateTrackable : TrackableId -> (Trackable -> Result String Trackable) -> UserData -> UserData
 updateTrackable id fn (UserData data) =
-    case data.trackables |> IdDict.update id fn of
-        Ok trackables_ ->
-            UserData { data | trackables = trackables_ }
+    case data.trackables |> IdDict.get id of
+        Just trackable ->
+            case fn trackable of
+                Ok trackable_ ->
+                    let
+                        chartables_ =
+                            data.chartables
+                                |> IdDict.map
+                                    (\_ c -> C.updateTrackable id trackable_ c |> Result.withDefault c)
 
-        Err err ->
-            UserData { data | errors = err :: data.errors }
+                        lineCharts_ =
+                            data.lineCharts
+                                |> IdDict.map
+                                    (\_ c -> LC.updateTrackable id trackable_ c |> Result.withDefault c)
+                    in
+                    UserData
+                        { data
+                            | trackables = data.trackables |> IdDict.insert id trackable_
+                            , chartables = chartables_
+                            , lineCharts = lineCharts_
+                        }
+
+                Err err ->
+                    UserData { data | errors = err :: data.errors }
+
+        _ ->
+            UserData { data | errors = ("Could not find Trackable with id " ++ TId.toString id) :: data.errors }
 
 
 addTrackable : T.New -> UserData -> ( Maybe ( TrackableId, Trackable ), UserData )

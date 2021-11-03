@@ -29,7 +29,6 @@ type alias Model =
     , name : String
     , viewport : Maybe Dom.Viewport
     , expandedValue : Bool
-    , userData : UserData
     , fullScreen : Bool
     , graph : Graph.Model
     }
@@ -59,7 +58,6 @@ init today userData chartId chart =
       , name = LC.name chart
       , viewport = Nothing
       , expandedValue = False
-      , userData = userData
       , fullScreen = False
       , graph =
             { today = today
@@ -100,32 +98,33 @@ init today userData chartId chart =
     )
 
 
-update : Msg -> Model -> ( Model, Cmd Msg )
-update msg model =
+update : UserData -> Msg -> Model -> ( Model, Cmd Msg )
+update userData msg model =
     let
-        updateGraph fn m =
-            { m | graph = fn m.graph }
+        updateGraph fn ( m, cmd ) =
+            ( { m | graph = fn m.graph }, cmd )
 
-        setUserData userData_ m =
-            { m | userData = userData_ }
+        setUserData userData_ ( m, cmd ) =
+            ( m
+            , Cmd.batch [ cmd, Task.perform UserDataUpdated <| Task.succeed userData_ ]
+            )
     in
     case msg of
         ChartFillLinesChecked fl ->
             let
                 userData_ =
-                    model.userData |> UserData.updateLineChart model.chartId (LC.setFillLines fl)
+                    userData |> UserData.updateLineChart model.chartId (LC.setFillLines fl)
             in
-            ( model
+            ( model, Cmd.none )
                 |> setUserData userData_
                 |> (updateGraph <| \c -> { c | fillLines = fl })
-            , Task.perform UserDataUpdated <| Task.succeed userData_
-            )
 
         ChartFullScreenClicked ->
             ( model, toggleElementFullScreen ("chart" ++ LCId.toString model.chartId) )
 
         ChartClicked ->
-            ( model |> updateGraph (\c -> { c | selectedDataSet = Nothing, selectedDataPoint = Nothing }), Cmd.none )
+            ( model, Cmd.none )
+                |> updateGraph (\c -> { c | selectedDataSet = Nothing, selectedDataPoint = Nothing })
 
         ChartZoomOutClicked ->
             ( model
@@ -140,20 +139,22 @@ update msg model =
             )
 
         ChartZoomOutRequested (Ok scrollable) ->
-            ( model |> updateGraph (\c -> { c | xScale = c.xScale * 3 / 4 })
+            ( model
             , Dom.getViewportOf ("chart" ++ LCId.toString model.chartId ++ "-scrollable")
                 |> Task.andThen (\v -> Dom.setViewportOf ("chart" ++ LCId.toString model.chartId ++ "-scrollable") (v.scene.width * ((scrollable.viewport.x + scrollable.viewport.width / 2) / scrollable.scene.width) - (v.viewport.width / 2)) 0)
                 |> Task.andThen (\_ -> Dom.getViewportOf ("chart" ++ LCId.toString model.chartId ++ "-scrollable"))
                 |> Task.attempt ViewportUpdated
             )
+                |> updateGraph (\c -> { c | xScale = c.xScale * 3 / 4 })
 
         ChartZoomInRequested (Ok scrollable) ->
-            ( model |> updateGraph (\c -> { c | xScale = c.xScale * 4 / 3 })
+            ( model
             , Dom.getViewportOf ("chart" ++ LCId.toString model.chartId ++ "-scrollable")
                 |> Task.andThen (\v -> Dom.setViewportOf ("chart" ++ LCId.toString model.chartId ++ "-scrollable") (v.scene.width * ((scrollable.viewport.x + scrollable.viewport.width / 2) / scrollable.scene.width) - (v.viewport.width / 2)) 0)
                 |> Task.andThen (\_ -> Dom.getViewportOf ("chart" ++ LCId.toString model.chartId ++ "-scrollable"))
                 |> Task.attempt ViewportUpdated
             )
+                |> updateGraph (\c -> { c | xScale = c.xScale * 4 / 3 })
 
         ChartExpandValueClicked ->
             ( model |> (\c -> { c | expandedValue = not c.expandedValue })
@@ -163,9 +164,9 @@ update msg model =
         ChartExpandValueCloseClicked ->
             ( model
                 |> (\c -> { c | expandedValue = False })
-                |> (updateGraph <| Graph.selectDataSet Nothing)
             , Cmd.none
             )
+                |> (updateGraph <| Graph.selectDataSet Nothing)
 
         FullScreenChanged fullScreen ->
             ( { model | fullScreen = fullScreen }, Cmd.none )
@@ -187,7 +188,6 @@ update msg model =
             case model.viewport of
                 Just viewport ->
                     ( model
-                        |> (updateGraph <| \c -> { c | currentWidth = svg.element.width, minWidth = viewport.viewport.width, maxWidth = viewport.scene.width, height = svg.element.height })
                     , if model.graph.currentWidth /= svg.element.width then
                         Dom.getViewportOf ("chart" ++ LCId.toString model.chartId ++ "-scrollable")
                             |> Task.attempt ViewportUpdated
@@ -195,6 +195,7 @@ update msg model =
                       else
                         Cmd.none
                     )
+                        |> (updateGraph <| \c -> { c | currentWidth = svg.element.width, minWidth = viewport.viewport.width, maxWidth = viewport.scene.width, height = svg.element.height })
 
                 _ ->
                     ( model, Cmd.none )
