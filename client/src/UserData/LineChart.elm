@@ -1,12 +1,11 @@
 module UserData.LineChart exposing (LineChart, LineChartDict, addChartable, decode, deleteChartable, encode, moveChartableDown, moveChartableUp, setFillLines, setName, setShowPoints, toggleChartableVisible)
 
-import IdDict exposing (IdDict(..), IdDictProps)
+import IdDict exposing (IdDict(..))
 import Json.Decode as D
 import Json.Encode as E
 import Listx
-import UserData.Chartable
 import UserData.ChartableId as ChartableId exposing (ChartableId)
-import UserData.LineChartId as LineChartId exposing (LineChartId)
+import UserData.LineChartId exposing (LineChartId)
 
 
 type alias LineChart =

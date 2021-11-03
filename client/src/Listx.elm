@@ -102,6 +102,11 @@ lookup id list =
                 lookup id xs
 
 
+deleteLookup : id -> List ( id, a ) -> List ( id, a )
+deleteLookup id list =
+    List.filter (\( i, _ ) -> i /= id) list
+
+
 updateLookup : id -> (a -> a) -> List ( id, a ) -> List ( id, a )
 updateLookup id fn list =
     case list of

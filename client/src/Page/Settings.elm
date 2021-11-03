@@ -19,12 +19,12 @@ import UserData.TrackableId as TrackableId exposing (TrackableId)
 
 
 type alias Model =
-    { questions : IdDict TrackableId Question
-    , selectedValue : Int
+    { trackables : List ( TrackableId, TrackableModel )
+    , userData : UserData
     }
 
 
-type alias Question =
+type alias TrackableModel =
     { question : String
     , colour : Colour
     , answerType : AnswerType
@@ -32,6 +32,7 @@ type alias Question =
     , iconOptions : IconOptions
     , canDelete : Bool
     , answerTypes : List ( AnswerType, Bool )
+    , isVisible : Bool
     }
 
 
@@ -66,19 +67,20 @@ type AnswerType
 
 init : UserData -> Model
 init userData =
-    { questions = IdDict.map trackableToQuestion <| UserData.trackables userData
-    , selectedValue = 4
+    { trackables = UserData.activeTrackables userData |> List.map (Tuple.mapSecond toModel)
+    , userData = userData
     }
 
 
-trackableToQuestion : TrackableId -> Trackable -> Question
-trackableToQuestion _ t =
+toModel : ( Trackable, Bool ) -> TrackableModel
+toModel ( t, visible ) =
     let
         floatData =
             Dict.values <| Trackable.maybeFloatData t
     in
     { question = t.question
     , colour = t.colour
+    , isVisible = visible
     , answerType =
         case t.data of
             TYesNo _ ->
@@ -229,160 +231,259 @@ trackableToQuestion _ t =
 
 type Msg
     = NoOp
-    | QuestionColourUpdated TrackableId (Maybe Colour)
-    | QuestionTextUpdated TrackableId String
-    | QuestionAnswerTypeUpdated TrackableId (Maybe AnswerType)
-    | QuestionDeleteClicked TrackableId
-    | QuestionAddClicked
+    | TrackableColourUpdated TrackableId (Maybe Colour)
+    | TrackableQuestionUpdated TrackableId String
+    | TrackableAnswerTypeUpdated TrackableId (Maybe AnswerType)
+    | TrackableDeleteClicked TrackableId
+    | TrackableAddClicked
+    | TrackableVisibleClicked TrackableId
+    | TrackableUpClicked TrackableId
+    | TrackableDownClicked TrackableId
     | ScaleFromUpdated TrackableId (Maybe Int)
     | ScaleToUpdated TrackableId (Maybe Int)
     | IconUpdated TrackableId Int (Maybe IconType)
     | IconAddClicked TrackableId
     | IconDeleteClicked TrackableId Int
-    | ValueUpdated (Maybe Int)
-    | UpdateTrackable (Trackable -> Result String Trackable) TrackableId
-    | AddTrackable Trackable
-    | DeleteTrackable TrackableId
-    | UserDataTrackableAdded ( TrackableId, Trackable )
+    | UserDataUpdated UserData
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
-        QuestionColourUpdated id (Just colour) ->
-            ( { model | questions = IdDict.update id (\q -> { q | colour = colour }) model.questions }
-            , Task.perform (UpdateTrackable <| \t -> Ok { t | colour = colour }) <| Task.succeed id
+        TrackableColourUpdated id (Just colour) ->
+            let
+                userData_ =
+                    model.userData
+                        |> UserData.updateTrackable id (Trackable.setColour colour)
+            in
+            ( { model
+                | userData = userData_
+                , trackables = model.trackables |> Listx.updateLookup id (\q -> { q | colour = colour })
+              }
+            , Task.perform UserDataUpdated <| Task.succeed userData_
             )
 
-        QuestionTextUpdated id question ->
-            ( { model | questions = IdDict.update id (\q -> { q | question = question }) model.questions }
-            , Task.perform (UpdateTrackable <| \t -> Ok { t | question = question }) <| Task.succeed id
+        TrackableQuestionUpdated id question ->
+            let
+                userData_ =
+                    model.userData
+                        |> UserData.updateTrackable id (Trackable.setQuestion question)
+            in
+            ( { model
+                | userData = userData_
+                , trackables = model.trackables |> Listx.updateLookup id (\q -> { q | question = question })
+              }
+            , Task.perform UserDataUpdated <| Task.succeed userData_
             )
 
-        QuestionAnswerTypeUpdated id (Just answerType) ->
-            ( { model | questions = IdDict.update id (\q -> { q | answerType = answerType }) model.questions }
-            , case IdDict.get id model.questions of
-                Just q ->
-                    Task.perform
-                        (UpdateTrackable <|
-                            case answerType of
-                                AYesNo ->
-                                    Trackable.convertToYesNo
+        TrackableAnswerTypeUpdated id (Just answerType) ->
+            let
+                userData_ =
+                    case model.trackables |> Listx.lookup id of
+                        Just q ->
+                            model.userData
+                                |> (UserData.updateTrackable id <|
+                                        case answerType of
+                                            AYesNo ->
+                                                Trackable.convertToYesNo
 
-                                AIcon ->
-                                    Trackable.convertToIcon (Array.map .iconType q.iconOptions)
+                                            AIcon ->
+                                                Trackable.convertToIcon (Array.map .iconType q.iconOptions)
 
-                                AScale ->
-                                    Trackable.convertToScale q.scaleOptions.from q.scaleOptions.to
+                                            AScale ->
+                                                Trackable.convertToScale q.scaleOptions.from q.scaleOptions.to
 
-                                AInt ->
-                                    Trackable.convertToInt
+                                            AInt ->
+                                                Trackable.convertToInt
 
-                                AFloat ->
-                                    Trackable.convertToFloat
+                                            AFloat ->
+                                                Trackable.convertToFloat
 
-                                AText ->
-                                    Trackable.convertToText
-                        )
-                    <|
-                        Task.succeed id
+                                            AText ->
+                                                Trackable.convertToText
+                                   )
+
+                        _ ->
+                            model.userData
+            in
+            ( { model
+                | userData = userData_
+                , trackables = model.trackables |> Listx.updateLookup id (\q -> { q | answerType = answerType })
+              }
+            , Task.perform UserDataUpdated <| Task.succeed userData_
+            )
+
+        TrackableAddClicked ->
+            let
+                trackable =
+                    { question = ""
+                    , colour = Colour.Red
+                    , multiplier = 1.0
+                    , data = TYesNo Dict.empty
+                    }
+
+                ( idM, userData_ ) =
+                    model.userData |> UserData.addTrackable trackable
+            in
+            case idM of
+                Just id ->
+                    ( { model | trackables = model.trackables |> Listx.insertLookup id (toModel ( trackable, True )) }
+                    , Cmd.batch
+                        [ Task.perform UserDataUpdated <| Task.succeed userData_
+                        , Dom.getViewport
+                            |> Task.andThen (\info -> Dom.setViewport 0 info.scene.height)
+                            |> (Task.andThen <| always <| Dom.focus ("q-" ++ TrackableId.toString id))
+                            |> Task.attempt (always NoOp)
+                        ]
+                    )
 
                 _ ->
-                    Cmd.none
-            )
+                    ( model, Cmd.none )
 
-        QuestionAddClicked ->
-            ( model
-            , Task.perform
-                (\_ ->
-                    AddTrackable
-                        { question = ""
-                        , colour = Colour.Red
-                        , multiplier = 1.0
-                        , data = TYesNo Dict.empty
-                        }
-                )
-              <|
-                Task.succeed ()
-            )
-
-        UserDataTrackableAdded ( id, t ) ->
-            ( { model | questions = IdDict.insert id (trackableToQuestion id t) model.questions }
-            , Dom.getViewport
-                |> Task.andThen (\info -> Dom.setViewport 0 info.scene.height)
-                |> (Task.andThen <| always <| Dom.focus ("q-" ++ TrackableId.toString id))
-                |> Task.attempt (always NoOp)
-            )
-
-        QuestionDeleteClicked id ->
-            ( { model | questions = IdDict.delete id model.questions }
-            , Task.perform DeleteTrackable <| Task.succeed id
+        TrackableDeleteClicked id ->
+            let
+                userData_ =
+                    model.userData
+                        |> UserData.deleteTrackable id
+            in
+            ( { model | userData = userData_, trackables = model.trackables |> Listx.deleteLookup id }
+            , Task.perform UserDataUpdated <| Task.succeed userData_
             )
 
         ScaleFromUpdated id (Just from) ->
+            let
+                userData_ =
+                    model.userData
+                        |> UserData.updateTrackable id (Trackable.updateScaleFrom from)
+            in
             ( { model
-                | questions =
-                    IdDict.update id
-                        (\q ->
-                            let
-                                scaleOptions =
-                                    q.scaleOptions
-                            in
-                            { q | scaleOptions = { scaleOptions | from = from } }
-                        )
-                        model.questions
+                | userData = userData_
+                , trackables =
+                    model.trackables
+                        |> Listx.updateLookup id
+                            (\q ->
+                                let
+                                    scaleOptions =
+                                        q.scaleOptions
+                                in
+                                { q | scaleOptions = { scaleOptions | from = from } }
+                            )
               }
-            , Task.perform (UpdateTrackable <| Trackable.updateScaleFrom from) <| Task.succeed id
+            , Task.perform UserDataUpdated <| Task.succeed userData_
             )
 
         ScaleToUpdated id (Just to) ->
+            let
+                userData_ =
+                    model.userData
+                        |> UserData.updateTrackable id (Trackable.updateScaleTo to)
+            in
             ( { model
-                | questions =
-                    IdDict.update id
-                        (\q ->
-                            let
-                                scaleOptions =
-                                    q.scaleOptions
-                            in
-                            { q | scaleOptions = { scaleOptions | to = to } }
-                        )
-                        model.questions
+                | userData = userData_
+                , trackables =
+                    model.trackables
+                        |> Listx.updateLookup id
+                            (\q ->
+                                let
+                                    scaleOptions =
+                                        q.scaleOptions
+                                in
+                                { q | scaleOptions = { scaleOptions | to = to } }
+                            )
               }
-            , Task.perform (UpdateTrackable <| Trackable.updateScaleTo to) <| Task.succeed id
+            , Task.perform UserDataUpdated <| Task.succeed userData_
             )
 
         IconUpdated id i (Just iconType) ->
+            let
+                userData_ =
+                    model.userData
+                        |> UserData.updateTrackable id (Trackable.updateIcon i iconType)
+            in
             ( { model
-                | questions =
-                    IdDict.update id
-                        (\q ->
-                            { q
-                                | iconOptions =
-                                    case Array.get i q.iconOptions of
-                                        Just o ->
-                                            Array.set i { o | iconType = iconType } q.iconOptions
+                | userData = userData_
+                , trackables =
+                    model.trackables
+                        |> Listx.updateLookup id
+                            (\q ->
+                                { q
+                                    | iconOptions =
+                                        case Array.get i q.iconOptions of
+                                            Just o ->
+                                                Array.set i { o | iconType = iconType } q.iconOptions
 
-                                        _ ->
-                                            q.iconOptions
-                            }
-                        )
-                        model.questions
+                                            _ ->
+                                                q.iconOptions
+                                }
+                            )
               }
-            , Task.perform (UpdateTrackable <| Trackable.updateIcon i iconType) <| Task.succeed id
+            , Task.perform UserDataUpdated <| Task.succeed userData_
             )
 
         IconAddClicked id ->
-            ( { model | questions = IdDict.update id (\q -> { q | iconOptions = Array.push { iconType = SolidQuestionCircle, canDelete = True } q.iconOptions }) model.questions }
-            , Task.perform (UpdateTrackable <| Trackable.addIcon SolidQuestionCircle) <| Task.succeed id
+            let
+                userData_ =
+                    model.userData
+                        |> UserData.updateTrackable id (Trackable.addIcon SolidQuestionCircle)
+            in
+            ( { model
+                | userData = userData_
+                , trackables = model.trackables |> Listx.updateLookup id (\q -> { q | iconOptions = Array.push { iconType = SolidQuestionCircle, canDelete = True } q.iconOptions })
+              }
+            , Task.perform UserDataUpdated <| Task.succeed userData_
             )
 
         IconDeleteClicked id i ->
-            ( { model | questions = IdDict.update id (\q -> { q | iconOptions = Array.append (Array.slice 0 i q.iconOptions) (Array.slice (i + 1) (Array.length q.iconOptions) q.iconOptions) }) model.questions }
-            , Task.perform (UpdateTrackable <| Trackable.deleteIcon i) <| Task.succeed id
+            let
+                userData_ =
+                    model.userData
+                        |> UserData.updateTrackable id (Trackable.deleteIcon i)
+            in
+            ( { model
+                | userData = userData_
+                , trackables = model.trackables |> Listx.updateLookup id (\q -> { q | iconOptions = Array.append (Array.slice 0 i q.iconOptions) (Array.slice (i + 1) (Array.length q.iconOptions) q.iconOptions) })
+              }
+            , Task.perform UserDataUpdated <| Task.succeed userData_
             )
 
-        ValueUpdated (Just v) ->
-            ( { model | selectedValue = v }, Cmd.none )
+        TrackableUpClicked id ->
+            let
+                userData_ =
+                    model.userData
+                        |> UserData.moveTrackableUp id
+            in
+            ( { model
+                | userData = userData_
+                , trackables = model.trackables |> Listx.moveHeadwardsBy Tuple.first id
+              }
+            , Task.perform UserDataUpdated <| Task.succeed userData_
+            )
+
+        TrackableDownClicked id ->
+            let
+                userData_ =
+                    model.userData
+                        |> UserData.moveTrackableDown id
+            in
+            ( { model
+                | userData = userData_
+                , trackables = model.trackables |> Listx.moveTailwardsBy Tuple.first id
+              }
+            , Task.perform UserDataUpdated <| Task.succeed userData_
+            )
+
+        TrackableVisibleClicked id ->
+            let
+                userData_ =
+                    model.userData
+                        |> UserData.toggleTrackableVisible id
+            in
+            ( { model
+                | userData = userData_
+                , trackables = model.trackables |> Listx.updateLookup id (\t -> { t | isVisible = not t.isVisible })
+              }
+            , Task.perform UserDataUpdated <| Task.succeed userData_
+            )
 
         _ ->
             ( model, Cmd.none )
@@ -393,48 +494,35 @@ update msg model =
 
 
 view : Model -> Html Msg
-view { questions, selectedValue } =
-    div [ class "shadow-inner-t-md" ] <|
+view { trackables } =
+    let
+        first =
+            (Maybe.map Tuple.first << List.head) trackables
+
+        last =
+            (Maybe.map Tuple.first << List.head << List.reverse) trackables
+    in
+    div [ class "bg-white" ]
         [ h2 [ class "py-4 font-bold text-2xl text-center" ]
             [ text <| "Trackables" ]
-
-        -- , viewTest selectedValue
+        , div [ class "" ] <|
+            List.map (viewTrackable first last) trackables
+                ++ [ div [ class "bg-gray-300 border-t-4 border-gray-400 flex" ]
+                        [ Controls.button "mx-4 my-2" Controls.ButtonGrey TrackableAddClicked SolidPlusCircle "Add new trackable" True
+                        ]
+                   ]
         ]
-            ++ (IdDict.values <|
-                    IdDict.map viewQuestion questions
-               )
-            ++ [ div [ class "bg-gray-200 border-t-4 border-gray-300 flex" ]
-                    [ Controls.button "m-4" Controls.ButtonGrey QuestionAddClicked SolidPlusCircle "New trackable" True
-                    ]
-               ]
 
 
-viewTest : Int -> Html Msg
-viewTest selectedValue =
-    Controls.textDropdown
-        "m-4"
-        ValueUpdated
-        String.fromInt
-        String.toInt
-        [ ( ( 1, True ), "Carrots" )
-        , ( ( 2, False ), "Peas" )
-        , ( ( 3, True ), "Cauliflower" )
-        , ( ( 4, False ), "Aubergine" )
-        , ( ( 5, True ), "Tomatoes" )
-        , ( ( 6, True ), "Sundried tomatoes" )
-        , ( ( 7, False ), "Chopped tomatoes" )
-        , ( ( 8, True ), "Sunflower seeds" )
-        , ( ( 9, True ), "Cabbage" )
-        , ( ( 10, True ), "Courgettes" )
-        ]
-        Nothing
-        (Just selectedValue)
-        { showFilled = False }
-
-
-viewQuestion : TrackableId -> Question -> Html Msg
-viewQuestion id q =
+viewTrackable : Maybe TrackableId -> Maybe TrackableId -> ( TrackableId, TrackableModel ) -> Html Msg
+viewTrackable first last ( id, q ) =
     let
+        canMoveUp =
+            first /= Just id
+
+        canMoveDown =
+            last /= Just id
+
         answerTypes =
             List.map
                 (\( answerType, enabled ) ->
@@ -464,7 +552,7 @@ viewQuestion id q =
         viewScaleOptions =
             case q.answerType of
                 AScale ->
-                    [ div [ class "mt-6 flex" ]
+                    [ div [ class "mt-4 flex" ]
                         [ span [ class "mr-2 py-1 border-4 border-transparent font-bold" ] [ text "From" ]
                         , Controls.textDropdown
                             "mr-2 w-20 h-10"
@@ -504,7 +592,7 @@ viewQuestion id q =
         viewIconOptions =
             case q.answerType of
                 AIcon ->
-                    [ div [ class "mt-4" ]
+                    [ div [ class "mt-2" ]
                         [ ul [ class "flex flex-wrap" ] <|
                             (List.indexedMap
                                 (\i { iconType, canDelete } ->
@@ -524,12 +612,7 @@ viewQuestion id q =
                                             , onClick (IconDeleteClicked id i)
                                             , disabled (not canDelete)
                                             ]
-                                            [ icon "w-6 h-6" <| SolidTrash
-
-                                            -- if canDelete then
-                                            --     SolidTrash
-                                            -- else
-                                            --     SolidTrashBan
+                                            [ icon "w-5 h-5" <| SolidTrashAlt
                                             ]
                                         ]
                                 )
@@ -546,19 +629,77 @@ viewQuestion id q =
                 _ ->
                     []
     in
-    div [ class "py-6 px-4 border-t-4", Colour.class "bg" q.colour, Colour.classUp "border" q.colour ] <|
-        [ div [ class "flex justify-between items-end" ]
-            [ Controls.textbox [ class "w-full" ] [ A.id <| "q-" ++ TrackableId.toString id ] q.question { isValid = True, isRequired = False, isPristine = False } (QuestionTextUpdated id)
+    div []
+        [ div
+            [ class "py-2 px-4 border-t-4 flex"
+            , Colour.class "bg" q.colour
+            , Colour.classUp "border" q.colour
+            , classList
+                [ ( "grayscale", not q.isVisible )
+                ]
             ]
-        , div [ class "flex justify-start items-end" ]
-            [ Controls.textDropdown "mt-4 w-48 h-10 flex-shrink-0 flex-grow-0" (QuestionAnswerTypeUpdated id) answerTypeToString answerTypeFromString (answerTypes |> List.sortBy (String.toUpper << Tuple.second)) Nothing (Just q.answerType) { showFilled = False }
-            , Controls.colourDropdown "ml-auto flex-shrink-0 flex-grow-0" (QuestionColourUpdated id) (Just q.colour) { showFilled = False }
+            [ button
+                [ class "text-black focus:outline-none flex-grow-0 flex-shrink-0"
+                , onClick <| TrackableVisibleClicked id
+                ]
+                [ icon "w-5 h-5" <|
+                    if q.isVisible then
+                        SolidEye
+
+                    else
+                        SolidEyeSlash
+                ]
+            , Controls.textbox [ class "w-full ml-4 mr-4" ] [ A.id <| "q-" ++ TrackableId.toString id ] q.question { isValid = True, isRequired = False, isPristine = False } (TrackableQuestionUpdated id)
+            , button
+                [ class "flex-grow-0 flex-shrink-0 rounded text-black"
+                , classList
+                    [ ( "text-opacity-30 cursor-default", not q.canDelete )
+                    , ( "text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none", q.canDelete )
+                    ]
+                , onClick (TrackableDeleteClicked id)
+                , disabled (not q.canDelete)
+                ]
+                [ icon "w-5 h-5" <| SolidTrashAlt
+                ]
+            , button
+                [ class "ml-4 flex-grow-0 flex-shrink-0 text-black focus:outline-none"
+                , classList
+                    [ ( "text-opacity-0 cursor-default", not canMoveUp )
+                    , ( "text-opacity-70 hover:text-opacity-100 focus:text-opacity-100", canMoveUp )
+                    ]
+                , onClick <| TrackableUpClicked id
+                , disabled (not canMoveUp)
+                ]
+                [ icon "w-5 h-5" <| SolidArrowUp
+                ]
+            , button
+                [ class "ml-1 flex-grow-0 flex-shrink-0 text-black focus:outline-none"
+                , classList
+                    [ ( "text-opacity-0 cursor-default", not canMoveDown )
+                    , ( "text-opacity-70 hover:text-opacity-100 focus:text-opacity-100", canMoveDown )
+                    ]
+                , onClick <| TrackableDownClicked id
+                , disabled (not canMoveDown)
+                ]
+                [ icon "w-5 h-5" <| SolidArrowDown
+                ]
+            ]
+        , div
+            [ class "py-4 px-4 pt-2 pl-12"
+            , Colour.classDown "bg" q.colour
+            , classList
+                [ ( "grayscale", not q.isVisible )
+                ]
+            ]
+            [ div [ class "ml-1" ] <|
+                div [ class "flex justify-start items-end" ]
+                    [ Controls.textDropdown "w-48 h-10 flex-shrink-0 flex-grow-0" (TrackableAnswerTypeUpdated id) answerTypeToString answerTypeFromString (answerTypes |> List.sortBy (String.toUpper << Tuple.second)) Nothing (Just q.answerType) { showFilled = False }
+                    , Controls.colourDropdown "ml-auto relative top-1 flex-shrink-0 flex-grow-0" (TrackableColourUpdated id) (Just q.colour) { showFilled = False }
+                    ]
+                    :: viewScaleOptions
+                    ++ viewIconOptions
             ]
         ]
-            ++ viewScaleOptions
-            ++ viewIconOptions
-            ++ [ Controls.button "mt-6 w-24" Controls.ButtonGrey (QuestionDeleteClicked id) SolidTrash "Delete" q.canDelete
-               ]
 
 
 answerTypeToString : AnswerType -> String

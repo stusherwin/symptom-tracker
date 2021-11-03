@@ -160,22 +160,17 @@ type Msg
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     let
-        updateUserData result =
-            case result of
-                Ok newUserData ->
-                    case model.pageState of
-                        Loaded today _ page ->
-                            let
-                                ( newThrottle, cmd ) =
-                                    Throttle.try (setUserData <| UserData.encode <| newUserData) model.throttle
-                            in
-                            ( { model | throttle = newThrottle, pageState = Loaded today newUserData page }, cmd )
+        updateUserData userData_ =
+            case model.pageState of
+                Loaded today _ page ->
+                    let
+                        ( newThrottle, cmd ) =
+                            Throttle.try (setUserData <| UserData.encode <| userData_) model.throttle
+                    in
+                    ( { model | throttle = newThrottle, pageState = Loaded today userData_ page }, cmd )
 
-                        _ ->
-                            ( model, Cmd.none )
-
-                Err err ->
-                    ( { model | pageState = Error err }, Cmd.none )
+                _ ->
+                    ( model, Cmd.none )
     in
     case msg of
         LinkClicked urlRequest ->
@@ -220,13 +215,8 @@ update msg model =
                 _ ->
                     ( model, Cmd.none )
 
-        DayPageMsg (DayPage.UserDataUpdated userData) ->
-            case model.pageState of
-                Loaded _ _ _ ->
-                    updateUserData userData
-
-                _ ->
-                    ( model, Cmd.none )
+        DayPageMsg (DayPage.UserDataUpdated userData_) ->
+            updateUserData userData_
 
         DayPageMsg dayPageMsg ->
             case model.pageState of
@@ -240,21 +230,8 @@ update msg model =
                 _ ->
                     ( model, Cmd.none )
 
-        ChartsPageMsg (ChartsPage.UserDataUpdated userData) ->
-            let
-                ( model_, cmd1 ) =
-                    updateUserData (Ok userData)
-            in
-            case model_.pageState of
-                Loaded today _ (ChartsPage pageModel) ->
-                    let
-                        ( page, cmd2 ) =
-                            ChartsPage.update (ChartsPage.UserDataUpdated userData) pageModel
-                    in
-                    ( { model | pageState = Loaded today userData (ChartsPage page) }, Cmd.batch [ cmd1, Cmd.map ChartsPageMsg cmd2 ] )
-
-                _ ->
-                    ( model_, cmd1 )
+        ChartsPageMsg (ChartsPage.UserDataUpdated userData_) ->
+            updateUserData userData_
 
         ChartsPageMsg chartsPageMsg ->
             case model.pageState of
@@ -268,43 +245,8 @@ update msg model =
                 _ ->
                     ( model, Cmd.none )
 
-        SettingsPageMsg (SettingsPage.UpdateTrackable fn id) ->
-            case model.pageState of
-                Loaded _ userData _ ->
-                    updateUserData <| UserData.tryUpdateTrackable id fn userData
-
-                _ ->
-                    ( model, Cmd.none )
-
-        SettingsPageMsg (SettingsPage.AddTrackable t) ->
-            case model.pageState of
-                Loaded _ userData _ ->
-                    case UserData.tryAddTrackable t userData of
-                        Ok ( newId, newUserData ) ->
-                            let
-                                ( m, c ) =
-                                    updateUserData <| Ok newUserData
-                            in
-                            case IdDict.get newId (UserData.trackables newUserData) of
-                                Just newTrackable ->
-                                    ( m, Cmd.batch [ Cmd.map SettingsPageMsg <| Task.perform SettingsPage.UserDataTrackableAdded <| Task.succeed ( newId, newTrackable ), c ] )
-
-                                _ ->
-                                    ( m, c )
-
-                        Err e ->
-                            updateUserData (Err e)
-
-                _ ->
-                    ( model, Cmd.none )
-
-        SettingsPageMsg (SettingsPage.DeleteTrackable id) ->
-            case model.pageState of
-                Loaded _ userData _ ->
-                    updateUserData <| UserData.tryDeleteTrackable id userData
-
-                _ ->
-                    ( model, Cmd.none )
+        SettingsPageMsg (SettingsPage.UserDataUpdated userData_) ->
+            updateUserData userData_
 
         SettingsPageMsg settingsPageMsg ->
             case model.pageState of
@@ -337,7 +279,7 @@ view model =
         [ iconSymbols
         , div [ class "min-h-screen bg-gray-600" ]
             [ div
-                [ class "mobile-width mx-auto min-h-screen relative bg-white" ]
+                [ class "mobile-width mx-auto min-h-screen relative bg-gray-300" ]
                 [ viewMenu model.pageState
                 , div [ class "flex flex-col items-stretch" ] <|
                     case model.pageState of

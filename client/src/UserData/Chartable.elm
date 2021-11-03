@@ -1,13 +1,11 @@
 module UserData.Chartable exposing (Chartable, ChartableDict, addTrackable, decode, deleteTrackable, encode, replaceTrackable, setInverted, setMultiplier, setName)
 
 import Colour exposing (Colour)
-import Dict
-import IdDict exposing (IdDict(..), IdDictProps)
+import IdDict exposing (IdDict(..))
 import Json.Decode as D
 import Json.Encode as E
 import Listx
 import UserData.ChartableId exposing (ChartableId)
-import UserData.Trackable
 import UserData.TrackableId as TrackableId exposing (TrackableId)
 
 

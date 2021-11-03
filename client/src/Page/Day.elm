@@ -41,7 +41,10 @@ init today currentDay userData =
                             Trackable.textData t
                 )
             <|
-                UserData.trackables userData
+                TrackableId.toDict <|
+                    List.map (\( id, ( t, _ ) ) -> ( id, t )) <|
+                        List.filter (\( _, ( _, visible ) ) -> visible) <|
+                            UserData.activeTrackables userData
     }
 
 
@@ -57,7 +60,7 @@ type Msg
     | IntAnswerUpdated TrackableId String
     | FloatAnswerUpdated TrackableId String
     | TextAnswerUpdated TrackableId String
-    | UserDataUpdated (Result String UserData)
+    | UserDataUpdated UserData
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -65,29 +68,29 @@ update msg model =
     case msg of
         YesNoAnswerClicked id answer ->
             let
-                userData =
-                    model.userData |> UserData.tryUpdateTrackable id (Trackable.updateYesNoData model.currentDay answer)
+                userData_ =
+                    model.userData |> UserData.updateTrackable id (Trackable.updateYesNoData model.currentDay answer)
             in
-            ( { model | userData = Result.withDefault model.userData userData }
-            , Task.perform UserDataUpdated <| Task.succeed userData
+            ( { model | userData = userData_ }
+            , Task.perform UserDataUpdated <| Task.succeed userData_
             )
 
         IconAnswerClicked id answer ->
             let
-                userData =
-                    model.userData |> UserData.tryUpdateTrackable id (Trackable.updateIconData model.currentDay answer)
+                userData_ =
+                    model.userData |> UserData.updateTrackable id (Trackable.updateIconData model.currentDay answer)
             in
-            ( { model | userData = Result.withDefault model.userData userData }
-            , Task.perform UserDataUpdated <| Task.succeed userData
+            ( { model | userData = userData_ }
+            , Task.perform UserDataUpdated <| Task.succeed userData_
             )
 
         ScaleAnswerClicked id answer ->
             let
-                userData =
-                    model.userData |> UserData.tryUpdateTrackable id (Trackable.updateScaleData model.currentDay answer)
+                userData_ =
+                    model.userData |> UserData.updateTrackable id (Trackable.updateScaleData model.currentDay answer)
             in
-            ( { model | userData = Result.withDefault model.userData userData }
-            , Task.perform UserDataUpdated <| Task.succeed userData
+            ( { model | userData = userData_ }
+            , Task.perform UserDataUpdated <| Task.succeed userData_
             )
 
         IntAnswerUpdated id stringValue ->
@@ -108,11 +111,11 @@ update msg model =
             in
             if isValid then
                 let
-                    userData =
-                        model.userData |> UserData.tryUpdateTrackable id (Trackable.updateIntData model.currentDay answer)
+                    userData_ =
+                        model.userData |> UserData.updateTrackable id (Trackable.updateIntData model.currentDay answer)
                 in
-                ( { model | textInputs = textInputs, userData = Result.withDefault model.userData userData }
-                , Task.perform UserDataUpdated <| Task.succeed userData
+                ( { model | textInputs = textInputs, userData = userData_ }
+                , Task.perform UserDataUpdated <| Task.succeed userData_
                 )
 
             else
@@ -136,11 +139,11 @@ update msg model =
             in
             if isValid then
                 let
-                    userData =
-                        model.userData |> UserData.tryUpdateTrackable id (Trackable.updateFloatData model.currentDay answer)
+                    userData_ =
+                        model.userData |> UserData.updateTrackable id (Trackable.updateFloatData model.currentDay answer)
                 in
-                ( { model | textInputs = textInputs, userData = Result.withDefault model.userData userData }
-                , Task.perform UserDataUpdated <| Task.succeed userData
+                ( { model | textInputs = textInputs, userData = userData_ }
+                , Task.perform UserDataUpdated <| Task.succeed userData_
                 )
 
             else
@@ -148,14 +151,14 @@ update msg model =
 
         TextAnswerUpdated id answer ->
             let
-                userData =
-                    model.userData |> UserData.tryUpdateTrackable id (Trackable.updateTextData model.currentDay answer)
+                userData_ =
+                    model.userData |> UserData.updateTrackable id (Trackable.updateTextData model.currentDay answer)
             in
             ( { model
                 | textInputs = IdDict.insert id ( answer, True ) model.textInputs
-                , userData = Result.withDefault model.userData userData
+                , userData = userData_
               }
-            , Task.perform UserDataUpdated <| Task.succeed userData
+            , Task.perform UserDataUpdated <| Task.succeed userData_
             )
 
         _ ->
@@ -187,10 +190,14 @@ view { currentDay, today, userData, textInputs } =
     in
     div [] <|
         [ viewDayPicker currentDay today
-        , h2 [ class "py-4 font-bold text-2xl text-center shadow-inner-t-md" ]
+        , h2 [ class "py-4 font-bold text-2xl text-center bg-white" ]
             [ text <| "How was " ++ dayText ++ "?" ]
         ]
-            ++ IdDict.values (IdDict.map (viewQuestion currentDay textInputs) <| UserData.trackables userData)
+            ++ (List.map (viewQuestion currentDay textInputs) <|
+                    List.map (\( id, ( t, _ ) ) -> ( id, t )) <|
+                        List.filter (\( _, ( _, visible ) ) -> visible) <|
+                            UserData.activeTrackables userData
+               )
 
 
 viewDayPicker : Date -> Date -> Html Msg
@@ -213,15 +220,15 @@ viewDayPicker currentDay today =
 
                 dateButton date =
                     if Date.diff Days today date > 0 then
-                        div [ class "w-12 h-12 flex-grow-0 flex-shrink-0 bg-gray-200" ]
+                        div [ class "w-12 h-12 first:rounded-l last:rounded-r flex-grow-0 flex-shrink-0 bg-gray-300" ]
                             [ div [ class "flex flex-col items-center justify-center h-full" ]
-                                [ span [ class "text-xs text-gray-400 leading-none whitespace-nowrap uppercase" ] [ text (Date.format "EEE" date) ]
-                                , span [ class "mt-px text-xl text-gray-400 leading-none whitespace-nowrap uppercase font-medium" ] [ text (Date.format "d" date) ]
+                                [ span [ class "text-xs text-gray-500 leading-none whitespace-nowrap uppercase" ] [ text (Date.format "EEE" date) ]
+                                , span [ class "mt-px text-xl text-gray-500 leading-none whitespace-nowrap uppercase font-medium" ] [ text (Date.format "d" date) ]
                                 ]
                             ]
 
                     else if date == currentDay then
-                        div [ class "w-12 h-12 flex-grow-0 flex-shrink-0 bg-white shadow-inner" ]
+                        div [ class "w-12 h-12 first:rounded-l last:rounded-r flex-grow-0 flex-shrink-0 bg-white shadow-inner" ]
                             [ div [ class "flex flex-col items-center justify-center h-full" ]
                                 [ span [ class "text-xs text-gray-700 leading-none whitespace-nowrap uppercase" ] [ text (Date.format "EEE" date) ]
                                 , span [ class "mt-px text-xl leading-none whitespace-nowrap uppercase font-medium" ] [ text (Date.format "d" date) ]
@@ -231,7 +238,7 @@ viewDayPicker currentDay today =
                     else
                         a
                             [ href (link date)
-                            , class "w-12 h-12 flex-grow-0 flex-shrink-0 bg-gray-200 hover:bg-gray-50 hover:shadow-inner"
+                            , class "w-12 h-12 first:rounded-l last:rounded-r flex-grow-0 flex-shrink-0 bg-gray-200 hover:bg-gray-50 hover:shadow-inner"
                             ]
                             [ div [ class "flex flex-col items-center justify-center h-full" ]
                                 [ span [ class "text-xs text-gray-700 leading-none whitespace-nowrap uppercase" ] [ text (Date.format "EEE" date) ]
@@ -239,7 +246,7 @@ viewDayPicker currentDay today =
                                 ]
                             ]
             in
-            div [ class "flex bg-gray-100 border-2 border-gray-300 divide-x-2 divide-gray-300 normal-nums" ] <|
+            div [ class "flex rounded border-2 border-gray-400 divide-x-2 divide-gray-400 normal-nums" ] <|
                 List.map (\d -> dateButton (Date.add Days d start)) (List.range 0 6)
 
         arrowButton iconType activeClass inactiveClass date =
@@ -258,7 +265,7 @@ viewDayPicker currentDay today =
                     ]
                     [ icon "w-4 h-4" iconType ]
     in
-    div [ class "w-full bg-gray-200 border-b-4 border-gray-300 p-2 flex justify-center items-center" ]
+    div [ class "w-full bg-gray-300 border-b-4 border-gray-400 p-2 flex justify-center items-center" ]
         [ div [ class "flex flex-col" ]
             [ dateButtons
             , div [ class "mt-2 flex justify-between items-center" ]
@@ -270,13 +277,13 @@ viewDayPicker currentDay today =
                     "w-6 h-6 rounded bg-gray-800 border-2 border-gray-900 text-white hover:bg-gray-700 hover:border-gray-800"
                     "w-6 h-6 rounded bg-gray-400 border-2 border-gray-400 text-white"
                     (Date.add Days -1 currentDay)
-                , div [ class "flex justify-center items-center rounded overflow-hidden border-2 border-gray-300 divide-x-2 divide-gray-300" ]
+                , div [ class "flex justify-center items-center rounded overflow-hidden border-2 border-gray-400 divide-x-2 divide-gray-400" ]
                     [ arrowButton SolidAngleLeft "w-6 h-6 text-gray-900 hover:bg-gray-300" "w-6 h-6 text-gray-400" (Date.add Months -1 currentDay)
                     , div [ class "w-12 h-6 py-1 bg-white shadow-inner text-xs uppercase text-center leading-none whitespace-nowrap flex flex-col justify-center" ]
                         [ span [] [ text (Date.format "MMM" currentDay) ] ]
                     , arrowButton SolidAngleRight "w-6 h-6 text-gray-900 hover:bg-gray-300" "w-6 h-6 text-gray-400" (Date.add Months 1 currentDay)
                     ]
-                , div [ class "flex justify-center items-center rounded overflow-hidden border-2 border-gray-300 divide-x-2 divide-gray-300" ]
+                , div [ class "flex justify-center items-center rounded overflow-hidden border-2 border-gray-400 divide-x-2 divide-gray-400" ]
                     [ arrowButton SolidAngleLeft "w-6 h-6 text-gray-900 hover:bg-gray-300" "w-6 h-6 text-gray-400" (Date.add Years -1 currentDay)
                     , div [ class "w-12 h-6 py-1 bg-white shadow-inner text-base uppercase text-center leading-none whitespace-nowrap flex flex-col justify-center" ]
                         [ span [] [ text (Date.format "y" currentDay) ] ]
@@ -295,8 +302,8 @@ viewDayPicker currentDay today =
         ]
 
 
-viewQuestion : Date -> IdDict TrackableId ( String, Bool ) -> TrackableId -> Trackable -> Html Msg
-viewQuestion currentDay textInputs id { question, colour, data } =
+viewQuestion : Date -> IdDict TrackableId ( String, Bool ) -> ( TrackableId, Trackable ) -> Html Msg
+viewQuestion currentDay textInputs ( id, { question, colour, data } ) =
     let
         key =
             Date.toRataDie currentDay

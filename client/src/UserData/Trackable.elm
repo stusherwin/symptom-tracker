@@ -1,11 +1,11 @@
-module UserData.Trackable exposing (Trackable, TrackableData(..), TrackableDict, addIcon, convertToFloat, convertToIcon, convertToInt, convertToScale, convertToText, convertToYesNo, decode, deleteIcon, encode, hasData, maybeFloatData, onlyFloatData, textData, updateFloatData, updateIcon, updateIconData, updateIntData, updateScaleData, updateScaleFrom, updateScaleTo, updateTextData, updateYesNoData)
+module UserData.Trackable exposing (Trackable, TrackableData(..), TrackableDict, addIcon, convertToFloat, convertToIcon, convertToInt, convertToScale, convertToText, convertToYesNo, decode, deleteIcon, encode, hasData, maybeFloatData, onlyFloatData, setColour, setQuestion, textData, updateFloatData, updateIcon, updateIconData, updateIntData, updateScaleData, updateScaleFrom, updateScaleTo, updateTextData, updateYesNoData)
 
 import Array exposing (Array)
 import Colour exposing (Colour(..))
 import Date exposing (Date, Unit(..))
 import Dict exposing (Dict)
 import Dictx
-import IdDict exposing (IdDict(..), IdDictProps)
+import IdDict exposing (IdDict(..))
 import Json.Decode as D
 import Json.Encode as E
 import Svg.Icon as Icon exposing (IconType(..))
@@ -28,6 +28,16 @@ type TrackableData
     | TInt (Dict Int Int)
     | TFloat (Dict Int Float)
     | TText (Dict Int String)
+
+
+setColour : Colour -> Trackable -> Result String Trackable
+setColour colour t =
+    Ok { t | colour = colour }
+
+
+setQuestion : String -> Trackable -> Result String Trackable
+setQuestion question t =
+    Ok { t | question = question }
 
 
 maybeFloatData : Trackable -> Dict Int (Maybe Float)
