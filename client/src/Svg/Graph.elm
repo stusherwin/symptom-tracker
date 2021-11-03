@@ -385,15 +385,23 @@ viewLineGraph svgId class m =
                         in
                         if xStep < 0.65 then
                             if n == 0 then
-                                [ axisLine [ f_ x1 <| minX + toFloat n * xStep + 1, fh_ y1 minY, f_ x2 <| minX + toFloat n * xStep + 1, fh_ y2 <| minY - v.longDash ]
-                                , text_ [ f_ x <| minX + toFloat n * xStep, fh_ y <| minY - v.longDash - 5.0, fontSize "10px", dominantBaseline "hanging", textAnchor "start" ] [ text <| Date.format "y" date ]
-                                ]
+                                axisLine [ f_ x1 <| minX + toFloat n * xStep + 1, fh_ y1 minY, f_ x2 <| minX + toFloat n * xStep + 1, fh_ y2 <| minY - v.longDash ]
+                                    :: (if Date.day date > 24 then
+                                            []
+
+                                        else
+                                            [ text_ [ f_ x <| minX + toFloat n * xStep, fh_ y <| minY - v.longDash - 5.0, fontSize "10px", dominantBaseline "hanging", textAnchor "start" ] [ text <| Date.format "y" date ] ]
+                                       )
 
                             else if (xSteps <= 7 || modBy 7 n == 0) && Date.day date < 8 then
                                 if Date.month date == Jan then
-                                    [ axisLine [ f_ x1 <| minX + toFloat n * xStep + 1, fh_ y1 minY, f_ x2 <| minX + toFloat n * xStep + 1, fh_ y2 <| minY - v.longDash ]
-                                    , text_ [ f_ x <| minX + toFloat n * xStep, fh_ y <| minY - v.longDash - 5.0, fontSize "10px", dominantBaseline "hanging", textAnchor "start" ] [ text <| Date.format "y" date ]
-                                    ]
+                                    axisLine [ f_ x1 <| minX + toFloat n * xStep + 1, fh_ y1 minY, f_ x2 <| minX + toFloat n * xStep + 1, fh_ y2 <| minY - v.longDash ]
+                                        :: (if n > xSteps - 8 then
+                                                []
+
+                                            else
+                                                [ text_ [ f_ x <| minX + toFloat n * xStep, fh_ y <| minY - v.longDash - 5.0, fontSize "10px", dominantBaseline "hanging", textAnchor "start" ] [ text <| Date.format "y" date ] ]
+                                           )
 
                                 else
                                     [ axisLine [ f_ x1 <| minX + toFloat n * xStep, fh_ y1 minY, f_ x2 <| minX + toFloat n * xStep, fh_ y2 <| minY - v.shortDash ]
@@ -404,24 +412,33 @@ viewLineGraph svgId class m =
 
                         else if xStep < 2 then
                             if n == 0 then
-                                [ axisLine [ f_ x1 <| minX + toFloat n * xStep + 1, fh_ y1 minY, f_ x2 <| minX + toFloat n * xStep + 1, fh_ y2 <| minY - v.longDash ]
-                                , text_ [ f_ x <| minX + toFloat n * xStep, fh_ y <| minY - v.longDash - 5.0, fontSize "10px", dominantBaseline "hanging", textAnchor "start" ] [ text <| Date.format "y" date ]
-                                ]
+                                axisLine [ f_ x1 <| minX + toFloat n * xStep + 1, fh_ y1 minY, f_ x2 <| minX + toFloat n * xStep + 1, fh_ y2 <| minY - v.longDash ]
+                                    :: (if Date.day date > 24 then
+                                            []
+
+                                        else
+                                            [ text_ [ f_ x <| minX + toFloat n * xStep, fh_ y <| minY - v.longDash - 5.0, fontSize "10px", dominantBaseline "hanging", textAnchor "start" ] [ text <| Date.format "y" date ] ]
+                                       )
 
                             else if xSteps <= 7 || modBy 7 n == 0 then
                                 if Date.day date < 8 then
-                                    [ axisLine [ f_ x1 <| minX + toFloat n * xStep + 1, fh_ y1 minY, f_ x2 <| minX + toFloat n * xStep + 1, fh_ y2 <| minY - v.longDash ]
-                                    , text_ [ f_ x <| minX + toFloat n * xStep, fh_ y <| minY - v.longDash - 5.0, fontSize "10px", dominantBaseline "hanging", textAnchor "start" ]
-                                        [ text <|
-                                            (if Date.month date == Jan then
-                                                Date.format "y"
+                                    axisLine [ f_ x1 <| minX + toFloat n * xStep + 1, fh_ y1 minY, f_ x2 <| minX + toFloat n * xStep + 1, fh_ y2 <| minY - v.longDash ]
+                                        :: (if n > xSteps - 8 then
+                                                []
 
-                                             else
-                                                Date.format "MMM"
-                                            )
-                                                date
-                                        ]
-                                    ]
+                                            else
+                                                [ text_ [ f_ x <| minX + toFloat n * xStep, fh_ y <| minY - v.longDash - 5.0, fontSize "10px", dominantBaseline "hanging", textAnchor "start" ]
+                                                    [ text <|
+                                                        (if Date.month date == Jan then
+                                                            Date.format "y"
+
+                                                         else
+                                                            Date.format "MMM"
+                                                        )
+                                                            date
+                                                    ]
+                                                ]
+                                           )
 
                                 else
                                     [ axisLine [ f_ x1 <| minX + toFloat n * xStep, fh_ y1 minY, f_ x2 <| minX + toFloat n * xStep, fh_ y2 <| minY - v.shortDash ]
@@ -432,15 +449,23 @@ viewLineGraph svgId class m =
 
                         else if xStep < 6 then
                             if n == 0 then
-                                [ axisLine [ f_ x1 <| minX + toFloat n * xStep + 1, fh_ y1 minY, f_ x2 <| minX + toFloat n * xStep + 1, fh_ y2 <| minY - v.longDash ]
-                                , text_ [ f_ x <| minX + toFloat n * xStep, fh_ y <| minY - v.longDash - 5.0, fontSize "10px", dominantBaseline "hanging", textAnchor "start" ] [ text <| Date.format "MMM y" date ]
-                                ]
+                                axisLine [ f_ x1 <| minX + toFloat n * xStep + 1, fh_ y1 minY, f_ x2 <| minX + toFloat n * xStep + 1, fh_ y2 <| minY - v.longDash ]
+                                    :: (if xStep < 5 && Date.day date > 24 then
+                                            []
+
+                                        else
+                                            [ text_ [ f_ x <| minX + toFloat n * xStep, fh_ y <| minY - v.longDash - 5.0, fontSize "10px", dominantBaseline "hanging", textAnchor "start" ] [ text <| Date.format "MMM y" date ] ]
+                                       )
 
                             else if xSteps <= 7 || modBy 7 n == 0 then
                                 if Date.day date < 8 then
-                                    [ axisLine [ f_ x1 <| minX + toFloat n * xStep + 1, fh_ y1 minY, f_ x2 <| minX + toFloat n * xStep + 1, fh_ y2 <| minY - v.longDash ]
-                                    , text_ [ f_ x <| minX + toFloat n * xStep, fh_ y <| minY - v.longDash - 5.0, fontSize "10px", dominantBaseline "hanging", textAnchor "start" ] [ text <| Date.format "MMM y" date ]
-                                    ]
+                                    axisLine [ f_ x1 <| minX + toFloat n * xStep + 1, fh_ y1 minY, f_ x2 <| minX + toFloat n * xStep + 1, fh_ y2 <| minY - v.longDash ]
+                                        :: (if xStep < 5 && n > xSteps - 8 then
+                                                []
+
+                                            else
+                                                [ text_ [ f_ x <| minX + toFloat n * xStep, fh_ y <| minY - v.longDash - 5.0, fontSize "10px", dominantBaseline "hanging", textAnchor "start" ] [ text <| Date.format "MMM y" date ] ]
+                                           )
 
                                 else
                                     [ axisLine [ f_ x1 <| minX + toFloat n * xStep, fh_ y1 minY, f_ x2 <| minX + toFloat n * xStep, fh_ y2 <| minY - v.shortDash ]
