@@ -1,4 +1,4 @@
-module Chart exposing (Chart(..), ChartDict, ChartId(..), decode, decodeDict, encode, encodeDict, fromList, toDict)
+module Chart exposing (Chart(..), ChartDict, ChartId(..), LineChartData, decode, decodeDict, encode, encodeDict, fromList, toDict)
 
 import Chartable exposing (ChartableId)
 import Dict
@@ -8,12 +8,16 @@ import Json.Encode as E
 
 
 type Chart
-    = LineChart
-        { name : String
-        , fillLines : Bool
-        , showPoints : Bool
-        , chartables : List ChartableId
-        }
+    = LineChart LineChartData
+
+
+type alias LineChartData =
+    { name : String
+    , fillLines : Bool
+    , showPoints : Bool
+    , chartables : IdDict ChartableId { visible : Bool }
+    , chartableOrder : List ChartableId
+    }
 
 
 type ChartId
@@ -59,19 +63,30 @@ decode =
     D.oneOf
         [ D.map LineChart <|
             D.field "lineChart" <|
-                D.map4
-                    (\name fillLines showPoints chartables ->
+                D.map5
+                    (\name fillLines showPoints chartables chartableOrder ->
                         { name = name
                         , chartables = chartables
                         , fillLines = fillLines
                         , showPoints = showPoints
+                        , chartableOrder = chartableOrder
                         }
                     )
                     (D.field "name" D.string)
                     (D.field "fillLines" D.bool)
                     (D.field "showPoints" D.bool)
                     (D.field "chartables" <|
-                        D.list Chartable.decodeId
+                        Chartable.decodeIdDict <|
+                            D.map
+                                (\v ->
+                                    { visible = v }
+                                )
+                            <|
+                                D.field "visible" D.bool
+                    )
+                    (D.field "chartableOrder" <|
+                        D.list <|
+                            Chartable.decodeId
                     )
         ]
 
@@ -87,7 +102,16 @@ encode chart =
                         , ( "fillLines", E.bool c.fillLines )
                         , ( "showPoints", E.bool c.showPoints )
                         , ( "chartables"
-                          , E.list Chartable.encodeId c.chartables
+                          , c.chartables
+                                |> Chartable.encodeIdDict
+                                    (\{ visible } ->
+                                        E.object
+                                            [ ( "visible", E.bool visible )
+                                            ]
+                                    )
+                          )
+                        , ( "chartableOrder"
+                          , c.chartableOrder |> E.list Chartable.encodeId
                           )
                         ]
                   )

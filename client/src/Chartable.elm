@@ -1,4 +1,4 @@
-module Chartable exposing (Chartable, ChartableDict, ChartableId(..), decode, decodeDict, decodeId, encode, encodeDict, encodeId, fromList, toDict)
+module Chartable exposing (Chartable, ChartableDict, ChartableId(..), decode, decodeDict, decodeId, decodeIdDict, encode, encodeDict, encodeId, encodeIdDict, fromList, toDict)
 
 import Colour exposing (Colour)
 import Dict
@@ -49,7 +49,7 @@ toDict chartables =
     IdDict dictProps <| Dict.fromList <| List.map2 Tuple.pair (List.range 1 (List.length chartables)) chartables
 
 
-fromList : List ( ChartableId, Chartable ) -> ChartableDict
+fromList : List ( ChartableId, a ) -> IdDict ChartableId a
 fromList list =
     IdDict dictProps (Dict.fromList <| List.map (Tuple.mapFirst dictProps.fromId) list)
 
@@ -62,6 +62,16 @@ decodeDict =
 encodeDict : ChartableDict -> E.Value
 encodeDict =
     IdDict.encode encode
+
+
+decodeIdDict : D.Decoder a -> D.Decoder (IdDict ChartableId a)
+decodeIdDict =
+    IdDict.decode dictProps
+
+
+encodeIdDict : (a -> E.Value) -> IdDict ChartableId a -> E.Value
+encodeIdDict =
+    IdDict.encode
 
 
 decode : D.Decoder Chartable

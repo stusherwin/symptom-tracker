@@ -432,8 +432,8 @@ viewLineGraph class { data, today, selectedDataPoint, selectedDataSet, hoveredDa
             ++ (List.concatMap (\id -> Maybe.withDefault [] <| IdDict.get id dataLines) <| dataOrder)
 
 
-viewKey : String -> DataSet -> Svg msg
-viewKey class ds =
+viewKey : String -> Colour -> Svg msg
+viewKey class colour =
     let
         ( w, h ) =
             ( 20, 10 )
@@ -450,7 +450,7 @@ viewKey class ds =
             , height = h
             }
         , line h
-            { strokeCol = ds.colour
+            { strokeCol = colour
             , strokeWidth = 2
             , strokeDasharray = Nothing
             , strokeLinecap = "square"

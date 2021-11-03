@@ -130,7 +130,20 @@ init =
                         { name = "All Data"
                         , fillLines = True
                         , showPoints = False
-                        , chartables = [ ChartableId 1, ChartableId 2, ChartableId 3, ChartableId 4, ChartableId 5 ]
+                        , chartables = Chartable.fromList
+                            [ ( ChartableId 1, { visible = True } )
+                            , ( ChartableId 2, { visible = False } )
+                            , ( ChartableId 3, { visible = True } )
+                            , ( ChartableId 4, { visible = True } )
+                            , ( ChartableId 5, { visible = True } )
+                            ]
+                        , chartableOrder =
+                            [ ChartableId 1
+                            , ChartableId 2
+                            , ChartableId 3
+                            , ChartableId 4
+                            , ChartableId 5
+                            ]
                         }
                   )
                 ]
