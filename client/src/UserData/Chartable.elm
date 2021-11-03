@@ -10,7 +10,7 @@ import UserData.Trackable as Trackable exposing (TrackableId)
 
 type alias Chartable =
     { name : String
-    , colour : Colour
+    , colour : Maybe Colour
     , inverted : Bool
     , sum : List ( TrackableId, Float )
     }
@@ -85,7 +85,7 @@ decode =
             }
         )
         (D.field "name" D.string)
-        (D.field "colour" Colour.decode)
+        (D.field "colour" <| D.oneOf [ D.null Nothing, D.map Just Colour.decode ])
         (D.field "inverted" D.bool)
         (D.field "sum" <|
             D.list <|
@@ -99,7 +99,14 @@ encode : Chartable -> E.Value
 encode { name, colour, inverted, sum } =
     E.object
         [ ( "name", E.string name )
-        , ( "colour", Colour.encode colour )
+        , ( "colour"
+          , case colour of
+                Just c ->
+                    Colour.encode c
+
+                _ ->
+                    E.null
+          )
         , ( "inverted", E.bool inverted )
         , ( "sum"
           , E.list

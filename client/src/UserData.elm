@@ -117,11 +117,52 @@ init =
                 ]
         , chartables =
             Chartable.fromList
-                [ ( ChartableId 1, { name = "Mood", colour = Colour.Fuchsia, inverted = False, sum = [ ( TrackableId 1, 1.0 ) ] } )
-                , ( ChartableId 2, { name = "Bath", colour = Colour.Blue, inverted = False, sum = [ ( TrackableId 2, 5.0 ) ] } )
-                , ( ChartableId 3, { name = "Bad things", colour = Colour.Orange, inverted = True, sum = [ ( TrackableId 3, 5.0 ), ( TrackableId 5, 1.0 ) ] } )
-                , ( ChartableId 4, { name = "Energy", colour = Colour.Green, inverted = False, sum = [ ( TrackableId 4, 1.0 ) ] } )
-                , ( ChartableId 5, { name = "Running", colour = Colour.Indigo, inverted = False, sum = [ ( TrackableId 6, 1.0 ) ] } )
+                [ ( ChartableId 1
+                  , { name = "Mood"
+                    , colour = Nothing
+                    , inverted = False
+                    , sum =
+                        [ ( TrackableId 1, 1.0 )
+                        ]
+                    }
+                  )
+                , ( ChartableId 2
+                  , { name = "Bath"
+                    , colour = Nothing
+                    , inverted = False
+                    , sum =
+                        [ ( TrackableId 2, 5.0 )
+                        ]
+                    }
+                  )
+                , ( ChartableId 3
+                  , { name = "Bad things"
+                    , colour = Just Colour.Orange
+                    , inverted = True
+                    , sum =
+                        [ ( TrackableId 3, 5.0 )
+                        , ( TrackableId 5, 1.0 )
+                        ]
+                    }
+                  )
+                , ( ChartableId 4
+                  , { name = "Energy"
+                    , colour = Nothing
+                    , inverted = False
+                    , sum =
+                        [ ( TrackableId 4, 1.0 )
+                        ]
+                    }
+                  )
+                , ( ChartableId 5
+                  , { name = "Running"
+                    , colour = Nothing
+                    , inverted = False
+                    , sum =
+                        [ ( TrackableId 6, 1.0 )
+                        ]
+                    }
+                  )
                 ]
         , lineCharts =
             LineChart.fromList

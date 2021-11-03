@@ -1,6 +1,7 @@
 module Page.Charts exposing (Model, Msg(..), init, update, view)
 
 import Browser.Dom as Dom
+import Colour
 import Date exposing (Date, Unit(..))
 import Dict exposing (Dict)
 import Dictx
@@ -64,7 +65,14 @@ toModel today chartables trackables chart =
             |> IdDict.map
                 (\id chartable ->
                     { name = chartable.name
-                    , colour = chartable.colour
+                    , colour =
+                        chartable.colour
+                            |> Maybe.withDefault
+                                (List.head chartable.sum
+                                    |> Maybe.andThen ((\t -> IdDict.get t trackables) << Tuple.first)
+                                    |> Maybe.map .colour
+                                    |> Maybe.withDefault Colour.Blue
+                                )
                     , dataPoints = dataPoints trackables chartable
                     , visible = Maybe.withDefault False <| Maybe.map .visible <| IdDict.get id chart.chartables
                     }
