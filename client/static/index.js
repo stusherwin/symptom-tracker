@@ -392,7 +392,6 @@ class DropdownList extends HTMLElement {
 customElements.define('dropdown-list', DropdownList);
 
 var storedData = localStorage.getItem('symptrack-data');
-// console.log(storedData);
 var flags = storedData ? JSON.parse(storedData) : null;
 
 var { Elm } = require('../src/Main');
@@ -403,12 +402,4 @@ var app = Elm.Main.init({
 
 app.ports.setUserData.subscribe(function (state) {
   localStorage.setItem('symptrack-data', JSON.stringify(state));
-  // console.log(state);
-  setTimeout(function () { app.ports.onUserDataChange.send(state); }, 0);
 });
-
-window.addEventListener("storage", function (event) {
-  if (event.storageArea === localStorage && event.key === 'symptrack-data') {
-    app.ports.onUserDataChange.send(JSON.parse(event.newValue));
-  }
-}, false);

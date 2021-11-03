@@ -133,14 +133,10 @@ init flags url key =
 port setUserData : Encode.Value -> Cmd msg
 
 
-port onUserDataChange : (Encode.Value -> msg) -> Sub msg
-
-
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
-        [ onUserDataChange UserDataChanged
-        , Throttle.ifNeeded
+        [ Throttle.ifNeeded
             (Time.every 1000 (\_ -> UpdateThrottle))
             model.throttle
         ]
@@ -157,7 +153,6 @@ type Msg
     | DayPageMsg DayPage.Msg
     | ChartsPageMsg ChartsPage.Msg
     | SettingsPageMsg SettingsPage.Msg
-    | UserDataChanged Encode.Value
     | UpdateThrottle
 
 
@@ -167,11 +162,16 @@ update msg model =
         updateUserData result =
             case result of
                 Ok newUserData ->
-                    let
-                        ( newThrottle, cmd ) =
-                            Throttle.try (setUserData <| UserData.encode <| newUserData) model.throttle
-                    in
-                    ( { model | throttle = newThrottle }, cmd )
+                    case model.pageState of
+                        Loaded today _ page ->
+                            let
+                                ( newThrottle, cmd ) =
+                                    Throttle.try (setUserData <| UserData.encode <| newUserData) model.throttle
+                            in
+                            ( { model | throttle = newThrottle, pageState = Loaded today newUserData page }, cmd )
+
+                        _ ->
+                            ( model, Cmd.none )
 
                 Err err ->
                     ( { model | pageState = Error err }, Cmd.none )
@@ -286,33 +286,6 @@ update msg model =
 
                 _ ->
                     ( model, Cmd.none )
-
-        UserDataChanged data ->
-            case Decode.decodeValue UserData.decode data of
-                Ok userData ->
-                    case model.pageState of
-                        Loading route d _ ->
-                            ( { model | pageState = Loading route d (Just userData) }, Cmd.none )
-
-                        Loaded today _ (DayPage dayPageModel) ->
-                            let
-                                ( newModel, cmd ) =
-                                    DayPage.update (DayPage.UserDataChanged userData) dayPageModel
-                            in
-                            ( { model | pageState = Loaded today userData (DayPage newModel) }
-                            , Cmd.map DayPageMsg cmd
-                            )
-
-                        Loaded today _ page ->
-                            ( { model | pageState = Loaded today userData page }
-                            , Cmd.none
-                            )
-
-                        _ ->
-                            ( model, Cmd.none )
-
-                Err err ->
-                    ( { model | pageState = Error (Decode.errorToString err) }, Cmd.none )
 
         UpdateThrottle ->
             let

@@ -60,7 +60,6 @@ type Msg
     | FloatAnswerUpdated TrackableId String
     | TextAnswerUpdated TrackableId String
     | UpdateUserData (Result String UserData)
-    | UserDataChanged UserData
 
 
 update : Msg -> Model -> ( Model, Cmd Msg )
@@ -160,9 +159,6 @@ update msg model =
               }
             , Task.perform UpdateUserData <| Task.succeed userData
             )
-
-        UserDataChanged userData ->
-            ( { model | userData = userData }, Cmd.none )
 
         _ ->
             ( model, Cmd.none )
