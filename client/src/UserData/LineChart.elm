@@ -1,4 +1,4 @@
-module UserData.LineChart exposing (LineChart, LineChartDict, LineChartElement(..), New, StateDataSet(..), add, addChartable, addTrackable, buildDict, dataSets, decode, decodeV5, deleteData, encode, fillLines, moveDataDown, moveDataUp, name, replaceTrackable, replaceTrackableWithChartable, setFillLines, setName, setTrackableInverted, setTrackableMultiplier, toggleDataVisible, updateTrackable)
+module UserData.LineChart exposing (LineChart, LineChartDict, LineChartElement(..), New, StateDataSet(..), add, addChartable, addTrackable, buildDict, dataSets, decode, decodeV5, deleteData, encode, fillLines, moveDataDown, moveDataUp, name, replaceTrackable, replaceTrackableWithChartable, setFillLines, setName, setTrackableInverted, setTrackableMultiplier, toggleDataVisible, updateChartable, updateTrackable)
 
 import Array exposing (Array)
 import Extra.Array as Array
@@ -151,6 +151,30 @@ updateTrackable id trackable (LineChart c) =
 
                                                 else
                                                     TrackableElement e
+
+                                            x ->
+                                                x
+                           )
+            }
+
+
+updateChartable : ChartableId -> Chartable -> LineChart -> Result String LineChart
+updateChartable id chartable (LineChart c) =
+    Ok <|
+        LineChart <|
+            { c
+                | dataSets =
+                    c.dataSets
+                        |> (Array.map <|
+                                Tuple.mapFirst <|
+                                    \ds ->
+                                        case ds of
+                                            ChartableElement e ->
+                                                if e.chartableId == id then
+                                                    ChartableElement { e | chartable = chartable }
+
+                                                else
+                                                    ChartableElement e
 
                                             x ->
                                                 x

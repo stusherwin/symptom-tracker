@@ -80,187 +80,13 @@ getLineChart id (UserData data) =
 
 init : UserData
 init =
-    -- let
-    --     tbles =
-    --         TrackableId.toDict
-    --             [ ( TrackableId 1
-    --               , Trackable.build
-    --                     { question = "How did you feel?"
-    --                     , colour = Red
-    --                     , responses =
-    --                         TIcon (Array.fromList [ SolidTired, SolidFrownOpen, SolidMeh, SolidGrin, SolidLaughBeam ]) <|
-    --                             Dict.fromList
-    --                                 [ ( 737772, 3 ), ( 737773, 2 ), ( 737774, 3 ), ( 737789, 1 ), ( 737793, 1 ), ( 737811, 0 ), ( 737812, 1 ), ( 737813, 2 ), ( 737814, 4 ), ( 737815, 0 ), ( 737816, 2 ), ( 737817, 0 ), ( 737818, 3 ), ( 737819, 4 ), ( 737820, 2 ), ( 737821, 3 ), ( 737824, 0 ) ]
-    --                     }
-    --               )
-    --             , ( TrackableId 2
-    --               , Trackable.build
-    --                     { question = "Did you have a bath?"
-    --                     , colour = Green
-    --                     , responses =
-    --                         TYesNo <|
-    --                             Dict.fromList
-    --                                 [ ( 737789, True ), ( 737814, True ), ( 737820, False ), ( 737824, True ) ]
-    --                     }
-    --               )
-    --             , ( TrackableId 3
-    --               , Trackable.build
-    --                     { question = "Did you smoke?"
-    --                     , colour = Orange
-    --                     , responses =
-    --                         TYesNo <|
-    --                             Dict.fromList
-    --                                 [ ( 737772, True ), ( 737773, False ), ( 737789, False ), ( 737814, False ), ( 737820, True ), ( 737824, False ) ]
-    --                     }
-    --               )
-    --             , ( TrackableId 4
-    --               , Trackable.build
-    --                     { question = "What was your energy level?"
-    --                     , colour = Blue
-    --                     , responses =
-    --                         TScale 1
-    --                             11
-    --                         <|
-    --                             Dict.fromList
-    --                                 [ ( 737789, 3 ), ( 737814, 1 ), ( 737816, 5 ), ( 737817, 11 ), ( 737818, 0 ), ( 737820, 5 ), ( 737824, 3 ) ]
-    --                     }
-    --               )
-    --             , ( TrackableId 5
-    --               , Trackable.build
-    --                     { question = "How many chocolate bars did you eat?"
-    --                     , colour = Pink
-    --                     , responses =
-    --                         TInt <|
-    --                             Dict.fromList
-    --                                 [ ( 737789, 1 ), ( 737814, 1 ), ( 737820, 3 ), ( 737824, 2 ) ]
-    --                     }
-    --               )
-    --             , ( TrackableId 6
-    --               , Trackable.build
-    --                     { question = "How many miles did you run?"
-    --                     , colour = Purple
-    --                     , responses =
-    --                         TFloat <|
-    --                             Dict.fromList
-    --                                 [ ( 737789, 7 ), ( 737814, 2.5 ), ( 737815, 10 ), ( 737816, 0 ), ( 737817, 12 ), ( 737818, 1 ), ( 737819, 11 ), ( 737820, 2 ), ( 737821, 1 ), ( 737822, 10 ), ( 737824, 2.3 ) ]
-    --                     }
-    --               )
-    --             , ( TrackableId 7
-    --               , Trackable.build
-    --                     { question = "Any other notes?"
-    --                     , colour = Rose
-    --                     , responses =
-    --                         TText <|
-    --                             Dict.fromList
-    --                                 [ ( 737814, "fdsa" ), ( 737824, "xsdf" ) ]
-    --                     }
-    --               )
-    --             ]
-    --     cbles =
-    --         ChartableId.toDict
-    --             [ ( ChartableId 1
-    --               , Chartable.build tbles
-    --                     { name = "Mood"
-    --                     , ownColour = Nothing
-    --                     , isInverted = False
-    --                     , sum =
-    --                         [ ( TrackableId 1, 1.0 )
-    --                         ]
-    --                     }
-    --               )
-    --             , ( ChartableId 2
-    --               , Chartable.build tbles
-    --                     { name = "Bath"
-    --                     , ownColour = Nothing
-    --                     , isInverted = False
-    --                     , sum =
-    --                         [ ( TrackableId 2, 5.0 )
-    --                         ]
-    --                     }
-    --               )
-    --             , ( ChartableId 3
-    --               , Chartable.build tbles
-    --                     { name = "Bad things"
-    --                     , ownColour = Just Colour.Orange
-    --                     , isInverted = True
-    --                     , sum =
-    --                         [ ( TrackableId 3, 5.0 )
-    --                         , ( TrackableId 5, 1.0 )
-    --                         ]
-    --                     }
-    --               )
-    --             , ( ChartableId 4
-    --               , Chartable.build tbles
-    --                     { name = "Energy"
-    --                     , ownColour = Nothing
-    --                     , isInverted = False
-    --                     , sum =
-    --                         [ ( TrackableId 4, 1.0 )
-    --                         ]
-    --                     }
-    --               )
-    --             , ( ChartableId 5
-    --               , Chartable.build tbles
-    --                     { name = "Running"
-    --                     , ownColour = Nothing
-    --                     , isInverted = False
-    --                     , sum =
-    --                         [ ( TrackableId 6, 1.0 )
-    --                         ]
-    --                     }
-    --               )
-    --             ]
-    -- in
     UserData
         { trackables = TId.toDict []
         , chartables = CId.toDict []
         , lineCharts = LCId.toDict []
-
-        -- LineChartId.toDict
-        --     [ ( LineChartId 1
-        --       , LineChart.build cbles
-        --             tbles
-        --             { name = "All Data"
-        --             , fillLines = True
-        --             , dataSets =
-        --                 Array.fromList
-        --                     [ ( LineChart.StateChartable { chartableId = ChartableId 1 }, True )
-        --                     , ( LineChart.StateChartable { chartableId = ChartableId 2 }, False )
-        --                     , ( LineChart.StateChartable { chartableId = ChartableId 3 }, True )
-        --                     , ( LineChart.StateChartable { chartableId = ChartableId 4 }, True )
-        --                     , ( LineChart.StateChartable { chartableId = ChartableId 5 }, True )
-        --                     ]
-        --             }
-        --       )
-        --     ]
         , activeTrackables = []
-
-        -- [ ( TrackableId 1, True )
-        -- , ( TrackableId 2, True )
-        -- , ( TrackableId 3, True )
-        -- ]
         , activeChartables = []
-
-        -- [ ( ChartableId 1
-        --   , True
-        --   )
-        -- , ( ChartableId 2
-        --   , True
-        --   )
-        -- , ( ChartableId 3
-        --   , True
-        --   )
-        -- , ( ChartableId 4
-        --   , True
-        --   )
-        -- , ( ChartableId 5
-        --   , True
-        --   )
-        -- ]
         , activeLineCharts = []
-
-        -- [ LineChartId 1
-        -- ]
         , errors = []
         }
 
@@ -343,12 +169,27 @@ moveTrackableDown id (UserData data) =
 
 updateChartable : ChartableId -> (Chartable -> Result String Chartable) -> UserData -> UserData
 updateChartable id fn (UserData data) =
-    case data.chartables |> IdDict.update id fn of
-        Ok chartables_ ->
-            UserData { data | chartables = chartables_ }
+    case data.chartables |> IdDict.get id of
+        Just chartable ->
+            case fn chartable of
+                Ok chartable_ ->
+                    let
+                        lineCharts_ =
+                            data.lineCharts
+                                |> IdDict.map
+                                    (\_ c -> LC.updateChartable id chartable_ c |> Result.withDefault c)
+                    in
+                    UserData
+                        { data
+                            | chartables = data.chartables |> IdDict.insert id chartable_
+                            , lineCharts = lineCharts_
+                        }
 
-        Err err ->
-            UserData { data | errors = err :: data.errors }
+                Err err ->
+                    UserData { data | errors = err :: data.errors }
+
+        _ ->
+            UserData { data | errors = ("Could not find Chartable with id " ++ CId.toString id) :: data.errors }
 
 
 addChartable : C.New -> UserData -> ( Maybe ( ChartableId, Chartable ), UserData )
