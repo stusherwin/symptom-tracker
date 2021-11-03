@@ -16,11 +16,11 @@ import Platform.Cmd as Cmd
 import Svg.Icon exposing (IconType(..), icon)
 import Task
 import UserData exposing (UserData)
-import UserData.Chartable as Chartable exposing (Chartable)
-import UserData.ChartableId as ChartableId exposing (ChartableId)
-import UserData.LineChart as LineChart exposing (LineChart(..))
-import UserData.Trackable as Trackable exposing (Trackable, TrackableData(..))
-import UserData.TrackableId as TrackableId exposing (TrackableId)
+import UserData.Chartable as C exposing (Chartable)
+import UserData.ChartableId as CId exposing (ChartableId)
+import UserData.LineChart as LC exposing (LineChart(..))
+import UserData.Trackable as T exposing (Responses(..), Trackable)
+import UserData.TrackableId as TId exposing (TrackableId)
 
 
 type alias Model =
@@ -45,12 +45,12 @@ init userData =
                             canDelete =
                                 UserData.lineCharts userData
                                     |> IdDict.values
-                                    |> List.concatMap (Array.toList << (\(LineChart s _) -> s.data))
+                                    |> List.concatMap (Array.toList << LC.dataSets)
                                     |> List.map Tuple.first
                                     |> List.filterMap
                                         (\dataSetId ->
                                             case dataSetId of
-                                                LineChart.StateChartable { chartableId } ->
+                                                LC.Chartable { chartableId } ->
                                                     Just chartableId
 
                                                 _ ->
@@ -85,8 +85,8 @@ update msg model =
             let
                 newChartable =
                     { name = ""
-                    , colour = Nothing
-                    , inverted = False
+                    , ownColour = Nothing
+                    , isInverted = False
                     , sum = []
                     }
 
@@ -103,7 +103,7 @@ update msg model =
                         [ Task.perform UserDataUpdated <| Task.succeed userData_
                         , Dom.getViewport
                             |> Task.andThen (\info -> Dom.setViewport 0 info.scene.height)
-                            |> (Task.andThen <| always <| Dom.focus ("chartable" ++ ChartableId.toString id ++ "-name"))
+                            |> (Task.andThen <| always <| Dom.focus ("chartable" ++ CId.toString id ++ "-name"))
                             |> Task.attempt (always NoOp)
                         ]
                     )
@@ -174,7 +174,7 @@ update msg model =
                             let
                                 userData_ =
                                     if not <| String.isEmpty name then
-                                        model.userData |> UserData.updateChartable chartableId (Chartable.setName name)
+                                        model.userData |> UserData.updateChartable chartableId (C.setName name)
 
                                     else
                                         model.userData
@@ -187,7 +187,7 @@ update msg model =
                             let
                                 userData_ =
                                     model.userData
-                                        |> UserData.updateChartable chartableId (Chartable.setColour colour)
+                                        |> UserData.updateChartable chartableId (C.setOwnColour colour)
                             in
                             ( model, Cmd.none )
                                 |> setUserData userData_
@@ -196,7 +196,7 @@ update msg model =
                         Chart.Chartable.ChartableInvertedChanged inverted ->
                             let
                                 userData_ =
-                                    model.userData |> UserData.updateChartable chartableId (Chartable.setInverted inverted)
+                                    model.userData |> UserData.updateChartable chartableId (C.setInverted inverted)
                             in
                             ( model, Cmd.none )
                                 |> setUserData userData_
@@ -226,7 +226,7 @@ update msg model =
                                 userData_ =
                                     case newTrackableM of
                                         Just newTrackable ->
-                                            model.userData |> UserData.updateChartable chartableId (Chartable.replaceTrackable trackableId newTrackableId newTrackable)
+                                            model.userData |> UserData.updateChartable chartableId (C.replaceTrackable trackableId newTrackableId newTrackable)
 
                                         _ ->
                                             model.userData
@@ -238,9 +238,9 @@ update msg model =
                         Chart.Chartable.TrackableMultiplierUpdated trackableId stringValue ->
                             let
                                 userData_ =
-                                    case Trackable.parseMultiplier stringValue of
+                                    case T.parseMultiplier stringValue of
                                         Just multiplier ->
-                                            model.userData |> UserData.updateChartable chartableId (Chartable.setMultiplier trackableId multiplier)
+                                            model.userData |> UserData.updateChartable chartableId (C.setMultiplier trackableId multiplier)
 
                                         _ ->
                                             model.userData
@@ -267,7 +267,7 @@ update msg model =
                                 userData_ =
                                     case newTrackableM of
                                         Just newTrackable ->
-                                            model.userData |> UserData.updateChartable chartableId (Chartable.addTrackable newTrackableId newTrackable 1)
+                                            model.userData |> UserData.updateChartable chartableId (C.addTrackable newTrackableId newTrackable 1)
 
                                         _ ->
                                             model.userData
@@ -279,7 +279,7 @@ update msg model =
                         Chart.Chartable.TrackableDeleteClicked trackableId ->
                             let
                                 userData_ =
-                                    model.userData |> UserData.updateChartable chartableId (Chartable.deleteTrackable trackableId)
+                                    model.userData |> UserData.updateChartable chartableId (C.deleteTrackable trackableId)
                             in
                             ( model, Cmd.none )
                                 |> setUserData userData_

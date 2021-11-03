@@ -16,11 +16,11 @@ import Platform.Cmd as Cmd
 import Svg.Icon exposing (IconType(..), icon)
 import Task
 import UserData exposing (UserData)
-import UserData.Chartable as Chartable exposing (Chartable)
-import UserData.ChartableId as ChartableId exposing (ChartableId)
-import UserData.LineChart as LineChart exposing (LineChart(..))
-import UserData.Trackable as Trackable exposing (Trackable, TrackableData(..))
-import UserData.TrackableId as TrackableId exposing (TrackableId)
+import UserData.Chartable as C exposing (Chartable)
+import UserData.ChartableId as CId exposing (ChartableId)
+import UserData.LineChart as LC exposing (LineChart(..))
+import UserData.Trackable as T exposing (Responses(..), Trackable)
+import UserData.TrackableId as TId exposing (TrackableId)
 
 
 type alias Model =
@@ -88,13 +88,13 @@ toModel : UserData -> TrackableId -> ( Trackable, Bool ) -> TrackableModel
 toModel userData tId ( t, visible ) =
     let
         floatData =
-            Dict.values <| Trackable.maybeFloatData t
+            Dict.values <| T.maybeFloatData t
     in
-    { question = t.question
-    , colour = t.colour
+    { question = T.question t
+    , colour = T.colour t
     , isVisible = visible
     , answerType =
-        case t.data of
+        case T.responses t of
             TYesNo _ ->
                 AYesNo
 
@@ -120,7 +120,7 @@ toModel userData tId ( t, visible ) =
                 )
 
             ( from, to ) =
-                case t.data of
+                case T.responses t of
                     TScale origFrom origTo _ ->
                         ( origFrom, origTo )
 
@@ -152,7 +152,7 @@ toModel userData tId ( t, visible ) =
         , toMax = 20
         }
     , iconOptions =
-        case t.data of
+        case T.responses t of
             TIcon options values ->
                 Array.indexedMap (\i o -> { iconType = o, canDelete = not <| List.any (\v -> v >= i) (Dict.values values) }) options
 
@@ -171,15 +171,15 @@ toModel userData tId ( t, visible ) =
                             , { iconType = SolidQuestionCircle, canDelete = False }
                             ]
     , canDelete =
-        (not <| Trackable.hasData t)
+        (not <| T.hasData t)
             && (UserData.lineCharts userData
                     |> IdDict.values
-                    |> List.concatMap (Array.toList << (\(LineChart s _) -> s.data))
+                    |> List.concatMap (Array.toList << LC.dataSets)
                     |> List.map Tuple.first
                     |> List.filterMap
                         (\dataSetId ->
                             case dataSetId of
-                                LineChart.StateTrackable { trackableId } ->
+                                LC.Trackable { trackableId } ->
                                     Just trackableId
 
                                 _ ->
@@ -330,7 +330,7 @@ update msg model =
             let
                 userData_ =
                     model.userData
-                        |> UserData.updateTrackable id (Trackable.setColour colour)
+                        |> UserData.updateTrackable id (T.setColour colour)
             in
             ( { model
                 | userData = userData_
@@ -343,7 +343,7 @@ update msg model =
             let
                 userData_ =
                     model.userData
-                        |> UserData.updateTrackable id (Trackable.setQuestion question)
+                        |> UserData.updateTrackable id (T.setQuestion question)
             in
             ( { model
                 | userData = userData_
@@ -361,22 +361,22 @@ update msg model =
                                 |> (UserData.updateTrackable id <|
                                         case answerType of
                                             AYesNo ->
-                                                Trackable.convertToYesNo
+                                                T.convertToYesNo
 
                                             AIcon ->
-                                                Trackable.convertToIcon (Array.map .iconType q.iconOptions)
+                                                T.convertToIcon (Array.map .iconType q.iconOptions)
 
                                             AScale ->
-                                                Trackable.convertToScale q.scaleOptions.from q.scaleOptions.to
+                                                T.convertToScale q.scaleOptions.from q.scaleOptions.to
 
                                             AInt ->
-                                                Trackable.convertToInt
+                                                T.convertToInt
 
                                             AFloat ->
-                                                Trackable.convertToFloat
+                                                T.convertToFloat
 
                                             AText ->
-                                                Trackable.convertToText
+                                                T.convertToText
                                    )
 
                         _ ->
@@ -391,17 +391,17 @@ update msg model =
 
         TrackableAddClicked ->
             let
-                trackable =
+                newTrackable =
                     { question = ""
                     , colour = Colour.Red
-                    , data = TYesNo Dict.empty
+                    , responses = TYesNo Dict.empty
                     }
 
                 ( idM, userData_ ) =
-                    model.userData |> UserData.addTrackable trackable
+                    model.userData |> UserData.addTrackable newTrackable
             in
             case idM of
-                Just id ->
+                Just ( id, trackable ) ->
                     ( { model
                         | trackables = model.trackables |> Listx.insertLookup id (toModel userData_ id ( trackable, True ))
                         , editState = EditingTrackable id
@@ -410,7 +410,7 @@ update msg model =
                         [ Task.perform UserDataUpdated <| Task.succeed userData_
                         , Dom.getViewport
                             |> Task.andThen (\info -> Dom.setViewport 0 info.scene.height)
-                            |> (Task.andThen <| always <| Dom.focus ("q-" ++ TrackableId.toString id))
+                            |> (Task.andThen <| always <| Dom.focus ("q-" ++ TId.toString id))
                             |> Task.attempt (always NoOp)
                         ]
                     )
@@ -432,7 +432,7 @@ update msg model =
             let
                 userData_ =
                     model.userData
-                        |> UserData.updateTrackable id (Trackable.updateScaleFrom from)
+                        |> UserData.updateTrackable id (T.updateScaleFrom from)
             in
             ( { model
                 | userData = userData_
@@ -454,7 +454,7 @@ update msg model =
             let
                 userData_ =
                     model.userData
-                        |> UserData.updateTrackable id (Trackable.updateScaleTo to)
+                        |> UserData.updateTrackable id (T.updateScaleTo to)
             in
             ( { model
                 | userData = userData_
@@ -476,7 +476,7 @@ update msg model =
             let
                 userData_ =
                     model.userData
-                        |> UserData.updateTrackable id (Trackable.updateIcon i iconType)
+                        |> UserData.updateTrackable id (T.updateIcon i iconType)
             in
             ( { model
                 | userData = userData_
@@ -502,7 +502,7 @@ update msg model =
             let
                 userData_ =
                     model.userData
-                        |> UserData.updateTrackable id (Trackable.addIcon SolidQuestionCircle)
+                        |> UserData.updateTrackable id (T.addIcon SolidQuestionCircle)
             in
             ( { model
                 | userData = userData_
@@ -515,7 +515,7 @@ update msg model =
             let
                 userData_ =
                     model.userData
-                        |> UserData.updateTrackable id (Trackable.deleteIcon i)
+                        |> UserData.updateTrackable id (T.deleteIcon i)
             in
             ( { model
                 | userData = userData_
@@ -786,7 +786,7 @@ viewTrackable editState first last ( id, q ) =
                         else
                             SolidEyeSlash
                     ]
-                , Controls.textbox [ class "w-full ml-4 mr-4" ] [ A.id <| "q-" ++ TrackableId.toString id, placeholder "Question" ] q.question { isValid = True, isRequired = False, isPristine = False } (TrackableQuestionUpdated id)
+                , Controls.textbox [ class "w-full ml-4 mr-4" ] [ A.id <| "q-" ++ TId.toString id, placeholder "Question" ] q.question { isValid = True, isRequired = False, isPristine = False } (TrackableQuestionUpdated id)
                 , button
                     [ class "ml-auto rounded text-black text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
                     , Htmlx.onClickStopPropagation TrackableCloseClicked

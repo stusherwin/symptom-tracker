@@ -16,11 +16,11 @@ import Svg.Icon exposing (IconType(..), fillIcon, icon)
 import Task
 import Time exposing (Month(..))
 import UserData exposing (UserData)
-import UserData.Chartable as Chartable exposing (Chartable)
+import UserData.Chartable as C exposing (Chartable)
 import UserData.ChartableId exposing (ChartableId)
-import UserData.LineChart as LineChart exposing (LineChart(..), PresentationDataSet(..), StateDataSet(..))
-import UserData.LineChartId as LineChartId exposing (LineChartId)
-import UserData.Trackable as Trackable exposing (Trackable, TrackableData(..))
+import UserData.LineChart as LC exposing (DataSet(..), LineChart(..))
+import UserData.LineChartId as LCId exposing (LineChartId)
+import UserData.Trackable as T exposing (Responses(..), Trackable)
 import UserData.TrackableId exposing (TrackableId)
 
 
@@ -68,26 +68,26 @@ type Msg
 
 
 init : Date -> UserData -> LineChartId -> LineChart -> ( Model, Cmd Msg )
-init today userData chartId (LineChart s p) =
+init today userData chartId chart =
     ( { chartId = chartId
-      , name = s.name
+      , name = LC.name chart
       , viewport = Nothing
       , expandedValue = False
       , userData = userData
       , fullScreen = False
       , graph =
             { today = today
-            , fillLines = s.fillLines
+            , fillLines = LC.fillLines chart
             , data =
-                p.data
+                LC.dataSets chart
                     |> Array.map
                         (\( data, visible ) ->
                             case data of
-                                PresentationChartable { chartableId, chartable } ->
+                                LC.Chartable { chartableId, chartable } ->
                                     chartableToDataSet chartable visible
 
-                                PresentationTrackable { trackableId, trackable, multiplier, inverted } ->
-                                    trackableToDataSet trackable multiplier inverted visible
+                                LC.Trackable { trackableId, trackable, multiplier, isInverted } ->
+                                    trackableToDataSet trackable multiplier isInverted visible
                         )
             , selectedDataSet = Nothing
             , leavingDataSet = Nothing
@@ -101,34 +101,32 @@ init today userData chartId (LineChart s p) =
             , height = 0
             }
       , data =
-            p.data
+            LC.dataSets chart
                 |> Array.map
                     (\( data, _ ) ->
                         case data of
-                            PresentationChartable { chartableId, chartable } ->
-                                case chartable of
-                                    Chartable.Chartable cs cp ->
-                                        { name = cs.name
-                                        , inverted = cs.inverted
-                                        , data =
-                                            cp.sum
-                                                |> List.map
-                                                    (\( _, ( t, m ) ) ->
-                                                        ( t.question, Trackable.onlyFloatData t, m )
-                                                    )
-                                        }
+                            LC.Chartable { chartableId, chartable } ->
+                                { name = C.name chartable
+                                , inverted = C.isInverted chartable
+                                , data =
+                                    C.sum chartable
+                                        |> List.map
+                                            (\( _, ( t, m ) ) ->
+                                                ( T.question t, T.onlyFloatData t, m )
+                                            )
+                                }
 
-                            PresentationTrackable { trackableId, trackable, multiplier, inverted } ->
-                                { name = trackable.question
-                                , inverted = inverted
-                                , data = [ ( trackable.question, Trackable.onlyFloatData trackable, multiplier ) ]
+                            LC.Trackable { trackableId, trackable, multiplier, isInverted } ->
+                                { name = T.question trackable
+                                , inverted = isInverted
+                                , data = [ ( T.question trackable, T.onlyFloatData trackable, multiplier ) ]
                                 }
                     )
       }
     , Cmd.batch
         [ let
             elementId =
-                "chart" ++ LineChartId.toString chartId ++ "-scrollable"
+                "chart" ++ LCId.toString chartId ++ "-scrollable"
           in
           Dom.getViewportOf elementId
             |> Task.andThen (\info -> Dom.setViewportOf elementId info.scene.width 0)
@@ -139,19 +137,19 @@ init today userData chartId (LineChart s p) =
 
 
 chartableToDataSet : Chartable -> Bool -> Graph.DataSet
-chartableToDataSet (Chartable.Chartable s p) visible =
-    { name = s.name
-    , colour = p.colour
-    , dataPoints = p.dataPoints
+chartableToDataSet c visible =
+    { name = C.name c
+    , colour = C.colour c
+    , dataPoints = C.dataPoints c
     , visible = visible
     }
 
 
 trackableToDataSet : Trackable -> Float -> Bool -> Bool -> Graph.DataSet
-trackableToDataSet trackable multiplier inverted visible =
-    { name = trackable.question
-    , colour = trackable.colour
-    , dataPoints = Trackable.getDataPoints multiplier inverted trackable
+trackableToDataSet t multiplier inverted visible =
+    { name = T.question t
+    , colour = T.colour t
+    , dataPoints = T.getDataPoints multiplier inverted t
     , visible = visible
     }
 
@@ -169,7 +167,7 @@ update msg model =
         ChartFillLinesChecked fl ->
             let
                 userData_ =
-                    model.userData |> UserData.updateLineChart model.chartId (LineChart.setFillLines fl)
+                    model.userData |> UserData.updateLineChart model.chartId (LC.setFillLines fl)
             in
             ( model
                 |> setUserData userData_
@@ -178,36 +176,36 @@ update msg model =
             )
 
         ChartFullScreenClicked ->
-            ( model, toggleElementFullScreen ("chart" ++ LineChartId.toString model.chartId) )
+            ( model, toggleElementFullScreen ("chart" ++ LCId.toString model.chartId) )
 
         ChartClicked ->
             ( model |> updateGraph (\c -> { c | selectedDataSet = Nothing, selectedDataPoint = Nothing }), Cmd.none )
 
         ChartZoomOutClicked ->
             ( model
-            , Dom.getViewportOf ("chart" ++ LineChartId.toString model.chartId ++ "-scrollable")
+            , Dom.getViewportOf ("chart" ++ LCId.toString model.chartId ++ "-scrollable")
                 |> Task.attempt ChartZoomOutRequested
             )
 
         ChartZoomInClicked ->
             ( model
-            , Dom.getViewportOf ("chart" ++ LineChartId.toString model.chartId ++ "-scrollable")
+            , Dom.getViewportOf ("chart" ++ LCId.toString model.chartId ++ "-scrollable")
                 |> Task.attempt ChartZoomInRequested
             )
 
         ChartZoomOutRequested (Ok scrollable) ->
             ( model |> updateGraph (\c -> { c | xScale = c.xScale * 3 / 4 })
-            , Dom.getViewportOf ("chart" ++ LineChartId.toString model.chartId ++ "-scrollable")
-                |> Task.andThen (\v -> Dom.setViewportOf ("chart" ++ LineChartId.toString model.chartId ++ "-scrollable") (v.scene.width * ((scrollable.viewport.x + scrollable.viewport.width / 2) / scrollable.scene.width) - (v.viewport.width / 2)) 0)
-                |> Task.andThen (\_ -> Dom.getViewportOf ("chart" ++ LineChartId.toString model.chartId ++ "-scrollable"))
+            , Dom.getViewportOf ("chart" ++ LCId.toString model.chartId ++ "-scrollable")
+                |> Task.andThen (\v -> Dom.setViewportOf ("chart" ++ LCId.toString model.chartId ++ "-scrollable") (v.scene.width * ((scrollable.viewport.x + scrollable.viewport.width / 2) / scrollable.scene.width) - (v.viewport.width / 2)) 0)
+                |> Task.andThen (\_ -> Dom.getViewportOf ("chart" ++ LCId.toString model.chartId ++ "-scrollable"))
                 |> Task.attempt ViewportUpdated
             )
 
         ChartZoomInRequested (Ok scrollable) ->
             ( model |> updateGraph (\c -> { c | xScale = c.xScale * 4 / 3 })
-            , Dom.getViewportOf ("chart" ++ LineChartId.toString model.chartId ++ "-scrollable")
-                |> Task.andThen (\v -> Dom.setViewportOf ("chart" ++ LineChartId.toString model.chartId ++ "-scrollable") (v.scene.width * ((scrollable.viewport.x + scrollable.viewport.width / 2) / scrollable.scene.width) - (v.viewport.width / 2)) 0)
-                |> Task.andThen (\_ -> Dom.getViewportOf ("chart" ++ LineChartId.toString model.chartId ++ "-scrollable"))
+            , Dom.getViewportOf ("chart" ++ LCId.toString model.chartId ++ "-scrollable")
+                |> Task.andThen (\v -> Dom.setViewportOf ("chart" ++ LCId.toString model.chartId ++ "-scrollable") (v.scene.width * ((scrollable.viewport.x + scrollable.viewport.width / 2) / scrollable.scene.width) - (v.viewport.width / 2)) 0)
+                |> Task.andThen (\_ -> Dom.getViewportOf ("chart" ++ LCId.toString model.chartId ++ "-scrollable"))
                 |> Task.attempt ViewportUpdated
             )
 
@@ -228,14 +226,14 @@ update msg model =
 
         WindowResized ->
             ( model
-            , Dom.getViewportOf ("chart" ++ LineChartId.toString model.chartId ++ "-scrollable")
+            , Dom.getViewportOf ("chart" ++ LCId.toString model.chartId ++ "-scrollable")
                 |> Task.attempt ViewportUpdated
             )
 
         ViewportUpdated (Ok scrollable) ->
             ( model
                 |> (\c -> { c | viewport = Just scrollable })
-            , Dom.getElement ("chart" ++ LineChartId.toString model.chartId ++ "-svg")
+            , Dom.getElement ("chart" ++ LCId.toString model.chartId ++ "-svg")
                 |> Task.attempt ElementUpdated
             )
 
@@ -245,7 +243,7 @@ update msg model =
                     ( model
                         |> (updateGraph <| \c -> { c | currentWidth = svg.element.width, minWidth = viewport.viewport.width, maxWidth = viewport.scene.width, height = svg.element.height })
                     , if model.graph.currentWidth /= svg.element.width then
-                        Dom.getViewportOf ("chart" ++ LineChartId.toString model.chartId ++ "-scrollable")
+                        Dom.getViewportOf ("chart" ++ LCId.toString model.chartId ++ "-scrollable")
                             |> Task.attempt ViewportUpdated
 
                       else
@@ -308,24 +306,24 @@ updateDataSetName i name model =
 updateChartableData : Int -> UserData -> ChartableId -> Model -> ( Model, Cmd Msg )
 updateChartableData i userData chartableId model =
     case userData |> UserData.getChartable chartableId of
-        Just (Chartable.Chartable s p) ->
+        Just ch ->
             let
                 graph =
                     model.graph
             in
             ( { model
-                | graph = { graph | data = graph.data |> Arrayx.update i (\d -> { d | dataPoints = p.dataPoints }) }
+                | graph = { graph | data = graph.data |> Arrayx.update i (\d -> { d | dataPoints = C.dataPoints ch }) }
                 , data =
                     model.data
                         |> Arrayx.update i
                             (\c ->
                                 { c
-                                    | inverted = s.inverted
+                                    | inverted = C.isInverted ch
                                     , data =
-                                        p.sum
+                                        C.sum ch
                                             |> List.map
                                                 (\( _, ( t, m ) ) ->
-                                                    ( t.question, Trackable.onlyFloatData t, m )
+                                                    ( T.question t, T.onlyFloatData t, m )
                                                 )
                                 }
                             )
@@ -354,13 +352,13 @@ updateTrackableData i userData trackableId multiplierM invertedM model =
             case ( trackableDataM, trackableListDataM ) of
                 ( Just { inverted }, Just ( _, _, multiplier ) ) ->
                     ( { model
-                        | graph = { graph | data = graph.data |> Arrayx.update i (\d -> { d | dataPoints = Trackable.getDataPoints (Maybe.withDefault multiplier multiplierM) (Maybe.withDefault inverted invertedM) trackable }) }
+                        | graph = { graph | data = graph.data |> Arrayx.update i (\d -> { d | dataPoints = T.getDataPoints (Maybe.withDefault multiplier multiplierM) (Maybe.withDefault inverted invertedM) trackable }) }
                         , data =
                             model.data
                                 |> Arrayx.update i
                                     (\d ->
                                         { d
-                                            | data = [ ( trackable.question, Trackable.onlyFloatData trackable, Maybe.withDefault multiplier multiplierM ) ]
+                                            | data = [ ( T.question trackable, T.onlyFloatData trackable, Maybe.withDefault multiplier multiplierM ) ]
                                             , inverted = Maybe.withDefault inverted invertedM
                                         }
                                     )
@@ -380,13 +378,13 @@ updateDataSetColour i userData dataSetId model =
     case dataSetId of
         ChartableId chartableId ->
             case userData |> UserData.getChartable chartableId of
-                Just (Chartable.Chartable _ p) ->
+                Just c ->
                     let
                         graph =
                             model.graph
                     in
                     ( { model
-                        | graph = { graph | data = graph.data |> Arrayx.update i (\d -> { d | colour = p.colour }) }
+                        | graph = { graph | data = graph.data |> Arrayx.update i (\d -> { d | colour = C.colour c }) }
                       }
                     , Cmd.none
                     )
@@ -401,10 +399,10 @@ updateDataSetColour i userData dataSetId model =
 addChartableDataSet : UserData -> ChartableId -> Model -> ( Model, Cmd Msg )
 addChartableDataSet userData chartableId model =
     case userData |> UserData.getChartable chartableId of
-        Just (Chartable.Chartable s p) ->
+        Just c ->
             let
                 dataSet =
-                    chartableToDataSet (Chartable.Chartable s p) True
+                    chartableToDataSet c True
 
                 graph =
                     model.graph
@@ -414,17 +412,17 @@ addChartableDataSet userData chartableId model =
                 , data =
                     model.data
                         |> Array.push
-                            { name = s.name
-                            , inverted = s.inverted
+                            { name = C.name c
+                            , inverted = C.isInverted c
                             , data =
-                                p.sum
+                                C.sum c
                                     |> List.map
                                         (\( _, ( t, m ) ) ->
-                                            ( t.question, Trackable.onlyFloatData t, m )
+                                            ( T.question t, T.onlyFloatData t, m )
                                         )
                             }
               }
-            , Dom.getViewportOf ("chart" ++ LineChartId.toString model.chartId ++ "-scrollable")
+            , Dom.getViewportOf ("chart" ++ LCId.toString model.chartId ++ "-scrollable")
                 |> Task.attempt ViewportUpdated
             )
 
@@ -435,30 +433,30 @@ addChartableDataSet userData chartableId model =
 replaceDataSetWithChartable : UserData -> Int -> ChartableId -> Model -> ( Model, Cmd Msg )
 replaceDataSetWithChartable userData i chartableId model =
     case userData |> UserData.getChartable chartableId of
-        Just (Chartable.Chartable s p) ->
+        Just c ->
             let
                 graph =
                     model.graph
 
                 dataSet =
-                    chartableToDataSet (Chartable.Chartable s p) True
+                    chartableToDataSet c True
             in
             ( { model
                 | graph = { graph | data = graph.data |> Array.set i dataSet }
                 , data =
                     model.data
                         |> Array.set i
-                            { name = s.name
-                            , inverted = s.inverted
+                            { name = C.name c
+                            , inverted = C.isInverted c
                             , data =
-                                p.sum
+                                C.sum c
                                     |> List.map
                                         (\( _, ( t, m ) ) ->
-                                            ( t.question, Trackable.onlyFloatData t, m )
+                                            ( T.question t, T.onlyFloatData t, m )
                                         )
                             }
               }
-            , Dom.getViewportOf ("chart" ++ LineChartId.toString model.chartId ++ "-scrollable")
+            , Dom.getViewportOf ("chart" ++ LCId.toString model.chartId ++ "-scrollable")
                 |> Task.attempt ViewportUpdated
             )
 
@@ -482,12 +480,12 @@ replaceDataSetWithTrackable userData i trackableId multiplier inverted visible m
                 , data =
                     model.data
                         |> Array.set i
-                            { name = trackable.question
+                            { name = T.question trackable
                             , inverted = inverted
-                            , data = [ ( trackable.question, Trackable.onlyFloatData trackable, multiplier ) ]
+                            , data = [ ( T.question trackable, T.onlyFloatData trackable, multiplier ) ]
                             }
               }
-            , Dom.getViewportOf ("chart" ++ LineChartId.toString model.chartId ++ "-scrollable")
+            , Dom.getViewportOf ("chart" ++ LCId.toString model.chartId ++ "-scrollable")
                 |> Task.attempt ViewportUpdated
             )
 
@@ -511,12 +509,12 @@ addTrackableDataSet userData trackableId model =
                 , data =
                     model.data
                         |> Array.push
-                            { name = trackable.question
+                            { name = T.question trackable
                             , inverted = False
-                            , data = [ ( trackable.question, Trackable.onlyFloatData trackable, 1 ) ]
+                            , data = [ ( T.question trackable, T.onlyFloatData trackable, 1 ) ]
                             }
               }
-            , Dom.getViewportOf ("chart" ++ LineChartId.toString model.chartId ++ "-scrollable")
+            , Dom.getViewportOf ("chart" ++ LCId.toString model.chartId ++ "-scrollable")
                 |> Task.attempt ViewportUpdated
             )
 
@@ -534,7 +532,7 @@ removeDataSet i model =
         | graph = { graph | data = graph.data |> Arrayx.delete i }
         , data = model.data |> Arrayx.delete i
       }
-    , Dom.getViewportOf ("chart" ++ LineChartId.toString model.chartId ++ "-scrollable")
+    , Dom.getViewportOf ("chart" ++ LCId.toString model.chartId ++ "-scrollable")
         |> Task.attempt ViewportUpdated
     )
 
@@ -568,7 +566,7 @@ subscriptions _ =
 view : Model -> Html Msg
 view model =
     div
-        [ id ("chart" ++ LineChartId.toString model.chartId)
+        [ id ("chart" ++ LCId.toString model.chartId)
         , class "mb-8 bg-white"
         , classList
             [ ( "p-8", model.fullScreen )
@@ -581,10 +579,10 @@ view model =
             ([ viewJustYAxis "flex-grow-0 flex-shrink-0" model.graph
              , div [ class "relative flex-grow" ]
                 [ node "scrollable-container"
-                    [ id ("chart" ++ LineChartId.toString model.chartId ++ "-scrollable")
+                    [ id ("chart" ++ LCId.toString model.chartId ++ "-scrollable")
                     , class "absolute overflow-x-scroll top-0 left-0 right-0 bottom-0"
                     ]
-                    [ Html.map GraphMsg <| viewLineGraph ("chart" ++ LineChartId.toString model.chartId ++ "-svg") "h-full" model.graph ]
+                    [ Html.map GraphMsg <| viewLineGraph ("chart" ++ LCId.toString model.chartId ++ "-svg") "h-full" model.graph ]
                 , if Array.isEmpty model.data then
                     div [ class "absolute inset-0 flex justify-center items-center" ] [ span [ class "mb-6" ] [ text "No data added yet" ] ]
 

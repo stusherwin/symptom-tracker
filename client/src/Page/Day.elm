@@ -15,8 +15,8 @@ import Svg.Icon exposing (IconType(..), icon)
 import Task
 import Time exposing (Month(..))
 import UserData exposing (UserData)
-import UserData.Trackable as Trackable exposing (Trackable, TrackableData(..))
-import UserData.TrackableId as TrackableId exposing (TrackableId)
+import UserData.Trackable as T exposing (Responses(..), Trackable)
+import UserData.TrackableId as TId exposing (TrackableId)
 
 
 type alias Model =
@@ -38,10 +38,10 @@ init today currentDay userData =
                 (\_ t ->
                     Maybe.withDefault "" <|
                         Dict.get (Date.toRataDie currentDay) <|
-                            Trackable.textData t
+                            T.textData t
                 )
             <|
-                TrackableId.toDict <|
+                TId.toDict <|
                     List.map (\( id, ( t, _ ) ) -> ( id, t )) <|
                         List.filter (\( _, ( _, visible ) ) -> visible) <|
                             UserData.activeTrackables userData
@@ -69,7 +69,7 @@ update msg model =
         YesNoAnswerClicked id answer ->
             let
                 userData_ =
-                    model.userData |> UserData.updateTrackable id (Trackable.updateYesNoData model.currentDay answer)
+                    model.userData |> UserData.updateTrackable id (T.updateYesNoData model.currentDay answer)
             in
             ( { model | userData = userData_ }
             , Task.perform UserDataUpdated <| Task.succeed userData_
@@ -78,7 +78,7 @@ update msg model =
         IconAnswerClicked id answer ->
             let
                 userData_ =
-                    model.userData |> UserData.updateTrackable id (Trackable.updateIconData model.currentDay answer)
+                    model.userData |> UserData.updateTrackable id (T.updateIconData model.currentDay answer)
             in
             ( { model | userData = userData_ }
             , Task.perform UserDataUpdated <| Task.succeed userData_
@@ -87,7 +87,7 @@ update msg model =
         ScaleAnswerClicked id answer ->
             let
                 userData_ =
-                    model.userData |> UserData.updateTrackable id (Trackable.updateScaleData model.currentDay answer)
+                    model.userData |> UserData.updateTrackable id (T.updateScaleData model.currentDay answer)
             in
             ( { model | userData = userData_ }
             , Task.perform UserDataUpdated <| Task.succeed userData_
@@ -112,7 +112,7 @@ update msg model =
             if isValid then
                 let
                     userData_ =
-                        model.userData |> UserData.updateTrackable id (Trackable.updateIntData model.currentDay answer)
+                        model.userData |> UserData.updateTrackable id (T.updateIntData model.currentDay answer)
                 in
                 ( { model | textInputs = textInputs, userData = userData_ }
                 , Task.perform UserDataUpdated <| Task.succeed userData_
@@ -140,7 +140,7 @@ update msg model =
             if isValid then
                 let
                     userData_ =
-                        model.userData |> UserData.updateTrackable id (Trackable.updateFloatData model.currentDay answer)
+                        model.userData |> UserData.updateTrackable id (T.updateFloatData model.currentDay answer)
                 in
                 ( { model | textInputs = textInputs, userData = userData_ }
                 , Task.perform UserDataUpdated <| Task.succeed userData_
@@ -152,7 +152,7 @@ update msg model =
         TextAnswerUpdated id answer ->
             let
                 userData_ =
-                    model.userData |> UserData.updateTrackable id (Trackable.updateTextData model.currentDay answer)
+                    model.userData |> UserData.updateTrackable id (T.updateTextData model.currentDay answer)
             in
             ( { model
                 | textInputs = IdDict.insert id ( answer, True ) model.textInputs
@@ -303,7 +303,7 @@ viewDayPicker currentDay today =
 
 
 viewQuestion : Date -> IdDict TrackableId ( String, Bool ) -> ( TrackableId, Trackable ) -> Html Msg
-viewQuestion currentDay textInputs ( id, { question, colour, data } ) =
+viewQuestion currentDay textInputs ( id, t ) =
     let
         key =
             Date.toRataDie currentDay
@@ -312,7 +312,7 @@ viewQuestion currentDay textInputs ( id, { question, colour, data } ) =
             Maybe.withDefault ( "", True ) <| IdDict.get id textInputs
 
         viewAnswer =
-            case data of
+            case T.responses t of
                 TIcon options values ->
                     viewIconAnswer id options <| Dict.get key values
 
@@ -335,8 +335,8 @@ viewQuestion currentDay textInputs ( id, { question, colour, data } ) =
                 TText _ ->
                     viewTextAnswer id stringValue
     in
-    div [ class "pt-6 pb-6 border-t-4", Colour.class "bg" colour, Colour.classUp "border" colour ]
-        [ h2 [ class "font-bold text-xl text-center" ] [ text question ]
+    div [ class "pt-6 pb-6 border-t-4", Colour.class "bg" (T.colour t), Colour.classUp "border" (T.colour t) ]
+        [ h2 [ class "font-bold text-xl text-center" ] [ text (T.question t) ]
         , div [ class "flex justify-center" ] viewAnswer
         ]
 

@@ -1,4 +1,4 @@
-module UserData.Trackable exposing (Trackable, TrackableData(..), TrackableDict, addIcon, convertToFloat, convertToIcon, convertToInt, convertToScale, convertToText, convertToYesNo, decode, deleteIcon, encode, getDataPoints, hasData, maybeFloatData, onlyFloatData, parseMultiplier, setColour, setQuestion, textData, updateFloatData, updateIcon, updateIconData, updateIntData, updateScaleData, updateScaleFrom, updateScaleTo, updateTextData, updateYesNoData)
+module UserData.Trackable exposing (New, Responses(..), Trackable, TrackableDict, add, addIcon, colour, convertToFloat, convertToIcon, convertToInt, convertToScale, convertToText, convertToYesNo, decode, deleteIcon, encode, getDataPoints, hasData, maybeFloatData, moveData, onlyFloatData, parseMultiplier, question, responses, setColour, setQuestion, textData, updateFloatData, updateIcon, updateIconData, updateIntData, updateScaleData, updateScaleFrom, updateScaleTo, updateTextData, updateYesNoData)
 
 import Array exposing (Array)
 import Colour exposing (Colour(..))
@@ -14,14 +14,32 @@ import Time exposing (Month(..))
 import UserData.TrackableId exposing (TrackableId)
 
 
-type alias Trackable =
+type Trackable
+    = Trackable Data
+
+
+type alias State =
     { question : String
     , colour : Colour
-    , data : TrackableData
+    , responses : Responses
     }
 
 
-type TrackableData
+type alias Data =
+    { question : String
+    , colour : Colour
+    , responses : Responses
+    }
+
+
+type alias New =
+    { question : String
+    , colour : Colour
+    , responses : Responses
+    }
+
+
+type Responses
     = TYesNo (Dict Int Bool)
     | TIcon (Array IconType) (Dict Int Int)
     | TScale Int Int (Dict Int Int)
@@ -30,19 +48,39 @@ type TrackableData
     | TText (Dict Int String)
 
 
+question : Trackable -> String
+question (Trackable t) =
+    t.question
+
+
+colour : Trackable -> Colour
+colour (Trackable t) =
+    t.colour
+
+
+responses : Trackable -> Responses
+responses (Trackable t) =
+    t.responses
+
+
+add : New -> TrackableDict -> Result String ( ( TrackableId, Trackable ), TrackableDict )
+add t dict =
+    dict |> IdDict.tryAdd (Trackable t) |> Result.map (\( id, dict_ ) -> ( ( id, Trackable t ), dict_ ))
+
+
 setColour : Colour -> Trackable -> Result String Trackable
-setColour colour t =
-    Ok { t | colour = colour }
+setColour c (Trackable t) =
+    Ok <| Trackable { t | colour = c }
 
 
 setQuestion : String -> Trackable -> Result String Trackable
-setQuestion question t =
-    Ok { t | question = question }
+setQuestion q (Trackable t) =
+    Ok <| Trackable { t | question = q }
 
 
 maybeFloatData : Trackable -> Dict Int (Maybe Float)
-maybeFloatData { data } =
-    case data of
+maybeFloatData (Trackable t) =
+    case t.responses of
         TYesNo values ->
             Dict.map
                 (\_ v ->
@@ -76,8 +114,8 @@ onlyFloatData =
 
 
 textData : Trackable -> Dict Int String
-textData { data } =
-    case data of
+textData (Trackable t) =
+    case t.responses of
         TYesNo values ->
             Dict.map
                 (\_ v ->
@@ -106,8 +144,8 @@ textData { data } =
 
 
 hasData : Trackable -> Bool
-hasData { data } =
-    case data of
+hasData (Trackable t) =
+    case t.responses of
         TYesNo values ->
             not <| Dict.isEmpty values
 
@@ -128,174 +166,179 @@ hasData { data } =
 
 
 updateYesNoData : Date -> Maybe Bool -> Trackable -> Result String Trackable
-updateYesNoData day answer t =
-    case t.data of
+updateYesNoData day answer ((Trackable t) as trackable) =
+    case t.responses of
         TYesNo answers ->
-            Ok
-                { t
-                    | data =
-                        TYesNo <|
-                            case answer of
-                                Just ans ->
-                                    Dict.insert (Date.toRataDie day) ans answers
+            Ok <|
+                Trackable
+                    { t
+                        | responses =
+                            TYesNo <|
+                                case answer of
+                                    Just ans ->
+                                        Dict.insert (Date.toRataDie day) ans answers
 
-                                _ ->
-                                    Dict.remove (Date.toRataDie day) answers
-                }
+                                    _ ->
+                                        Dict.remove (Date.toRataDie day) answers
+                    }
 
         _ ->
-            Err <| "Could not update " ++ toString t.data ++ " trackable with yes/no data"
+            Err <| "Could not update " ++ toString trackable ++ " with yes/no data"
 
 
 updateIcon : Int -> IconType -> Trackable -> Result String Trackable
-updateIcon i iconType t =
-    case t.data of
+updateIcon i iconType ((Trackable t) as trackable) =
+    case t.responses of
         TIcon options answers ->
-            Ok
-                { t
-                    | data =
-                        TIcon (Array.set i iconType options) answers
-                }
+            Ok <|
+                Trackable
+                    { t
+                        | responses =
+                            TIcon (Array.set i iconType options) answers
+                    }
 
         _ ->
-            Err <| "Could not update icon for " ++ toString t.data ++ " trackable"
+            Err <| "Could not update icon for " ++ toString trackable
 
 
 addIcon : IconType -> Trackable -> Result String Trackable
-addIcon iconType t =
-    case t.data of
+addIcon iconType ((Trackable t) as trackable) =
+    case t.responses of
         TIcon options answers ->
-            Ok
-                { t
-                    | data =
-                        TIcon (Array.push iconType options) answers
-                }
+            Ok <|
+                Trackable
+                    { t
+                        | responses =
+                            TIcon (Array.push iconType options) answers
+                    }
 
         _ ->
-            Err <| "Could not add icon to " ++ toString t.data ++ " trackable"
+            Err <| "Could not add icon to " ++ toString trackable
 
 
 deleteIcon : Int -> Trackable -> Result String Trackable
-deleteIcon i t =
-    case t.data of
+deleteIcon i ((Trackable t) as trackable) =
+    case t.responses of
         TIcon options answers ->
             let
                 newOptions =
                     Array.append (Array.slice 0 i options) (Array.slice (i + 1) (Array.length options) options)
             in
-            Ok
-                { t
-                    | data =
-                        TIcon newOptions answers
-                }
+            Ok <|
+                Trackable
+                    { t
+                        | responses =
+                            TIcon newOptions answers
+                    }
 
         _ ->
-            Err <| "Could not delete icon from " ++ toString t.data ++ " trackable"
+            Err <| "Could not delete icon from " ++ toString trackable
 
 
 updateIconData : Date -> Maybe Int -> Trackable -> Result String Trackable
-updateIconData day answer t =
-    case t.data of
+updateIconData day answer ((Trackable t) as trackable) =
+    case t.responses of
         TIcon options answers ->
-            Ok
-                { t
-                    | data =
-                        TIcon options <|
-                            case answer of
-                                Just ans ->
-                                    Dict.insert (Date.toRataDie day) ans answers
+            Ok <|
+                Trackable
+                    { t
+                        | responses =
+                            TIcon options <|
+                                case answer of
+                                    Just ans ->
+                                        Dict.insert (Date.toRataDie day) ans answers
 
-                                _ ->
-                                    Dict.remove (Date.toRataDie day) answers
-                }
+                                    _ ->
+                                        Dict.remove (Date.toRataDie day) answers
+                    }
 
         _ ->
-            Err <| "Could not update " ++ toString t.data ++ " trackable with icon data"
+            Err <| "Could not update " ++ toString trackable ++ " with icon data"
 
 
 updateScaleFrom : Int -> Trackable -> Result String Trackable
-updateScaleFrom from t =
-    case t.data of
+updateScaleFrom from ((Trackable t) as trackable) =
+    case t.responses of
         TScale _ to answers ->
-            Ok { t | data = TScale from to answers }
+            Ok <| Trackable { t | responses = TScale from to answers }
 
         _ ->
-            Err <| "Could not update 'scale from' value of " ++ toString t.data ++ " trackable"
+            Err <| "Could not update 'scale from' value of " ++ toString trackable
 
 
 updateScaleTo : Int -> Trackable -> Result String Trackable
-updateScaleTo to t =
-    case t.data of
+updateScaleTo to ((Trackable t) as trackable) =
+    case t.responses of
         TScale from _ answers ->
-            Ok { t | data = TScale from to answers }
+            Ok <| Trackable { t | responses = TScale from to answers }
 
         _ ->
-            Err <| "Could not update 'scale to' value of " ++ toString t.data ++ " trackable"
+            Err <| "Could not update 'scale to' value of " ++ toString trackable
 
 
 updateScaleData : Date -> Maybe Int -> Trackable -> Result String Trackable
-updateScaleData day answer t =
-    case t.data of
+updateScaleData day answer ((Trackable t) as trackable) =
+    case t.responses of
         TScale min max answers ->
             case answer of
                 Just ans ->
-                    Ok { t | data = TScale min max <| Dict.insert (Date.toRataDie day) ans answers }
+                    Ok <| Trackable { t | responses = TScale min max <| Dict.insert (Date.toRataDie day) ans answers }
 
                 _ ->
-                    Ok { t | data = TScale min max <| Dict.remove (Date.toRataDie day) answers }
+                    Ok <| Trackable { t | responses = TScale min max <| Dict.remove (Date.toRataDie day) answers }
 
         _ ->
-            Err <| "Could not update " ++ toString t.data ++ " trackable with scale data"
+            Err <| "Could not update " ++ toString trackable ++ " with scale data"
 
 
 updateIntData : Date -> Maybe Int -> Trackable -> Result String Trackable
-updateIntData day answer t =
-    case t.data of
+updateIntData day answer ((Trackable t) as trackable) =
+    case t.responses of
         TInt answers ->
             case answer of
                 Just ans ->
-                    Ok { t | data = TInt <| Dict.insert (Date.toRataDie day) ans answers }
+                    Ok <| Trackable { t | responses = TInt <| Dict.insert (Date.toRataDie day) ans answers }
 
                 _ ->
-                    Ok { t | data = TInt <| Dict.remove (Date.toRataDie day) answers }
+                    Ok <| Trackable { t | responses = TInt <| Dict.remove (Date.toRataDie day) answers }
 
         _ ->
-            Err <| "Could not update " ++ toString t.data ++ " trackable with whole number data"
+            Err <| "Could not update " ++ toString trackable ++ " with whole number data"
 
 
 updateFloatData : Date -> Maybe Float -> Trackable -> Result String Trackable
-updateFloatData day answer t =
-    case t.data of
+updateFloatData day answer ((Trackable t) as trackable) =
+    case t.responses of
         TFloat answers ->
             case answer of
                 Just ans ->
-                    Ok { t | data = TFloat <| Dict.insert (Date.toRataDie day) ans answers }
+                    Ok <| Trackable { t | responses = TFloat <| Dict.insert (Date.toRataDie day) ans answers }
 
                 _ ->
-                    Ok { t | data = TFloat <| Dict.remove (Date.toRataDie day) answers }
+                    Ok <| Trackable { t | responses = TFloat <| Dict.remove (Date.toRataDie day) answers }
 
         _ ->
-            Err <| "Could not update " ++ toString t.data ++ " trackable with decimal data"
+            Err <| "Could not update " ++ toString trackable ++ " with decimal data"
 
 
 updateTextData : Date -> String -> Trackable -> Result String Trackable
-updateTextData day answer t =
-    case t.data of
+updateTextData day answer ((Trackable t) as trackable) =
+    case t.responses of
         TText answers ->
-            Ok { t | data = TText <| Dict.insert (Date.toRataDie day) answer answers }
+            Ok <| Trackable { t | responses = TText <| Dict.insert (Date.toRataDie day) answer answers }
 
         _ ->
-            Err <| "Could not update " ++ toString t.data ++ " trackable with text data"
+            Err <| "Could not update " ++ toString trackable ++ " with text data"
 
 
 convertToYesNo : Trackable -> Result String Trackable
-convertToYesNo t =
+convertToYesNo ((Trackable t) as trackable) =
     let
-        data =
-            maybeFloatData t
+        resps =
+            maybeFloatData trackable
 
         converted =
-            convert data
+            convert resps
 
         convert =
             Dictx.concatMaybes
@@ -311,21 +354,21 @@ convertToYesNo t =
                             Nothing
                     )
     in
-    if Dict.size data == Dict.size converted then
-        Ok { t | data = TYesNo converted }
+    if Dict.size resps == Dict.size converted then
+        Ok <| Trackable { t | responses = TYesNo converted }
 
     else
-        Err <| "Could not convert all " ++ toString t.data ++ " trackable data to yes/no"
+        Err <| "Could not convert all " ++ toString trackable ++ " data to yes/no"
 
 
 convertToIcon : Array IconType -> Trackable -> Result String Trackable
-convertToIcon icons t =
+convertToIcon icons ((Trackable t) as trackable) =
     let
-        data =
-            maybeFloatData t
+        resps =
+            maybeFloatData trackable
 
         converted =
-            convert data
+            convert resps
 
         convert =
             Dictx.concatMaybes
@@ -338,21 +381,21 @@ convertToIcon icons t =
                             Nothing
                     )
     in
-    if Dict.size data == Dict.size converted then
-        Ok { t | data = TIcon icons converted }
+    if Dict.size resps == Dict.size converted then
+        Ok <| Trackable { t | responses = TIcon icons converted }
 
     else
-        Err <| "Could not convert all " ++ toString t.data ++ " trackable data to icon"
+        Err <| "Could not convert all " ++ toString trackable ++ " data to icon"
 
 
 convertToScale : Int -> Int -> Trackable -> Result String Trackable
-convertToScale min max t =
+convertToScale min max ((Trackable t) as trackable) =
     let
-        data =
-            maybeFloatData t
+        resps =
+            maybeFloatData trackable
 
         converted =
-            convert data
+            convert resps
 
         convert =
             Dictx.concatMaybes
@@ -365,21 +408,21 @@ convertToScale min max t =
                             Nothing
                     )
     in
-    if Dict.size data == Dict.size converted then
-        Ok { t | data = TScale min max converted }
+    if Dict.size resps == Dict.size converted then
+        Ok <| Trackable { t | responses = TScale min max converted }
 
     else
-        Err <| "Could not convert all " ++ toString t.data ++ " trackable data to scale"
+        Err <| "Could not convert all " ++ toString trackable ++ " data to scale"
 
 
 convertToInt : Trackable -> Result String Trackable
-convertToInt t =
+convertToInt ((Trackable t) as trackable) =
     let
-        data =
-            maybeFloatData t
+        resps =
+            maybeFloatData trackable
 
         converted =
-            convert data
+            convert resps
 
         convert =
             Dictx.concatMaybes
@@ -392,37 +435,37 @@ convertToInt t =
                             Nothing
                     )
     in
-    if Dict.size data == Dict.size converted then
-        Ok { t | data = TInt converted }
+    if Dict.size resps == Dict.size converted then
+        Ok <| Trackable { t | responses = TInt converted }
 
     else
-        Err <| "Could not convert all " ++ toString t.data ++ " trackable data to whole number"
+        Err <| "Could not convert all " ++ toString trackable ++ " data to whole number"
 
 
 convertToFloat : Trackable -> Result String Trackable
-convertToFloat t =
+convertToFloat ((Trackable t) as trackable) =
     let
-        data =
-            maybeFloatData t
+        resps =
+            maybeFloatData trackable
 
         converted =
-            convert data
+            convert resps
 
         convert =
             Dictx.concatMaybes
                 << Dictx.mapMaybes
                     (\v -> Just v)
     in
-    if Dict.size data == Dict.size converted then
-        Ok { t | data = TFloat converted }
+    if Dict.size resps == Dict.size converted then
+        Ok <| Trackable { t | responses = TFloat converted }
 
     else
-        Err <| "Could not convert all " ++ toString t.data ++ " trackable data to decimal"
+        Err <| "Could not convert all " ++ toString trackable ++ " data to decimal"
 
 
 convertToText : Trackable -> Result String Trackable
-convertToText t =
-    Ok { t | data = TText (textData t) }
+convertToText ((Trackable t) as trackable) =
+    Ok <| Trackable { t | responses = TText (textData trackable) }
 
 
 parseMultiplier : String -> Maybe Float
@@ -441,16 +484,17 @@ parseMultiplier stringValue =
 getDataPoints : Float -> Bool -> Trackable -> Dict Int Float
 getDataPoints multiplier inverted trackable =
     let
-        invert data =
-            case List.maximum <| Dict.values data of
+        invert rs =
+            case List.maximum <| Dict.values rs of
                 Just max ->
-                    data |> Dict.map (\_ v -> max - v)
+                    rs |> Dict.map (\_ v -> max - v)
 
                 _ ->
-                    data
+                    rs
     in
     trackable
-        |> (Dict.map (\_ v -> v * multiplier) << onlyFloatData)
+        |> onlyFloatData
+        |> Dict.map (\_ v -> v * multiplier)
         |> (if inverted then
                 invert
 
@@ -459,26 +503,56 @@ getDataPoints multiplier inverted trackable =
            )
 
 
-toString : TrackableData -> String
-toString data =
-    case data of
-        TYesNo _ ->
-            "yes/no"
+moveData : Int -> Trackable -> Trackable
+moveData days (Trackable t) =
+    Trackable
+        { t
+            | responses =
+                case t.responses of
+                    TYesNo dict ->
+                        TYesNo (dict |> Dict.toList |> List.map (\( d, v ) -> ( d |> Date.fromRataDie |> Date.add Days days |> Date.toRataDie, v )) |> Dict.fromList)
 
-        TIcon _ _ ->
-            "icon"
+                    TIcon icons dict ->
+                        TIcon icons (dict |> Dict.toList |> List.map (\( d, v ) -> ( d |> Date.fromRataDie |> Date.add Days days |> Date.toRataDie, v )) |> Dict.fromList)
 
-        TScale _ _ _ ->
-            "scale"
+                    TScale min max dict ->
+                        TScale min max (dict |> Dict.toList |> List.map (\( d, v ) -> ( d |> Date.fromRataDie |> Date.add Days days |> Date.toRataDie, v )) |> Dict.fromList)
 
-        TInt _ ->
-            "whole number"
+                    TInt dict ->
+                        TInt (dict |> Dict.toList |> List.map (\( d, v ) -> ( d |> Date.fromRataDie |> Date.add Days days |> Date.toRataDie, v )) |> Dict.fromList)
 
-        TFloat _ ->
-            "decimal"
+                    TFloat dict ->
+                        TFloat (dict |> Dict.toList |> List.map (\( d, v ) -> ( d |> Date.fromRataDie |> Date.add Days days |> Date.toRataDie, v )) |> Dict.fromList)
 
-        TText _ ->
-            "text"
+                    TText dict ->
+                        TText (dict |> Dict.toList |> List.map (\( d, v ) -> ( d |> Date.fromRataDie |> Date.add Days days |> Date.toRataDie, v )) |> Dict.fromList)
+        }
+
+
+toString : Trackable -> String
+toString (Trackable t) =
+    let
+        trackableType =
+            case t.responses of
+                TYesNo _ ->
+                    "yes/no"
+
+                TIcon _ _ ->
+                    "icon"
+
+                TScale _ _ _ ->
+                    "scale"
+
+                TInt _ ->
+                    "whole number"
+
+                TFloat _ ->
+                    "decimal"
+
+                TText _ ->
+                    "text"
+    in
+    trackableType ++ " trackable"
 
 
 type alias TrackableDict =
@@ -497,27 +571,28 @@ decode =
         dictInt v =
             D.map Dict.fromList (listInt v)
     in
-    D.map3 Trackable
-        (D.field "question" D.string)
-        (D.field "colour" Colour.decode)
-        (D.field "data" <|
-            D.oneOf
-                [ D.field "yesNo" <| D.map TYesNo <| D.field "values" <| dictInt D.bool
-                , D.field "icon" <| D.map2 TIcon (D.field "options" <| D.array Icon.decode) (D.field "values" <| dictInt D.int)
-                , D.field "scale" <|
-                    D.map3 TScale
-                        (D.field "min" D.int)
-                        (D.field "max" D.int)
-                        (D.field "values" <| dictInt D.int)
-                , D.field "int" <| D.map TInt <| D.field "values" <| dictInt D.int
-                , D.field "float" <| D.map TFloat <| D.field "values" <| dictInt D.float
-                , D.field "text" <| D.map TText <| D.field "values" <| dictInt D.string
-                ]
-        )
+    D.map Trackable <|
+        D.map3 State
+            (D.field "question" D.string)
+            (D.field "colour" Colour.decode)
+            (D.field "data" <|
+                D.oneOf
+                    [ D.field "yesNo" <| D.map TYesNo <| D.field "values" <| dictInt D.bool
+                    , D.field "icon" <| D.map2 TIcon (D.field "options" <| D.array Icon.decode) (D.field "values" <| dictInt D.int)
+                    , D.field "scale" <|
+                        D.map3 TScale
+                            (D.field "min" D.int)
+                            (D.field "max" D.int)
+                            (D.field "values" <| dictInt D.int)
+                    , D.field "int" <| D.map TInt <| D.field "values" <| dictInt D.int
+                    , D.field "float" <| D.map TFloat <| D.field "values" <| dictInt D.float
+                    , D.field "text" <| D.map TText <| D.field "values" <| dictInt D.string
+                    ]
+            )
 
 
 encode : Trackable -> E.Value
-encode t =
+encode (Trackable t) =
     let
         listInt f =
             E.list
@@ -536,7 +611,7 @@ encode t =
         [ ( "question", E.string t.question )
         , ( "colour", Colour.encode t.colour )
         , ( "data"
-          , case t.data of
+          , case t.responses of
                 TYesNo vals ->
                     E.object
                         [ ( "yesNo"

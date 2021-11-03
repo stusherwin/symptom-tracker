@@ -13,8 +13,8 @@ import Stringx
 import Svg.Icon exposing (IconType(..), icon)
 import Time exposing (Month(..))
 import UserData exposing (UserData)
-import UserData.Trackable as Trackable exposing (Trackable, TrackableData(..))
-import UserData.TrackableId as TrackableId exposing (TrackableId)
+import UserData.Trackable as T exposing (Responses(..), Trackable)
+import UserData.TrackableId as TId exposing (TrackableId)
 
 
 type alias Model =
@@ -33,8 +33,8 @@ type alias Model =
 init : List ( TrackableId, ( String, Bool ) ) -> Bool -> TrackableId -> Trackable -> String -> Bool -> Bool -> Model
 init options canDelete trackableId trackable multiplier inverted visible =
     { trackableId = trackableId
-    , question = trackable.question
-    , colour = trackable.colour
+    , question = T.question trackable
+    , colour = T.colour trackable
     , visible = visible
     , inverted = inverted
     , canDelete = canDelete
@@ -77,7 +77,7 @@ update userData optionsM msg model =
             )
 
         TrackableMultiplierUpdated stringValue ->
-            ( { model | multiplier = stringValue, isValid = Trackable.parseMultiplier stringValue /= Nothing }
+            ( { model | multiplier = stringValue, isValid = T.parseMultiplier stringValue /= Nothing }
             , Cmd.none
             )
 
@@ -226,8 +226,8 @@ view { canMoveUp, canMoveDown, isSelected } model =
                     SolidEquals
                 , Controls.textDropdown "ml-4 w-full h-10"
                     TrackableChanged
-                    TrackableId.toString
-                    TrackableId.fromString
+                    TId.toString
+                    TId.fromString
                     (model.options |> List.map (\( tId, ( q, visible ) ) -> ( ( tId, visible || tId == model.trackableId ), q )))
                     Nothing
                     (Just model.trackableId)

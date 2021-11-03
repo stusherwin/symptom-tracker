@@ -16,10 +16,10 @@ import Svg.Icon exposing (IconType(..), icon)
 import Task
 import Time exposing (Month(..))
 import UserData exposing (UserData)
-import UserData.Chartable as Chartable exposing (Chartable)
-import UserData.ChartableId as ChartableId exposing (ChartableId)
-import UserData.Trackable as Trackable exposing (Trackable, TrackableData(..))
-import UserData.TrackableId as TrackableId exposing (TrackableId)
+import UserData.Chartable as C exposing (Chartable)
+import UserData.ChartableId as CId exposing (ChartableId)
+import UserData.Trackable as T exposing (Responses(..), Trackable)
+import UserData.TrackableId as TId exposing (TrackableId)
 
 
 type alias Model =
@@ -43,13 +43,13 @@ type alias TrackableModel =
 
 
 init : UserData -> Bool -> ChartableId -> ( Chartable, Bool ) -> Model
-init userData canDelete chartableId ( Chartable.Chartable s p, visible ) =
+init userData canDelete chartableId ( c, visible ) =
     { chartableId = chartableId
-    , name = s.name
-    , colour = p.colour
-    , inverted = s.inverted
+    , name = C.name c
+    , colour = C.colour c
+    , inverted = C.isInverted c
     , canDelete = canDelete
-    , trackables = p.sum |> List.map toTrackableModel
+    , trackables = C.sum c |> List.map toTrackableModel
     , visible = visible
     , nameIsPristine = True
     , trackableOptions = buildTrackableOptions userData chartableId
@@ -61,14 +61,14 @@ buildTrackableOptions userData chartableId =
     let
         trackablesInUse =
             UserData.getChartable chartableId userData
-                |> Maybe.map (\(Chartable.Chartable s _) -> s.sum)
+                |> Maybe.map C.sum
                 |> Maybe.withDefault []
                 |> List.map Tuple.first
     in
     UserData.activeTrackables userData
         |> List.filter
             (\( _, ( t, _ ) ) ->
-                case t.data of
+                case T.responses t of
                     TText _ ->
                         False
 
@@ -80,7 +80,7 @@ buildTrackableOptions userData chartableId =
                 if visible then
                     Just
                         ( tId
-                        , ( t.question
+                        , ( T.question t
                           , not (List.member tId trackablesInUse)
                           )
                         )
@@ -94,7 +94,7 @@ buildTrackableOptions userData chartableId =
 toTrackableModel : ( TrackableId, ( Trackable, Float ) ) -> ( TrackableId, TrackableModel )
 toTrackableModel ( trackableId, ( trackable, multiplier ) ) =
     ( trackableId
-    , { question = trackable.question
+    , { question = T.question trackable
       , multiplier = String.fromFloat multiplier
       , isValid = True
       }
@@ -123,11 +123,11 @@ type Msg
 update : UserData -> Msg -> Model -> ( Model, Cmd Msg )
 update userData msg model =
     case userData |> UserData.getChartable model.chartableId of
-        Just (Chartable.Chartable s p) ->
+        Just c ->
             case msg of
                 ChartableEditClicked ->
                     ( model
-                    , Dom.focus ("chartable" ++ ChartableId.toString model.chartableId ++ "-name")
+                    , Dom.focus ("chartable" ++ CId.toString model.chartableId ++ "-name")
                         |> Task.attempt (always NoOp)
                     )
 
@@ -142,7 +142,7 @@ update userData msg model =
                     )
 
                 ChartableColourUpdated _ ->
-                    ( { model | colour = p.colour }
+                    ( { model | colour = C.colour c }
                     , Cmd.none
                     )
 
@@ -165,7 +165,7 @@ update userData msg model =
                         Just question ->
                             ( { model
                                 | trackables = model.trackables |> Listx.updateLookupWithKey trackableId (\( _, t ) -> ( newTrackableId, { t | question = question } ))
-                                , colour = p.colour
+                                , colour = C.colour c
                                 , trackableOptions = trackableOptions
                               }
                             , Cmd.none
@@ -178,7 +178,7 @@ update userData msg model =
                     ( { model
                         | trackables =
                             model.trackables
-                                |> Listx.updateLookup trackableId (\t -> { t | multiplier = stringValue, isValid = Trackable.parseMultiplier stringValue /= Nothing })
+                                |> Listx.updateLookup trackableId (\t -> { t | multiplier = stringValue, isValid = T.parseMultiplier stringValue /= Nothing })
                       }
                     , Cmd.none
                     )
@@ -188,7 +188,7 @@ update userData msg model =
                         Just trackable ->
                             ( { model
                                 | trackables = model.trackables ++ [ toTrackableModel ( trackableId, ( trackable, 1.0 ) ) ]
-                                , colour = p.colour
+                                , colour = C.colour c
                                 , trackableOptions = buildTrackableOptions userData model.chartableId
                               }
                             , Cmd.none
@@ -200,7 +200,7 @@ update userData msg model =
                 TrackableDeleteClicked trackableId ->
                     ( { model
                         | trackables = model.trackables |> (List.filter <| \( tId, _ ) -> tId /= trackableId)
-                        , colour = p.colour
+                        , colour = C.colour c
                         , trackableOptions = buildTrackableOptions userData model.chartableId
                       }
                     , Cmd.none
@@ -333,7 +333,7 @@ view { canMoveUp, canMoveDown, isSelected } model =
                             SolidEyeSlash
                     ]
                 , Controls.textbox [ class "ml-4 w-72" ]
-                    [ id <| "chartable" ++ ChartableId.toString model.chartableId ++ "-name"
+                    [ id <| "chartable" ++ CId.toString model.chartableId ++ "-name"
                     , placeholder "Name"
                     ]
                     model.name
@@ -378,8 +378,8 @@ view { canMoveUp, canMoveDown, isSelected } model =
                                     SolidPlus
                             , Controls.textDropdown "ml-4 w-full h-10"
                                 (TrackableChanged trackableId)
-                                TrackableId.toString
-                                TrackableId.fromString
+                                TId.toString
+                                TId.fromString
                                 (model.trackableOptions |> List.map (\( tId, ( q, visible ) ) -> ( ( tId, visible || tId == trackableId ), q )))
                                 Nothing
                                 (Just trackableId)

@@ -16,11 +16,11 @@ import Svg.Icon exposing (IconType(..), icon)
 import Task
 import Time exposing (Month(..))
 import UserData exposing (UserData)
-import UserData.Chartable as Chartable
+import UserData.Chartable as C
 import UserData.ChartableId exposing (ChartableId)
-import UserData.LineChart exposing (LineChart(..))
-import UserData.LineChartId as LineChartId exposing (LineChartId)
-import UserData.Trackable exposing (TrackableData(..))
+import UserData.LineChart as LC exposing (LineChart(..))
+import UserData.LineChartId as LCId exposing (LineChartId)
+import UserData.Trackable exposing (Responses(..))
 
 
 type alias Model =
@@ -49,7 +49,7 @@ init today userData navKey chartIdM =
               , chartableOptions =
                     UserData.chartables userData
                         |> IdDict.toList
-                        |> (List.map <| Tuple.mapSecond (Stringx.withDefault "[no name]" << (\(Chartable.Chartable s p) -> s.name)))
+                        |> (List.map <| Tuple.mapSecond (Stringx.withDefault "[no name]" << C.name))
                         |> List.sortBy (String.toUpper << Tuple.second)
               , userData = userData
               , state = Chart chartModel
@@ -68,7 +68,7 @@ init today userData navKey chartIdM =
               , chartableOptions =
                     UserData.chartables userData
                         |> IdDict.toList
-                        |> (List.map <| Tuple.mapSecond (Stringx.withDefault "[no name]" << (\(Chartable.Chartable s p) -> s.name)))
+                        |> (List.map <| Tuple.mapSecond (Stringx.withDefault "[no name]" << C.name))
                         |> List.sortBy (String.toUpper << Tuple.second)
               , userData = userData
               , state = Charts (chartsWithCmds |> List.map (\( id, ( chart, _ ) ) -> ( id, chart )))
@@ -221,12 +221,12 @@ update msg model =
         ChartAddClicked ->
             let
                 chartNames =
-                    model.userData |> UserData.lineCharts |> IdDict.values |> List.map (\(LineChart s _) -> s.name)
+                    model.userData |> UserData.lineCharts |> IdDict.values |> List.map LC.name
 
                 newChartState =
                     { name = Stringx.nextName chartNames "Line Chart " 1
                     , fillLines = True
-                    , data = Array.empty
+                    , dataSets = Array.empty
                     }
 
                 ( resultM, userData_ ) =
@@ -243,7 +243,7 @@ update msg model =
                         |> addChart newId newChartModel
                     , Cmd.batch
                         [ Task.perform UserDataUpdated <| Task.succeed userData_
-                        , Nav.pushUrl model.navKey ("/charts/" ++ LineChartId.toString newId)
+                        , Nav.pushUrl model.navKey ("/charts/" ++ LCId.toString newId)
                         , Cmd.map (ChartMsg newId) cmd
                         ]
                     )
@@ -345,7 +345,7 @@ view model =
                                 div
                                     [ class "mt-12 first:mt-0" ]
                                     [ div [ class "ml-8 mb-2 px-4 flex items-center" ]
-                                        [ a [ class "block w-full font-bold flex items-center relative text-opacity-70 hover:text-opacity-100 text-black", href <| "/charts/" ++ LineChartId.toString chartId ]
+                                        [ a [ class "block w-full font-bold flex items-center relative text-opacity-70 hover:text-opacity-100 text-black", href <| "/charts/" ++ LCId.toString chartId ]
                                             [ span [] [ text <| Stringx.withDefault "[no name]" chart.name ]
                                             , icon "absolute right-0 w-5 h-5" SolidPencilAlt
                                             ]
