@@ -452,7 +452,7 @@ update msg model =
                                 updateSelectedDataSet
                                     << (\c ->
                                             { c
-                                                | data = ( chartableId, newChartableModel ) :: c.data
+                                                | data = c.data |> Listx.insertLookup chartableId newChartableModel
                                                 , editState =
                                                     if isNew then
                                                         EditingChartable chartableId True
@@ -779,22 +779,22 @@ viewLineChart chartableOptions trackableOptions ( chartId, model ) =
                             dataSet.name
                             { isValid = True, isRequired = True, isPristine = dataSet.nameIsPristine }
                             (ChartableNameUpdated chartId chartableId)
-                        , label [ class "ml-12 font-bold text-right whitespace-nowrap", for "inverted" ] [ text "Invert data" ]
+                        , label [ class "ml-12 flex-shrink-0 flex-grow-0 font-bold text-right whitespace-nowrap", for "inverted" ] [ text "Invert data" ]
                         , input
                             [ type_ "checkbox"
                             , id "inverted"
-                            , class "ml-2"
+                            , class "ml-2 flex-shrink-0 flex-grow-0"
                             , onCheck (ChartableInvertedChanged chartId chartableId)
                             , checked dataSet.inverted
                             ]
                             []
                         , if canEditColour then
-                            Controls.colourDropdown "ml-auto flex-shrink-0 flex-grow-0" (ChartableColourUpdated chartId chartableId) (Just dataSet.colour) { showFilled = False }
+                            Controls.colourDropdown "ml-4 flex-shrink-0 flex-grow-0" (ChartableColourUpdated chartId chartableId) (Just dataSet.colour) { showFilled = False }
 
                           else
-                            span [ class "ml-auto" ] []
+                            span [ class "ml-4" ] []
                         , button
-                            [ class "ml-4 rounded text-black text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
+                            [ class "ml-auto rounded text-black text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
                             , onClick (ChartableCloseClicked chartId)
                             ]
                             [ icon "w-5 h-5" <| SolidTimes ]
@@ -887,44 +887,44 @@ viewLineChart chartableOptions trackableOptions ( chartId, model ) =
                 []
             ]
         , div [ class "mt-4 bg-gray-200" ] <|
-            (case model.editState of
-                AddingChartable addingChartableId ->
-                    div [ class "px-4 py-2 bg-gray-300 border-t-4 border-gray-400 flex" ]
-                        [ Controls.textDropdown "w-full h-10"
-                            (ChartableToAddChanged chartId)
-                            ChartableId.toString
-                            ChartableId.fromString
-                            (chartableOptions
-                                |> List.sortBy (String.toUpper << Tuple.second)
-                                |> List.map
-                                    (\( cId, name ) ->
-                                        ( ( cId
-                                          , not <| List.member cId <| List.map Tuple.first model.data
-                                          )
-                                        , name
-                                        )
+            (model.data |> List.concatMap viewChartable)
+                ++ [ case model.editState of
+                        AddingChartable addingChartableId ->
+                            div [ class "px-4 py-2 bg-gray-300 border-t-4 border-gray-400 flex" ]
+                                [ Controls.textDropdown "w-full h-10"
+                                    (ChartableToAddChanged chartId)
+                                    ChartableId.toString
+                                    ChartableId.fromString
+                                    (chartableOptions
+                                        |> List.sortBy (String.toUpper << Tuple.second)
+                                        |> List.map
+                                            (\( cId, name ) ->
+                                                ( ( cId
+                                                  , not <| List.member cId <| List.map Tuple.first model.data
+                                                  )
+                                                , name
+                                                )
+                                            )
                                     )
-                            )
-                            (Just "New chartable")
-                            addingChartableId
-                            { showFilled = False }
-                        , Controls.button "ml-4" Controls.ButtonGrey (ChartableAddConfirmClicked chartId) SolidPlusCircle "Add" True
-                        , button
-                            [ class "ml-4 rounded text-black text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
-                            , onClick (ChartableAddCancelClicked chartId)
-                            ]
-                            [ icon "w-5 h-5" <| SolidTimes ]
-                        ]
+                                    (Just "New chartable")
+                                    addingChartableId
+                                    { showFilled = False }
+                                , Controls.button "ml-4" Controls.ButtonGrey (ChartableAddConfirmClicked chartId) SolidPlusCircle "Add" True
+                                , button
+                                    [ class "ml-4 rounded text-black text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
+                                    , onClick (ChartableAddCancelClicked chartId)
+                                    ]
+                                    [ icon "w-5 h-5" <| SolidTimes ]
+                                ]
 
-                EditingChartable _ True ->
-                    div [] []
+                        EditingChartable _ True ->
+                            div [] []
 
-                _ ->
-                    div [ class "px-4 py-2 bg-gray-300 border-t-4 border-gray-400 flex" ]
-                        [ Controls.button "" Controls.ButtonGrey (ChartableAddClicked chartId) SolidPlusCircle "Add chartable" True
-                        ]
-            )
-                :: (model.data |> List.concatMap viewChartable)
+                        _ ->
+                            div [ class "px-4 py-2 bg-gray-300 border-t-4 border-gray-400 flex" ]
+                                [ Controls.button "" Controls.ButtonGrey (ChartableAddClicked chartId) SolidPlusCircle "Add chartable" True
+                                ]
+                   ]
         ]
 
 

@@ -323,7 +323,7 @@ viewLineGraph class { data, today, selectedDataPoint, selectedDataSet, hoveredDa
                 data
         )
             :: (axes
-                    ++ (List.concatMap dataLine <| List.filter (.visible << Tuple.second) <| List.reverse data)
+                    ++ (List.concatMap dataLine <| List.filter (.visible << Tuple.second) <| data)
                )
 
 

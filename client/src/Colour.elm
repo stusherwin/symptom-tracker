@@ -249,6 +249,7 @@ userSelectable =
     , Fuchsia
     , Pink
     , Rose
+    , Gray
     ]
 
 

@@ -37,7 +37,7 @@ setFillLines fl c =
 
 addChartable : ChartableId -> LineChart -> LineChart
 addChartable chartableId c =
-    { c | chartables = ( chartableId, True ) :: c.chartables }
+    { c | chartables = c.chartables |> Listx.insertLookup chartableId True }
 
 
 deleteChartable : ChartableId -> LineChart -> LineChart
