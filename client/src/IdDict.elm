@@ -1,4 +1,4 @@
-module IdDict exposing (IdDict(..), IdDictProps, add, concatMaybes, decode, delete, encode, filter, fromList, get, insert, keys, map, toDict, toList, tryAdd, tryDelete, tryUpdate, update, values)
+module IdDict exposing (IdDict(..), IdDictProps, add, concatMaybes, decode, delete, encode, filter, fromList, get, insert, keys, map, toDict, toList, {- tryAdd, tryDelete, tryUpdate, -} update, values)
 
 import Dict exposing (Dict)
 import Extra.Dict as Dict
@@ -57,8 +57,8 @@ toList (IdDict p dict) =
     Dict.toList dict |> List.map (Tuple.mapFirst p.toId)
 
 
-tryUpdate : id -> (entity -> Result String entity) -> IdDict id entity -> Result String (IdDict id entity)
-tryUpdate id updateEntity (IdDict e dict) =
+update : id -> (entity -> Result String entity) -> IdDict id entity -> Result String (IdDict id entity)
+update id updateEntity (IdDict e dict) =
     case Dict.get (e.fromId id) dict of
         Nothing ->
             Err <| "Could not find " ++ e.name ++ " with id " ++ String.fromInt (e.fromId id)
@@ -68,8 +68,8 @@ tryUpdate id updateEntity (IdDict e dict) =
                 |> Result.map (\updated -> IdDict e <| Dict.insert (e.fromId id) updated dict)
 
 
-tryAdd : entity -> IdDict id entity -> Result String ( id, IdDict id entity )
-tryAdd entity (IdDict e dict) =
+add : entity -> IdDict id entity -> Result String ( id, IdDict id entity )
+add entity (IdDict e dict) =
     let
         maxId =
             Maybe.withDefault 0 << List.maximum << Dict.keys <| dict
@@ -80,8 +80,8 @@ tryAdd entity (IdDict e dict) =
     Ok <| ( e.toId newId, IdDict e <| Dict.insert newId entity dict )
 
 
-tryDelete : id -> IdDict id entity -> Result String (IdDict id entity)
-tryDelete id (IdDict e dict) =
+delete : id -> IdDict id entity -> Result String (IdDict id entity)
+delete id (IdDict e dict) =
     case Dict.get (e.fromId id) dict of
         Nothing ->
             Err <| "Could not find " ++ e.name ++ " with id " ++ String.fromInt (e.fromId id)
@@ -90,19 +90,19 @@ tryDelete id (IdDict e dict) =
             Ok <| IdDict e <| Dict.remove (e.fromId id) dict
 
 
-update : id -> (entity -> entity) -> IdDict id entity -> IdDict id entity
-update id updateEntity dict =
-    Result.withDefault dict <| tryUpdate id (Ok << updateEntity) dict
+-- update : id -> (entity -> entity) -> IdDict id entity -> IdDict id entity
+-- update id updateEntity dict =
+--     Result.withDefault dict <| tryUpdate id (Ok << updateEntity) dict
 
 
-add : entity -> IdDict id entity -> ( Maybe id, IdDict id entity )
-add entity dict =
-    Result.withDefault ( Nothing, dict ) <| Result.map (Tuple.mapFirst Just) <| tryAdd entity dict
+-- add : entity -> IdDict id entity -> ( Maybe id, IdDict id entity )
+-- add entity dict =
+--     Result.withDefault ( Nothing, dict ) <| Result.map (Tuple.mapFirst Just) <| tryAdd entity dict
 
 
-delete : id -> IdDict id entity -> IdDict id entity
-delete id dict =
-    Result.withDefault dict <| tryDelete id dict
+-- delete : id -> IdDict id entity -> IdDict id entity
+-- delete id dict =
+--     Result.withDefault dict <| tryDelete id dict
 
 
 insert : id -> entity -> IdDict id entity -> IdDict id entity

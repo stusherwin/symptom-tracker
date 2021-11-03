@@ -430,6 +430,7 @@ var app = Elm.Main.init({
 });
 
 app.ports.setUserData.subscribe(function (state) {
+  console.log(state);
   localStorage.setItem('symptrack-data', JSON.stringify(state));
 });
 

@@ -47,7 +47,7 @@ init userData =
                                     |> List.filterMap
                                         (\dataSetId ->
                                             case dataSetId of
-                                                LC.Chartable { chartableId } ->
+                                                LC.ChartableElement { chartableId } ->
                                                     Just chartableId
 
                                                 _ ->

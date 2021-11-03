@@ -77,7 +77,7 @@ add trackables c dict =
         chartable =
             build trackables c
     in
-    dict |> IdDict.tryAdd chartable |> Result.map (\( id, dict_ ) -> ( ( id, chartable ), dict_ ))
+    dict |> IdDict.add chartable |> Result.map (\( id, dict_ ) -> ( ( id, chartable ), dict_ ))
 
 
 buildDict : TrackableDict -> IdDict ChartableId State -> ChartableDict
@@ -155,63 +155,63 @@ buildColour s col =
 --            )
 
 
-setName : String -> Chartable -> Chartable
+setName : String -> Chartable -> Result String Chartable
 setName n (Chartable c) =
-    Chartable { c | name = n }
+    Ok <| Chartable { c | name = n }
 
 
-setOwnColour : Maybe Colour -> Chartable -> Chartable
+setOwnColour : Maybe Colour -> Chartable -> Result String Chartable
 setOwnColour col (Chartable c) =
-    Chartable { c | ownColour = col, colour = buildColour c.sum col }
+    Ok <| Chartable { c | ownColour = col, colour = buildColour c.sum col }
 
 
-setInverted : Bool -> Chartable -> Chartable
+setInverted : Bool -> Chartable -> Result String Chartable
 setInverted inv (Chartable c) =
-    Chartable { c | isInverted = inv }
+    Ok <| Chartable { c | isInverted = inv }
 
 
-addTrackable : TrackableId -> Trackable -> Float -> Chartable -> Chartable
+addTrackable : TrackableId -> Trackable -> Float -> Chartable -> Result String Chartable
 addTrackable trackableId trackable multiplier (Chartable c) =
     let
         sum_ =
             c.sum ++ [ ( trackableId, ( trackable, multiplier ) ) ]
     in
-    Chartable { c | colour = buildColour sum_ c.ownColour }
+    Ok <| Chartable { c | colour = buildColour sum_ c.ownColour }
 
 
-deleteTrackable : TrackableId -> Chartable -> Chartable
+deleteTrackable : TrackableId -> Chartable -> Result String Chartable
 deleteTrackable trackableId (Chartable c) =
     let
         sum_ =
             c.sum |> List.deleteBy Tuple.first trackableId
     in
-    Chartable
+    Ok <| Chartable
         { c
             | sum = sum_
             , colour = buildColour sum_ c.ownColour
         }
 
 
-replaceTrackable : TrackableId -> TrackableId -> Trackable -> Chartable -> Chartable
+replaceTrackable : TrackableId -> TrackableId -> Trackable -> Chartable -> Result String Chartable
 replaceTrackable oldTrackableId newTrackableId newTrackable (Chartable c) =
     let
         sum_ =
             c.sum |> List.updateLookupWithKey oldTrackableId (\( _, ( _, multiplier ) ) -> ( newTrackableId, ( newTrackable, multiplier ) ))
     in
-    Chartable
+    Ok <| Chartable
         { c
             | sum = sum_
             , colour = buildColour sum_ c.ownColour
         }
 
 
-setMultiplier : TrackableId -> Float -> Chartable -> Chartable
+setMultiplier : TrackableId -> Float -> Chartable -> Result String Chartable
 setMultiplier trackableId multiplier (Chartable c) =
     let
         sum_ =
             c.sum |> List.updateLookup trackableId (Tuple.mapSecond <| always multiplier)
     in
-    Chartable
+    Ok <| Chartable
         { c
             | sum = sum_
         }

@@ -1,4 +1,4 @@
-module UserData.LineChart exposing (DataSet(..), LineChart, LineChartDict, New, StateDataSet(..), add, addChartable, addTrackable, buildDict, dataSets, decode, decodeV5, deleteData, encode, fillLines, moveDataDown, moveDataUp, name, replaceTrackable, replaceTrackableWithChartable, setFillLines, setName, setTrackableInverted, setTrackableMultiplier, toggleDataVisible)
+module UserData.LineChart exposing (LineChart, LineChartDict, LineChartElement(..), New, StateDataSet(..), add, addChartable, addTrackable, buildDict, dataSets, decode, decodeV5, deleteData, encode, fillLines, moveDataDown, moveDataUp, name, replaceTrackable, replaceTrackableWithChartable, setFillLines, setName, setTrackableInverted, setTrackableMultiplier, toggleDataVisible)
 
 import Array exposing (Array)
 import Extra.Array as Array
@@ -33,7 +33,7 @@ type alias New =
 type alias Data =
     { name : String
     , fillLines : Bool
-    , dataSets : Array ( DataSet, Bool )
+    , dataSets : Array ( LineChartElement, Bool )
     }
 
 
@@ -53,12 +53,12 @@ type alias StateTrackableData =
     }
 
 
-type DataSet
-    = Chartable
+type LineChartElement
+    = ChartableElement
         { chartableId : ChartableId
         , chartable : Chartable
         }
-    | Trackable
+    | TrackableElement
         { trackableId : TrackableId
         , trackable : Trackable
         , multiplier : Float
@@ -80,7 +80,7 @@ fillLines (LineChart c) =
     c.fillLines
 
 
-dataSets : LineChart -> Array ( DataSet, Bool )
+dataSets : LineChart -> Array ( LineChartElement, Bool )
 dataSets (LineChart c) =
     c.dataSets
 
@@ -91,54 +91,50 @@ add chartables trackables c dict =
         chart =
             build chartables trackables c
     in
-    dict |> IdDict.tryAdd chart |> Result.map (\( id, dict_ ) -> ( ( id, chart ), dict_ ))
+    dict |> IdDict.add chart |> Result.map (\( id, dict_ ) -> ( ( id, chart ), dict_ ))
 
 
-setName : String -> LineChart -> LineChart
+setName : String -> LineChart -> Result String LineChart
 setName n (LineChart c) =
-    LineChart { c | name = n }
+    Ok <| LineChart { c | name = n }
 
 
-setFillLines : Bool -> LineChart -> LineChart
+setFillLines : Bool -> LineChart -> Result String LineChart
 setFillLines fl (LineChart c) =
-    LineChart { c | fillLines = fl }
+    Ok <| LineChart { c | fillLines = fl }
 
 
-addChartable : ChartableId -> Chartable -> LineChart -> LineChart
+addChartable : ChartableId -> Chartable -> LineChart -> Result String LineChart
 addChartable id chartable (LineChart c) =
-    LineChart
-        { c | dataSets = c.dataSets |> Array.push ( Chartable { chartableId = id, chartable = chartable }, True ) }
+    Ok <| LineChart { c | dataSets = c.dataSets |> Array.push ( ChartableElement { chartableId = id, chartable = chartable }, True ) }
 
 
-addTrackable : TrackableId -> Trackable -> LineChart -> LineChart
+addTrackable : TrackableId -> Trackable -> LineChart -> Result String LineChart
 addTrackable id trackable (LineChart c) =
-    LineChart
-        { c | dataSets = c.dataSets |> Array.push ( Trackable { trackableId = id, trackable = trackable, multiplier = 1, isInverted = False }, True ) }
+    Ok <| LineChart { c | dataSets = c.dataSets |> Array.push ( TrackableElement { trackableId = id, trackable = trackable, multiplier = 1, isInverted = False }, True ) }
 
 
-replaceTrackableWithChartable : Int -> ChartableId -> Chartable -> LineChart -> LineChart
+replaceTrackableWithChartable : Int -> ChartableId -> Chartable -> LineChart -> Result String LineChart
 replaceTrackableWithChartable i id chartable (LineChart c) =
-    LineChart
-        { c | dataSets = c.dataSets |> Array.set i ( Chartable { chartableId = id, chartable = chartable }, True ) }
+    Ok <| LineChart { c | dataSets = c.dataSets |> Array.set i ( ChartableElement { chartableId = id, chartable = chartable }, True ) }
 
 
-replaceTrackable : Int -> TrackableId -> Trackable -> Float -> Bool -> LineChart -> LineChart
+replaceTrackable : Int -> TrackableId -> Trackable -> Float -> Bool -> LineChart -> Result String LineChart
 replaceTrackable i id trackable multiplier isInverted (LineChart c) =
-    LineChart
-        { c | dataSets = c.dataSets |> Array.set i ( Trackable { trackableId = id, trackable = trackable, multiplier = multiplier, isInverted = isInverted }, True ) }
+    Ok <| LineChart { c | dataSets = c.dataSets |> Array.set i ( TrackableElement { trackableId = id, trackable = trackable, multiplier = multiplier, isInverted = isInverted }, True ) }
 
 
-setTrackableInverted : Int -> Bool -> LineChart -> LineChart
+setTrackableInverted : Int -> Bool -> LineChart -> Result String LineChart
 setTrackableInverted i isInverted (LineChart c) =
-    LineChart
+    Ok <| LineChart
         { c
             | dataSets =
                 c.dataSets
                     |> Array.update i
                         (\d ->
                             case d of
-                                ( Trackable t, visible ) ->
-                                    ( Trackable { t | isInverted = isInverted }, visible )
+                                ( TrackableElement t, visible ) ->
+                                    ( TrackableElement { t | isInverted = isInverted }, visible )
 
                                 _ ->
                                     d
@@ -146,17 +142,17 @@ setTrackableInverted i isInverted (LineChart c) =
         }
 
 
-setTrackableMultiplier : Int -> Float -> LineChart -> LineChart
+setTrackableMultiplier : Int -> Float -> LineChart -> Result String LineChart
 setTrackableMultiplier i multiplier (LineChart c) =
-    LineChart
+    Ok <| LineChart
         { c
             | dataSets =
                 c.dataSets
                     |> Array.update i
                         (\d ->
                             case d of
-                                ( Trackable t, visible ) ->
-                                    ( Trackable { t | multiplier = multiplier }, visible )
+                                ( TrackableElement t, visible ) ->
+                                    ( TrackableElement { t | multiplier = multiplier }, visible )
 
                                 _ ->
                                     d
@@ -164,28 +160,24 @@ setTrackableMultiplier i multiplier (LineChart c) =
         }
 
 
-deleteData : Int -> LineChart -> LineChart
+deleteData : Int -> LineChart -> Result String LineChart
 deleteData i (LineChart c) =
-    LineChart
-        { c | dataSets = c.dataSets |> Array.delete i }
+    Ok <| LineChart { c | dataSets = c.dataSets |> Array.delete i }
 
 
-toggleDataVisible : Int -> LineChart -> LineChart
+toggleDataVisible : Int -> LineChart -> Result String LineChart
 toggleDataVisible i (LineChart c) =
-    LineChart
-        { c | dataSets = c.dataSets |> Array.update i (Tuple.mapSecond not) }
+    Ok <| LineChart { c | dataSets = c.dataSets |> Array.update i (Tuple.mapSecond not) }
 
 
-moveDataUp : Int -> LineChart -> LineChart
+moveDataUp : Int -> LineChart -> Result String LineChart
 moveDataUp i (LineChart c) =
-    LineChart
-        { c | dataSets = c.dataSets |> Array.swap i (i - 1) }
+    Ok <| LineChart { c | dataSets = c.dataSets |> Array.swap i (i - 1) }
 
 
-moveDataDown : Int -> LineChart -> LineChart
+moveDataDown : Int -> LineChart -> Result String LineChart
 moveDataDown i (LineChart c) =
-    LineChart
-        { c | dataSets = c.dataSets |> Array.swap i (i + 1) }
+    Ok <| LineChart { c | dataSets = c.dataSets |> Array.swap i (i + 1) }
 
 
 buildDict : ChartableDict -> TrackableDict -> IdDict LineChartId State -> LineChartDict
@@ -207,14 +199,14 @@ build chartables trackables s =
                             StateChartable { chartableId } ->
                                 chartables
                                     |> IdDict.get chartableId
-                                    |> Maybe.map (\chartable -> ( Chartable { chartableId = chartableId, chartable = chartable }, visible ))
+                                    |> Maybe.map (\chartable -> ( ChartableElement { chartableId = chartableId, chartable = chartable }, visible ))
 
                             StateTrackable { trackableId, multiplier, isInverted } ->
                                 trackables
                                     |> IdDict.get trackableId
                                     |> Maybe.map
                                         (\trackable ->
-                                            ( Trackable
+                                            ( TrackableElement
                                                 { trackableId = trackableId
                                                 , trackable = trackable
                                                 , multiplier = multiplier
@@ -239,10 +231,10 @@ state (LineChart c) =
                 (Tuple.mapFirst
                     (\d ->
                         case d of
-                            Chartable { chartableId } ->
+                            ChartableElement { chartableId } ->
                                 StateChartable { chartableId = chartableId }
 
-                            Trackable { trackableId, multiplier, isInverted } ->
+                            TrackableElement { trackableId, multiplier, isInverted } ->
                                 StateTrackable { trackableId = trackableId, multiplier = multiplier, isInverted = isInverted }
                     )
                 )

@@ -179,7 +179,7 @@ toModel userData tId ( t, visible ) =
                     |> List.filterMap
                         (\dataSetId ->
                             case dataSetId of
-                                LC.Trackable { trackableId } ->
+                                LC.TrackableElement { trackableId } ->
                                     Just trackableId
 
                                 _ ->

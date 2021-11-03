@@ -126,19 +126,19 @@ if (isProd === true) {
       }),
     ],
     optimization: {
-      minimizer: [
-        // extract CSS into a separate file
-        // minify & mangle JS/CSS
-        new UglifyJSPlugin({
-          uglifyOptions: {
-            minimize: true,
-            compressor: {
-              warnings: false
-            }
-            // mangle:  true
-          }
-        })
-      ],
+      // minimizer: [
+      //   // extract CSS into a separate file
+      //   // minify & mangle JS/CSS
+      //   new UglifyJSPlugin({
+      //     uglifyOptions: {
+      //       minimize: true,
+      //       compressor: {
+      //         warnings: false
+      //       }
+      //       // mangle:  true
+      //     }
+      //   })
+      // ],
       splitChunks: {
         cacheGroups: {
           styles: {

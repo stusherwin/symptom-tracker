@@ -32,7 +32,7 @@ type alias Model =
     , chartableOptions : List ( ( DataOption, Bool ), String )
     , addState : EditState
     , userData : UserData
-    , data : Array DataSet
+    , elements : Array ChartElement
     , nameIsPristine : Bool
     }
 
@@ -42,9 +42,9 @@ type DataOption
     | TrackableOption TrackableId
 
 
-type DataSet
-    = Chartable Chart.Chartable.Model
-    | Trackable Chart.Trackable.Model
+type ChartElement
+    = ChartableElement Chart.Chartable.Model
+    | TrackableElement Chart.Trackable.Model
 
 
 type EditState
@@ -66,16 +66,16 @@ init today userData chartId chart =
       , chartableOptions = buildChartableOptions userData chartId
       , addState = NotAdding
       , userData = userData
-      , data =
+      , elements =
             LC.dataSets chart
                 |> Array.map
                     (\( data, visible ) ->
                         case data of
-                            LC.Chartable { chartableId, chartable } ->
-                                Chartable <| Chart.Chartable.init userData True chartableId ( chartable, visible )
+                            LC.ChartableElement { chartableId, chartable } ->
+                                ChartableElement <| Chart.Chartable.init userData True chartableId ( chartable, visible )
 
-                            LC.Trackable { trackableId, trackable, multiplier, isInverted } ->
-                                Trackable <| Chart.Trackable.init trackableOptions True trackableId trackable (String.fromFloat multiplier) isInverted visible
+                            LC.TrackableElement { trackableId, trackable, multiplier, isInverted } ->
+                                TrackableElement <| Chart.Trackable.init trackableOptions True trackableId trackable (String.fromFloat multiplier) isInverted visible
                     )
       , nameIsPristine = True
       }
@@ -97,7 +97,7 @@ buildChartableOptions userData chartId =
                 |> List.filterMap
                     (\dataSetId ->
                         case dataSetId of
-                            LC.Trackable { trackableId } ->
+                            LC.TrackableElement { trackableId } ->
                                 Just trackableId
 
                             _ ->
@@ -112,7 +112,7 @@ buildChartableOptions userData chartId =
                 |> List.filterMap
                     (\dataSetId ->
                         case dataSetId of
-                            LC.Chartable { chartableId } ->
+                            LC.ChartableElement { chartableId } ->
                                 Just chartableId
 
                             _ ->
@@ -153,7 +153,7 @@ buildTrackableOptions userData chartId =
                 |> List.filterMap
                     (\dataSetId ->
                         case dataSetId of
-                            LC.Trackable { trackableId } ->
+                            LC.TrackableElement { trackableId } ->
                                 Just trackableId
 
                             _ ->
@@ -212,13 +212,13 @@ update msg model =
 
         updateTrackableOptions trackableOptions ( m, cmd ) =
             ( { m
-                | data =
-                    m.data
+                | elements =
+                    m.elements
                         |> Array.map
                             (\d ->
                                 case d of
-                                    Trackable t ->
-                                        Trackable { t | options = trackableOptions }
+                                    TrackableElement t ->
+                                        TrackableElement { t | options = trackableOptions }
 
                                     _ ->
                                         d
@@ -257,8 +257,8 @@ update msg model =
                 |> (Tuple.mapFirst <| \m -> { m | chart = { chart | name = name }, nameIsPristine = False })
 
         ChartableMsg i chartableMsg ->
-            case model.data |> Array.get i of
-                Just (Chartable chartable) ->
+            case model.elements |> Array.get i of
+                Just (ChartableElement chartable) ->
                     let
                         updateChartable : (Chart.Chartable.Model -> ( Chart.Chartable.Model, Cmd Chart.Chartable.Msg )) -> ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
                         updateChartable fn ( m, c ) =
@@ -266,7 +266,7 @@ update msg model =
                                 ( chartable_, c_ ) =
                                     fn chartable
                             in
-                            ( { m | data = m.data |> Array.set i (Chartable chartable_) }
+                            ( { m | elements = m.elements |> Array.set i (ChartableElement chartable_) }
                             , Cmd.batch [ c, Cmd.map (ChartableMsg i) c_ ]
                             )
                     in
@@ -311,7 +311,7 @@ update msg model =
                                 |> setUserData userData_
                                 |> (updateChartable <| Chart.Chartable.update userData_ chartableMsg)
                                 |> (updateChart <| Chart.moveDataSetBack i)
-                                |> (Tuple.mapFirst <| \m -> { m | data = m.data |> Array.swap i (i - 1) })
+                                |> (Tuple.mapFirst <| \m -> { m | elements = m.elements |> Array.swap i (i - 1) })
 
                         Chart.Chartable.ChartableDownClicked ->
                             let
@@ -322,7 +322,7 @@ update msg model =
                                 |> setUserData userData_
                                 |> (updateChartable <| Chart.Chartable.update userData_ chartableMsg)
                                 |> (updateChart <| Chart.moveDataSetForward i)
-                                |> (Tuple.mapFirst <| \m -> { m | data = m.data |> Array.swap i (i + 1) })
+                                |> (Tuple.mapFirst <| \m -> { m | elements = m.elements |> Array.swap i (i + 1) })
 
                         Chart.Chartable.ChartableNameUpdated name ->
                             let
@@ -373,7 +373,7 @@ update msg model =
                                 |> (Tuple.mapFirst <|
                                         \m ->
                                             { m
-                                                | data = m.data |> Array.delete i
+                                                | elements = m.elements |> Array.delete i
                                                 , addState = NotAdding
                                             }
                                    )
@@ -451,8 +451,8 @@ update msg model =
                     ( model, Cmd.none )
 
         TrackableMsg i trackableMsg ->
-            case model.data |> Array.get i of
-                Just (Trackable trackable) ->
+            case model.elements |> Array.get i of
+                Just (TrackableElement trackable) ->
                     let
                         updateTrackable : (Chart.Trackable.Model -> ( Chart.Trackable.Model, Cmd Chart.Trackable.Msg )) -> ( Model, Cmd Msg ) -> ( Model, Cmd Msg )
                         updateTrackable fn ( m, c ) =
@@ -460,7 +460,7 @@ update msg model =
                                 ( trackable_, c_ ) =
                                     fn trackable
                             in
-                            ( { m | data = m.data |> Array.set i (Trackable trackable_) }
+                            ( { m | elements = m.elements |> Array.set i (TrackableElement trackable_) }
                             , Cmd.batch [ c, Cmd.map (TrackableMsg i) c_ ]
                             )
                     in
@@ -505,7 +505,7 @@ update msg model =
                                 |> setUserData userData_
                                 |> (updateTrackable <| Chart.Trackable.update userData_ Nothing trackableMsg)
                                 |> (updateChart <| Chart.moveDataSetBack i)
-                                |> (Tuple.mapFirst <| \m -> { m | data = m.data |> Array.swap i (i - 1) })
+                                |> (Tuple.mapFirst <| \m -> { m | elements = m.elements |> Array.swap i (i - 1) })
 
                         Chart.Trackable.TrackableDownClicked ->
                             let
@@ -516,7 +516,7 @@ update msg model =
                                 |> setUserData userData_
                                 |> (updateTrackable <| Chart.Trackable.update userData_ Nothing trackableMsg)
                                 |> (updateChart <| Chart.moveDataSetForward i)
-                                |> (Tuple.mapFirst <| \m -> { m | data = m.data |> Array.swap i (i + 1) })
+                                |> (Tuple.mapFirst <| \m -> { m | elements = m.elements |> Array.swap i (i + 1) })
 
                         Chart.Trackable.TrackableInvertedChanged inverted ->
                             let
@@ -555,7 +555,7 @@ update msg model =
                                     model.userData |> UserData.getTrackable newTrackableId
                             in
                             case ( oldTrackableStateM, newTrackableM ) of
-                                ( Just ( LC.Trackable { multiplier, isInverted }, visible ), Just newTrackable ) ->
+                                ( Just ( LC.TrackableElement { multiplier, isInverted }, visible ), Just newTrackable ) ->
                                     let
                                         userData_ =
                                             model.userData |> UserData.updateLineChart model.chartId (LC.replaceTrackable i newTrackableId newTrackable multiplier isInverted)
@@ -590,7 +590,7 @@ update msg model =
                                 |> (Tuple.mapFirst <|
                                         \m ->
                                             { m
-                                                | data = m.data |> Array.delete i
+                                                | elements = m.elements |> Array.delete i
                                                 , addState = NotAdding
                                             }
                                    )
@@ -600,7 +600,7 @@ update msg model =
 
                         Chart.Trackable.TrackableAddClicked ->
                             case model.userData |> UserData.getLineChart model.chartId |> Maybe.andThen (LC.dataSets >> Array.get i) of
-                                Just ( LC.Trackable { isInverted, multiplier }, _ ) ->
+                                Just ( LC.TrackableElement { isInverted, multiplier }, _ ) ->
                                     let
                                         nextTrackableOption =
                                             model.chartableOptions
@@ -667,7 +667,7 @@ update msg model =
                                                 |> (Tuple.mapFirst <|
                                                         \m ->
                                                             { m
-                                                                | data = m.data |> Array.set i (Chartable newChartableModel)
+                                                                | elements = m.elements |> Array.set i (ChartableElement newChartableModel)
                                                                 , addState = NotAdding
                                                             }
                                                    )
@@ -727,7 +727,7 @@ update msg model =
                                 |> (Tuple.mapFirst <|
                                         \m ->
                                             { m
-                                                | data = m.data |> Array.push (Chartable newChartableModel)
+                                                | elements = m.elements |> Array.push (ChartableElement newChartableModel)
                                                 , addState = NotAdding
                                             }
                                    )
@@ -756,7 +756,7 @@ update msg model =
                                 |> (Tuple.mapFirst <|
                                         \m ->
                                             { m
-                                                | data = m.data |> Array.push (Trackable newTrackableModel)
+                                                | elements = m.elements |> Array.push (TrackableElement newTrackableModel)
                                                 , addState = NotAdding
                                             }
                                    )
@@ -800,7 +800,7 @@ view : Model -> Html Msg
 view model =
     let
         dataCount =
-            Array.length model.data
+            Array.length model.elements
     in
     div [ class "bg-white" ]
         [ h2 [ class "py-4 pb-0 font-bold text-2xl text-center" ]
@@ -818,11 +818,11 @@ view model =
                     ChartNameUpdated
                 ]
             , div [ class "bg-gray-200" ] <|
-                (model.data
+                (model.elements
                     |> Array.indexedMap
                         (\i d ->
                             case d of
-                                Chartable c ->
+                                ChartableElement c ->
                                     Chart.Chartable.view
                                         { canMoveUp = i > 0
                                         , canMoveDown = i < dataCount - 1
@@ -831,7 +831,7 @@ view model =
                                         c
                                         |> List.map (Html.map (ChartableMsg i))
 
-                                Trackable t ->
+                                TrackableElement t ->
                                     Chart.Trackable.view
                                         { canMoveUp = i > 0
                                         , canMoveDown = i < dataCount - 1

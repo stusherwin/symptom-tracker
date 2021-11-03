@@ -266,7 +266,7 @@ init =
 
 updateTrackable : TrackableId -> (Trackable -> Result String Trackable) -> UserData -> UserData
 updateTrackable id fn (UserData data) =
-    case data.trackables |> IdDict.tryUpdate id fn of
+    case data.trackables |> IdDict.update id fn of
         Ok trackables_ ->
             UserData { data | trackables = trackables_ }
 
@@ -292,7 +292,7 @@ addTrackable trackable (UserData data) =
 
 deleteTrackable : TrackableId -> UserData -> UserData
 deleteTrackable id (UserData data) =
-    case data.trackables |> IdDict.tryDelete id of
+    case data.trackables |> IdDict.delete id of
         Ok trackables_ ->
             UserData
                 { data
@@ -319,9 +319,11 @@ moveTrackableDown id (UserData data) =
     UserData { data | activeTrackables = data.activeTrackables |> List.moveTailwardsBy Tuple.first id }
 
 
-updateChartable : ChartableId -> (Chartable -> Chartable) -> UserData -> UserData
+updateChartable : ChartableId -> (Chartable -> Result String Chartable) -> UserData -> UserData
 updateChartable id fn (UserData data) =
-    UserData { data | chartables = data.chartables |> IdDict.update id fn }
+    case data.chartables |> IdDict.update id fn of
+        Ok chartables_ -> UserData { data | chartables = chartables_ }
+        Err err -> UserData { data | errors = err :: data.errors }
 
 
 addChartable : C.New -> UserData -> ( Maybe ( ChartableId, Chartable ), UserData )
@@ -342,7 +344,7 @@ addChartable chartable (UserData data) =
 
 deleteChartable : ChartableId -> UserData -> UserData
 deleteChartable id (UserData data) =
-    case data.chartables |> IdDict.tryDelete id of
+    case data.chartables |> IdDict.delete id of
         Ok chartables_ ->
             UserData
                 { data
@@ -369,9 +371,11 @@ moveChartableDown chartableId (UserData data) =
     UserData { data | activeChartables = data.activeChartables |> List.moveTailwardsBy Tuple.first chartableId }
 
 
-updateLineChart : LineChartId -> (LineChart -> LineChart) -> UserData -> UserData
+updateLineChart : LineChartId -> (LineChart -> Result String LineChart) -> UserData -> UserData
 updateLineChart id fn (UserData data) =
-    UserData { data | lineCharts = data.lineCharts |> IdDict.update id fn }
+    case data.lineCharts |> IdDict.update id fn of
+        Ok lineCharts_ -> UserData { data | lineCharts = lineCharts_ }
+        Err err -> UserData { data | errors = err :: data.errors }
 
 
 addLineChart : LC.New -> UserData -> ( Maybe ( LineChartId, LineChart ), UserData )
@@ -402,7 +406,7 @@ moveLineChartDown id (UserData data) =
 
 deleteLineChart : LineChartId -> UserData -> UserData
 deleteLineChart id (UserData data) =
-    case data.lineCharts |> IdDict.tryDelete id of
+    case data.lineCharts |> IdDict.delete id of
         Ok lineCharts_ ->
             UserData
                 { data

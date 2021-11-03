@@ -65,7 +65,7 @@ responses (Trackable t) =
 
 add : New -> TrackableDict -> Result String ( ( TrackableId, Trackable ), TrackableDict )
 add t dict =
-    dict |> IdDict.tryAdd (Trackable t) |> Result.map (\( id, dict_ ) -> ( ( id, Trackable t ), dict_ ))
+    dict |> IdDict.add (Trackable t) |> Result.map (\( id, dict_ ) -> ( ( id, Trackable t ), dict_ ))
 
 
 setColour : Colour -> Trackable -> Result String Trackable

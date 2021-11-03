@@ -69,10 +69,10 @@ init today userData chartId chart =
                     |> Array.map
                         (\( data, isVisible ) ->
                             case data of
-                                LC.Chartable { chartable } ->
+                                LC.ChartableElement { chartable } ->
                                     DataSet.fromChartable chartable isVisible
 
-                                LC.Trackable { trackable, multiplier, isInverted } ->
+                                LC.TrackableElement { trackable, multiplier, isInverted } ->
                                     DataSet.fromTrackable trackable multiplier isInverted isVisible
                         )
             , selectedDataSet = Nothing
