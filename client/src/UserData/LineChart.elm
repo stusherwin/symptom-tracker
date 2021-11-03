@@ -1,17 +1,32 @@
-module UserData.LineChart exposing (LineChart, LineChartDict, addChartable, decode, deleteChartable, encode, moveChartableDown, moveChartableUp, setFillLines, setName, toggleChartableVisible)
+module UserData.LineChart exposing (LineChart, LineChartData(..), LineChartDict, TrackableData, addChartable, addTrackable, decode, decodeV5, deleteData, encode, moveDataDown, moveDataUp, setFillLines, setName, setTrackableInverted, setTrackableMultiplier, toggleDataVisible)
 
+import Array exposing (Array)
+import Arrayx
 import IdDict exposing (IdDict(..))
 import Json.Decode as D
 import Json.Encode as E
 import Listx
 import UserData.ChartableId as ChartableId exposing (ChartableId)
 import UserData.LineChartId exposing (LineChartId)
+import UserData.TrackableId as TrackableId exposing (TrackableId)
 
 
 type alias LineChart =
     { name : String
     , fillLines : Bool
-    , chartables : List ( ChartableId, Bool )
+    , data : Array ( LineChartData, Bool )
+    }
+
+
+type LineChartData
+    = Chartable ChartableId
+    | Trackable TrackableData
+
+
+type alias TrackableData =
+    { id : TrackableId
+    , multiplier : Float
+    , inverted : Bool
     }
 
 
@@ -30,28 +45,67 @@ setFillLines fl c =
 
 
 addChartable : ChartableId -> LineChart -> LineChart
-addChartable chartableId c =
-    { c | chartables = c.chartables |> Listx.insertLookup chartableId True }
+addChartable id c =
+    { c | data = c.data |> Array.push ( Chartable id, True ) }
 
 
-deleteChartable : ChartableId -> LineChart -> LineChart
-deleteChartable chartableId c =
-    { c | chartables = c.chartables |> List.filter (\( cId, _ ) -> cId /= chartableId) }
+addTrackable : TrackableId -> LineChart -> LineChart
+addTrackable id c =
+    { c | data = c.data |> Array.push ( Trackable { id = id, multiplier = 1, inverted = False }, True ) }
 
 
-toggleChartableVisible : ChartableId -> LineChart -> LineChart
-toggleChartableVisible chartableId c =
-    { c | chartables = c.chartables |> Listx.updateLookup chartableId not }
+setTrackableInverted : Int -> Bool -> LineChart -> LineChart
+setTrackableInverted i inverted c =
+    { c
+        | data =
+            c.data
+                |> Arrayx.update i
+                    (\d ->
+                        case d of
+                            ( Trackable t, visible ) ->
+                                ( Trackable { t | inverted = inverted }, visible )
+
+                            _ ->
+                                d
+                    )
+    }
 
 
-moveChartableUp : ChartableId -> LineChart -> LineChart
-moveChartableUp chartableId c =
-    { c | chartables = c.chartables |> Listx.moveHeadwardsBy Tuple.first chartableId }
+setTrackableMultiplier : Int -> Float -> LineChart -> LineChart
+setTrackableMultiplier i multiplier c =
+    { c
+        | data =
+            c.data
+                |> Arrayx.update i
+                    (\d ->
+                        case d of
+                            ( Trackable t, visible ) ->
+                                ( Trackable { t | multiplier = multiplier }, visible )
+
+                            _ ->
+                                d
+                    )
+    }
 
 
-moveChartableDown : ChartableId -> LineChart -> LineChart
-moveChartableDown chartableId c =
-    { c | chartables = c.chartables |> Listx.moveTailwardsBy Tuple.first chartableId }
+deleteData : Int -> LineChart -> LineChart
+deleteData i c =
+    { c | data = c.data |> Arrayx.delete i }
+
+
+toggleDataVisible : Int -> LineChart -> LineChart
+toggleDataVisible i c =
+    { c | data = c.data |> Arrayx.update i (Tuple.mapSecond not) }
+
+
+moveDataUp : Int -> LineChart -> LineChart
+moveDataUp i c =
+    { c | data = c.data |> Arrayx.swap i (i - 1) }
+
+
+moveDataDown : Int -> LineChart -> LineChart
+moveDataDown i c =
+    { c | data = c.data |> Arrayx.swap i (i + 1) }
 
 
 decode : D.Decoder LineChart
@@ -59,13 +113,13 @@ decode =
     D.map3
         (\name fillLines chartables ->
             { name = name
-            , chartables = chartables
+            , data = chartables |> List.map (Tuple.mapFirst Chartable) |> Array.fromList
             , fillLines = fillLines
             }
         )
         (D.field "name" D.string)
         (D.field "fillLines" D.bool)
-        (D.field "chartables" <|
+        (D.field "data" <|
             D.list <|
                 D.map2 Tuple.pair
                     (D.field "id" ChartableId.decode)
@@ -73,17 +127,64 @@ decode =
         )
 
 
+decodeV5 : D.Decoder LineChart
+decodeV5 =
+    D.map3
+        (\name fillLines data ->
+            { name = name
+            , data = data |> Array.fromList
+            , fillLines = fillLines
+            }
+        )
+        (D.field "name" D.string)
+        (D.field "fillLines" D.bool)
+        (D.field "data" <|
+            D.list <|
+                D.map2 Tuple.pair
+                    (D.field "data" decodeData)
+                    (D.field "visible" D.bool)
+        )
+
+
+decodeData : D.Decoder LineChartData
+decodeData =
+    D.oneOf
+        [ D.map Chartable ChartableId.decode
+        , D.map Trackable <|
+            D.map3
+                TrackableData
+                (D.field "id" TrackableId.decode)
+                (D.field "multiplier" D.float)
+                (D.field "inverted" D.bool)
+        ]
+
+
+encodeData : LineChartData -> E.Value
+encodeData d =
+    case d of
+        Chartable id ->
+            ChartableId.encode id
+
+        Trackable { id, multiplier, inverted } ->
+            E.object
+                [ ( "id", TrackableId.encode id )
+                , ( "multiplier", E.float multiplier )
+                , ( "inverted", E.bool inverted )
+                ]
+
+
 encode : LineChart -> E.Value
 encode c =
     E.object
         [ ( "name", E.string c.name )
         , ( "fillLines", E.bool c.fillLines )
-        , ( "chartables"
-          , c.chartables
+        , ( "data"
+          , c.data
+                |> Array.toList
                 |> E.list
-                    (\( id, visible ) ->
+                    (\( data, visible ) ->
                         E.object
-                            [ ( "id", ChartableId.encode id )
+                            [ ( "data", encodeData data )
                             , ( "visible", E.bool visible )
                             ]
                     )

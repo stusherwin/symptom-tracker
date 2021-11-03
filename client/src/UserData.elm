@@ -1,4 +1,4 @@
-module UserData exposing (UserData, activeChartables, activeLineCharts, activeTrackables, addChartable, addLineChart, addTrackable, chartables, decode, deleteChartable, deleteLineChart, deleteTrackable, encode, getChartable, getChartableColour, getChartableDataPoints, getLineChart, getTrackable, init, lineCharts, moveChartableDown, moveChartableUp, moveData, moveLineChartDown, moveLineChartUp, moveTrackableDown, moveTrackableUp, toggleChartableVisible, toggleTrackableVisible, trackables, updateChartable, updateLineChart, updateTrackable)
+module UserData exposing (UserData, activeChartables, activeLineCharts, activeTrackables, addChartable, addLineChart, addTrackable, chartables, decode, deleteChartable, deleteLineChart, deleteTrackable, encode, getChartable, getChartableColour, getChartableDataPoints, getLineChart, getTrackable, getTrackableDataPoints, init, lineCharts, moveChartableDown, moveChartableUp, moveData, moveLineChartDown, moveLineChartUp, moveTrackableDown, moveTrackableUp, toggleChartableVisible, toggleTrackableVisible, trackables, updateChartable, updateLineChart, updateTrackable)
 
 import Array
 import Colour exposing (Colour(..))
@@ -104,6 +104,27 @@ getChartableDataPoints userData chartable =
            )
 
 
+getTrackableDataPoints : Float -> Bool -> Trackable -> Dict Int Float
+getTrackableDataPoints multiplier inverted trackable =
+    let
+        invert data =
+            case List.maximum <| Dict.values data of
+                Just max ->
+                    data |> Dict.map (\_ v -> max - v)
+
+                _ ->
+                    data
+    in
+    trackable
+        |> (Dict.map (\_ v -> v * multiplier) << Trackable.onlyFloatData)
+        |> (if inverted then
+                invert
+
+            else
+                identity
+           )
+
+
 lineCharts : UserData -> LineChartDict
 lineCharts (UserData data) =
     data.lineCharts
@@ -128,7 +149,6 @@ init =
                 [ ( TrackableId 1
                   , { question = "How did you feel?"
                     , colour = Red
-                    , multiplier = 1.0
                     , data =
                         TIcon (Array.fromList [ SolidTired, SolidFrownOpen, SolidMeh, SolidGrin, SolidLaughBeam ]) <|
                             Dict.fromList
@@ -138,7 +158,6 @@ init =
                 , ( TrackableId 2
                   , { question = "Did you have a bath?"
                     , colour = Green
-                    , multiplier = 1.0
                     , data =
                         TYesNo <|
                             Dict.fromList
@@ -148,7 +167,6 @@ init =
                 , ( TrackableId 3
                   , { question = "Did you smoke?"
                     , colour = Orange
-                    , multiplier = 1.0
                     , data =
                         TYesNo <|
                             Dict.fromList
@@ -158,7 +176,6 @@ init =
                 , ( TrackableId 4
                   , { question = "What was your energy level?"
                     , colour = Blue
-                    , multiplier = 1.0
                     , data =
                         TScale 1
                             11
@@ -170,7 +187,6 @@ init =
                 , ( TrackableId 5
                   , { question = "How many chocolate bars did you eat?"
                     , colour = Pink
-                    , multiplier = 1.0
                     , data =
                         TInt <|
                             Dict.fromList
@@ -180,7 +196,6 @@ init =
                 , ( TrackableId 6
                   , { question = "How many miles did you run?"
                     , colour = Purple
-                    , multiplier = 1.0
                     , data =
                         TFloat <|
                             Dict.fromList
@@ -190,7 +205,6 @@ init =
                 , ( TrackableId 7
                   , { question = "Any other notes?"
                     , colour = Rose
-                    , multiplier = 1.0
                     , data =
                         TText <|
                             Dict.fromList
@@ -252,13 +266,14 @@ init =
                 [ ( LineChartId 1
                   , { name = "All Data"
                     , fillLines = True
-                    , chartables =
-                        [ ( ChartableId 1, True )
-                        , ( ChartableId 2, False )
-                        , ( ChartableId 3, True )
-                        , ( ChartableId 4, True )
-                        , ( ChartableId 5, True )
-                        ]
+                    , data =
+                        Array.fromList
+                            [ ( LineChart.Chartable (ChartableId 1), True )
+                            , ( LineChart.Chartable (ChartableId 2), False )
+                            , ( LineChart.Chartable (ChartableId 3), True )
+                            , ( LineChart.Chartable (ChartableId 4), True )
+                            , ( LineChart.Chartable (ChartableId 5), True )
+                            ]
                     }
                   )
                 ]
@@ -597,7 +612,39 @@ decode =
                 )
                 (D.field "trackables" <| TrackableId.decodeDict Trackable.decode)
                 (D.field "chartables" <| ChartableId.decodeDict Chartable.decode)
-                (D.field "lineCharts" <| LineChartId.decodeDict LineChart.decode)
+                (D.field "lineCharts" <| LineChartId.decodeDict LineChart.decodeV5)
+                (D.field "activeTrackables" <|
+                    D.list <|
+                        D.map2 Tuple.pair
+                            (D.field "id" TrackableId.decode)
+                            (D.field "visible" D.bool)
+                )
+                (D.field "activeChartables" <|
+                    D.list <|
+                        D.map2 Tuple.pair
+                            (D.field "id" ChartableId.decode)
+                            (D.field "visible" D.bool)
+                )
+                (D.field "activeCharts" <|
+                    D.list LineChartId.decode
+                )
+
+        v5 =
+            D.map6
+                (\tbles cbles cts atbles acbles acts ->
+                    UserData
+                        { trackables = tbles
+                        , chartables = cbles
+                        , lineCharts = cts
+                        , activeTrackables = atbles
+                        , activeChartables = acbles
+                        , activeLineCharts = acts
+                        , errors = []
+                        }
+                )
+                (D.field "trackables" <| TrackableId.decodeDict Trackable.decode)
+                (D.field "chartables" <| ChartableId.decodeDict Chartable.decode)
+                (D.field "lineCharts" <| LineChartId.decodeDict LineChart.decodeV5)
                 (D.field "activeTrackables" <|
                     D.list <|
                         D.map2 Tuple.pair
@@ -633,6 +680,9 @@ decode =
 
                         4 ->
                             D.field "data" v4
+
+                        5 ->
+                            D.field "data" v5
 
                         v ->
                             D.fail <| "Unknown version " ++ String.fromInt v

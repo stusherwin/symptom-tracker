@@ -3,6 +3,7 @@ module Page.Settings exposing (Model, Msg(..), init, update, view)
 import Array exposing (Array)
 import Browser.Dom as Dom
 import Chart.Chartable
+import Chart.LineChart as Chart exposing (DataSetId(..))
 import Colour exposing (Colour(..))
 import Controls
 import Dict
@@ -18,6 +19,7 @@ import Task
 import UserData exposing (UserData)
 import UserData.Chartable as Chartable exposing (Chartable)
 import UserData.ChartableId as ChartableId exposing (ChartableId)
+import UserData.LineChart as LineChart exposing (LineChartData(..))
 import UserData.Trackable as Trackable exposing (Trackable, TrackableData(..))
 import UserData.TrackableId as TrackableId exposing (TrackableId)
 
@@ -86,7 +88,7 @@ init userData =
                 |> List.map (Tuple.mapSecond (Tuple.mapFirst .question))
                 |> List.sortBy (String.toUpper << Tuple.first << Tuple.second)
     in
-    { trackables = UserData.activeTrackables userData |> List.map (Tuple.mapSecond toModel)
+    { trackables = UserData.activeTrackables userData |> Listx.mapLookup (toModel userData)
     , chartables =
         UserData.activeChartables userData
             |> (List.map <|
@@ -95,8 +97,17 @@ init userData =
                             canDelete =
                                 UserData.lineCharts userData
                                     |> IdDict.values
-                                    |> List.concatMap .chartables
+                                    |> List.concatMap (Array.toList << .data)
                                     |> List.map Tuple.first
+                                    |> List.filterMap
+                                        (\dataSetId ->
+                                            case dataSetId of
+                                                LineChart.Chartable cId ->
+                                                    Just cId
+
+                                                _ ->
+                                                    Nothing
+                                        )
                                     |> List.member id
                                     |> not
                         in
@@ -108,8 +119,8 @@ init userData =
     }
 
 
-toModel : ( Trackable, Bool ) -> TrackableModel
-toModel ( t, visible ) =
+toModel : UserData -> TrackableId -> ( Trackable, Bool ) -> TrackableModel
+toModel userData tId ( t, visible ) =
     let
         floatData =
             Dict.values <| Trackable.maybeFloatData t
@@ -194,7 +205,24 @@ toModel ( t, visible ) =
                             [ { iconType = SolidQuestionCircle, canDelete = False }
                             , { iconType = SolidQuestionCircle, canDelete = False }
                             ]
-    , canDelete = not <| Trackable.hasData t
+    , canDelete =
+        (not <| Trackable.hasData t)
+            && (UserData.lineCharts userData
+                    |> IdDict.values
+                    |> List.concatMap (Array.toList << .data)
+                    |> List.map Tuple.first
+                    |> List.filterMap
+                        (\dataSetId ->
+                            case dataSetId of
+                                LineChart.Trackable { id } ->
+                                    Just id
+
+                                _ ->
+                                    Nothing
+                        )
+                    |> List.member tId
+                    |> not
+               )
     , answerTypes =
         [ ( AYesNo
           , List.all
@@ -403,7 +431,6 @@ update msg model =
                 trackable =
                     { question = ""
                     , colour = Colour.Red
-                    , multiplier = 1.0
                     , data = TYesNo Dict.empty
                     }
 
@@ -413,7 +440,7 @@ update msg model =
             case idM of
                 Just id ->
                     ( { model
-                        | trackables = model.trackables |> Listx.insertLookup id (toModel ( trackable, True ))
+                        | trackables = model.trackables |> Listx.insertLookup id (toModel userData_ id ( trackable, True ))
                         , editState = EditingTrackable id
                       }
                     , Cmd.batch
@@ -835,15 +862,15 @@ view { trackables, chartables, editState } =
             (Maybe.map Tuple.first << List.head << List.reverse) trackables
 
         firstChartable =
-            (Maybe.map Tuple.first << List.head) chartables
+            (Maybe.map (ChartableId << Tuple.first) << List.head) chartables
 
         lastChartable =
-            (Maybe.map Tuple.first << List.head << List.reverse) chartables
+            (Maybe.map (ChartableId << Tuple.first) << List.head << List.reverse) chartables
 
         selectedChartable =
             case editState of
                 EditingChartable id ->
-                    Just id
+                    Just (ChartableId id)
 
                 _ ->
                     Nothing

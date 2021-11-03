@@ -1,6 +1,6 @@
 module Chart.Chartable exposing (Model, Msg(..), init, toTrackableModel, view)
 
-import Chart.LineChart as Chart
+import Chart.LineChart as Chart exposing (DataSetId(..))
 import Colour exposing (Colour)
 import Controls
 import Date exposing (Unit(..))
@@ -9,12 +9,13 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (onCheck, onMouseEnter, onMouseLeave)
 import Htmlx
 import Maybe exposing (Maybe)
+import Stringx
 import Svg.Icon exposing (IconType(..), icon)
 import Time exposing (Month(..))
 import UserData exposing (UserData)
 import UserData.Chartable as Chartable exposing (Chartable)
 import UserData.ChartableId as ChartableId exposing (ChartableId)
-import UserData.Trackable exposing (TrackableData(..))
+import UserData.Trackable as Trackable exposing (Trackable, TrackableData(..))
 import UserData.TrackableId as TrackableId exposing (TrackableId)
 
 
@@ -89,14 +90,14 @@ type Msg
     | UserDataUpdated UserData
 
 
-view : Maybe ChartableId -> Maybe ChartableId -> Maybe ChartableId -> ( ChartableId, Model ) -> List (Html Msg)
-view first last selectedChartable ( chartableId, model ) =
+view : Maybe DataSetId -> Maybe DataSetId -> Maybe DataSetId -> ( ChartableId, Model ) -> List (Html Msg)
+view first last selectedDataSet ( chartableId, model ) =
     let
         canMoveUp =
-            first /= Just chartableId
+            first /= Just (ChartableId chartableId)
 
         canMoveDown =
-            last /= Just chartableId
+            last /= Just (ChartableId chartableId)
 
         canEditColour =
             List.length model.trackables > 1
@@ -125,11 +126,6 @@ view first last selectedChartable ( chartableId, model ) =
 
             else
                 model.colour
-
-        -- if not model.visible || not (selectedChartable == Nothing || selectedChartable == Just chartableId) then
-        --     Colour.Gray
-        -- else
-        --     model.colour
     in
     [ div
         [ class "border-t-4"
@@ -138,7 +134,7 @@ view first last selectedChartable ( chartableId, model ) =
         , onMouseEnter <| ChartableHovered (Just chartableId)
         , onMouseLeave <| ChartableHovered Nothing
         ]
-        [ if selectedChartable /= Just chartableId then
+        [ if selectedDataSet /= Just (ChartableId chartableId) then
             div
                 [ class "p-4 flex items-center"
                 ]
@@ -156,7 +152,7 @@ view first last selectedChartable ( chartableId, model ) =
                 , if model.visible then
                     span [ class "ml-4 w-full", Htmlx.onClickStopPropagation NoOp ]
                         [ a [ class "block w-full font-bold flex items-center relative text-opacity-70 hover:text-opacity-100 text-black pr-8", href "#", target "_self", Htmlx.onClickPreventDefault (ChartableEditClicked chartableId) ]
-                            [ if selectedChartable == Just chartableId then
+                            [ if selectedDataSet == Just (ChartableId chartableId) then
                                 icon "w-5 h-5 relative -ml-1 mr-0.5" SolidCaretRight
 
                               else
@@ -175,12 +171,7 @@ view first last selectedChartable ( chartableId, model ) =
 
                   else
                     span [ class "ml-4 w-full font-bold" ]
-                        [ text <|
-                            if String.isEmpty model.name then
-                                "[no name]"
-
-                            else
-                                model.name
+                        [ text <| Stringx.withDefault "[no name]" model.name
                         ]
                 , button
                     [ class "ml-4 flex-grow-0 flex-shrink-0 text-black focus:outline-none"
@@ -264,7 +255,7 @@ view first last selectedChartable ( chartableId, model ) =
                     [ icon "w-5 h-5" <| SolidTimes ]
                 ]
         ]
-    , if selectedChartable == Just chartableId then
+    , if selectedDataSet == Just (ChartableId chartableId) then
         div
             [ class "p-4"
             , Colour.classDown "bg" colour

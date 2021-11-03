@@ -1,5 +1,6 @@
 module Page.Charts exposing (Model, Msg(..), init, subscriptions, update, urlChanged, view)
 
+import Array
 import Browser.Dom as Dom
 import Browser.Navigation as Nav
 import Chart.Chartable
@@ -227,7 +228,7 @@ update msg model =
                 newChart =
                     { name = Stringx.nextName chartNames "Line Chart " 1
                     , fillLines = True
-                    , chartables = []
+                    , data = Array.empty
                     }
 
                 ( idM, userData_ ) =

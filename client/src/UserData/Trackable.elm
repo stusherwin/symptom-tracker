@@ -16,7 +16,6 @@ import UserData.TrackableId exposing (TrackableId)
 type alias Trackable =
     { question : String
     , colour : Colour
-    , multiplier : Float
     , data : TrackableData
     }
 
@@ -463,10 +462,9 @@ decode =
         dictInt v =
             D.map Dict.fromList (listInt v)
     in
-    D.map4 Trackable
+    D.map3 Trackable
         (D.field "question" D.string)
         (D.field "colour" Colour.decode)
-        (D.field "multiplier" D.float)
         (D.field "data" <|
             D.oneOf
                 [ D.field "yesNo" <| D.map TYesNo <| D.field "values" <| dictInt D.bool
@@ -502,7 +500,6 @@ encode t =
     E.object
         [ ( "question", E.string t.question )
         , ( "colour", Colour.encode t.colour )
-        , ( "multiplier", E.float t.multiplier )
         , ( "data"
           , case t.data of
                 TYesNo vals ->

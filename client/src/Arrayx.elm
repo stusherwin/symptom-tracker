@@ -1,7 +1,8 @@
 module Arrayx exposing (..)
 
 import Array exposing (Array)
-import Html exposing (a)
+import Html exposing (a, i)
+import Json.Decode exposing (array)
 import Listx
 
 
@@ -13,6 +14,27 @@ update i fn array =
 
         _ ->
             array
+
+
+swap : Int -> Int -> Array a -> Array a
+swap i j array =
+    let
+        i_ =
+            max 0 i
+
+        j_ =
+            min (Array.length array - 1) j
+    in
+    if i_ == j_ then
+        array
+
+    else
+        case ( Array.get i_ array, Array.get j_ array ) of
+            ( Just a, Just b ) ->
+                array |> Array.set i_ b |> Array.set j_ a
+
+            _ ->
+                array
 
 
 delete : Int -> Array a -> Array a
