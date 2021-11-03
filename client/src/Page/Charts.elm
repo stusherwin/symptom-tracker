@@ -1098,13 +1098,44 @@ viewLineChart fullScreen chartableOptions trackableOptions userData ( chartId, m
 
                                                         total =
                                                             List.sum <| List.map (\( _, v, m ) -> v * m) <| data
+
+                                                        invertedTotal =
+                                                            let
+                                                                inverted =
+                                                                    userData
+                                                                        |> UserData.getChartable id
+                                                                        |> Maybe.map .inverted
+                                                                        |> Maybe.withDefault False
+                                                            in
+                                                            if inverted then
+                                                                let
+                                                                    max =
+                                                                        model.data
+                                                                            |> Listx.lookup id
+                                                                            |> Maybe.andThen (List.maximum << Dict.values << .dataPoints)
+                                                                            |> Maybe.withDefault 0
+                                                                in
+                                                                Just ( max, max - total )
+
+                                                            else
+                                                                Nothing
                                                     in
-                                                    [ p [ class "" ] [ text <| Date.format "EEE d MMM y" <| Date.fromRataDie date ]
-                                                    , p [ class "flex justify-between items-baseline" ]
-                                                        [ span []
+                                                    [ p [ class "mt-2 text-sm" ] [ text <| Date.format "EEE d MMM y" <| Date.fromRataDie date ]
+                                                    , p [ class "text-sm flex justify-between items-baseline" ]
+                                                        [ span [] <|
                                                             [ text "Value"
                                                             , span [ class "ml-1 font-bold" ] [ text <| String.fromFloat total ]
                                                             ]
+                                                                ++ (case invertedTotal of
+                                                                        Just ( _, t ) ->
+                                                                            [ span [ class "ml-1" ] [ text "(Inverted: " ]
+                                                                            , span [ class "font-bold" ] [ text <| String.fromFloat t ]
+                                                                            , span [ class "" ] [ text ")" ]
+                                                                            ]
+
+                                                                        _ ->
+                                                                            []
+                                                                   )
                                                         , a
                                                             [ href "#"
                                                             , target "_self"
@@ -1142,6 +1173,29 @@ viewLineChart fullScreen chartableOptions trackableOptions userData ( chartId, m
                                                                                 ]
                                                                         )
                                                                 )
+                                                                    ++ (case invertedTotal of
+                                                                            Just ( max, t ) ->
+                                                                                [ tr []
+                                                                                    [ td [ class "align-baseline" ] []
+                                                                                    , td [ class "pl-2 align-baseline text-right font-bold", colspan 5 ] [ text <| "Total:" ]
+                                                                                    , td [ class "pl-1 align-baseline text-right font-bold" ] [ text <| String.fromFloat total ]
+                                                                                    ]
+                                                                                , tr []
+                                                                                    [ td [ class "align-baseline" ] []
+                                                                                    , td [ class "pl-2 align-baseline text-right", colspan 2 ]
+                                                                                        [ span [ class "font-bold" ] [ text "Inverted: " ]
+                                                                                        , text <| String.fromFloat max ++ " (max value)"
+                                                                                        ]
+                                                                                    , td [ class "pl-1 align-baseline" ] [ icon "w-2 h-2" SolidMinus ]
+                                                                                    , td [ class "pl-1 align-baseline text-right font-bold" ] [ text <| String.fromFloat total ]
+                                                                                    , td [ class "pl-1 align-baseline " ] [ icon "w-2 h-2" SolidEquals ]
+                                                                                    , td [ class "pl-1 align-baseline text-right font-bold" ] [ text <| String.fromFloat t ]
+                                                                                    ]
+                                                                                ]
+
+                                                                            _ ->
+                                                                                []
+                                                                       )
                                                             ]
 
                                                       else
