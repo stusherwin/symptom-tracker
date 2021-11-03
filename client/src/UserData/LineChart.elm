@@ -1,4 +1,4 @@
-module UserData.LineChart exposing (LineChart, LineChartData(..), LineChartDict, TrackableData, addChartable, addTrackable, decode, decodeV5, deleteData, encode, moveDataDown, moveDataUp, replaceTrackableWithChartable, setFillLines, setName, setTrackableInverted, setTrackableMultiplier, toggleDataVisible)
+module UserData.LineChart exposing (LineChart, LineChartData(..), LineChartDict, TrackableData, addChartable, addTrackable, decode, decodeV5, deleteData, encode, moveDataDown, moveDataUp, replaceTrackable, replaceTrackableWithChartable, setFillLines, setName, setTrackableInverted, setTrackableMultiplier, toggleDataVisible)
 
 import Array exposing (Array)
 import Arrayx
@@ -57,6 +57,11 @@ addTrackable id c =
 replaceTrackableWithChartable : Int -> ChartableId -> LineChart -> LineChart
 replaceTrackableWithChartable i id c =
     { c | data = c.data |> Array.set i ( Chartable id, True ) }
+
+
+replaceTrackable : Int -> TrackableId -> Float -> Bool -> LineChart -> LineChart
+replaceTrackable i id multiplier inverted c =
+    { c | data = c.data |> Array.set i ( Trackable { id = id, multiplier = multiplier, inverted = inverted }, True ) }
 
 
 setTrackableInverted : Int -> Bool -> LineChart -> LineChart

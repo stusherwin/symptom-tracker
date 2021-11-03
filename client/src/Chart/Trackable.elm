@@ -28,11 +28,12 @@ type alias Model =
     , multiplier : String
     , isValid : Bool
     , canDelete : Bool
+    , options : List ( TrackableId, ( String, Bool ) )
     }
 
 
-init : Bool -> Trackable -> Float -> Bool -> Bool -> Model
-init canDelete trackable multiplier inverted visible =
+init : List ( TrackableId, ( String, Bool ) ) -> Bool -> Trackable -> Float -> Bool -> Bool -> Model
+init options canDelete trackable multiplier inverted visible =
     { question = trackable.question
     , colour = trackable.colour
     , visible = visible
@@ -40,6 +41,7 @@ init canDelete trackable multiplier inverted visible =
     , canDelete = canDelete
     , multiplier = String.fromFloat multiplier
     , isValid = True
+    , options = options
     }
 
 
@@ -47,6 +49,7 @@ type Msg
     = NoOp
     | TrackableHovered (Maybe TrackableId)
     | TrackableEditClicked TrackableId
+    | TrackableChanged (Maybe TrackableId)
     | TrackableCloseClicked
     | TrackableVisibleClicked TrackableId
     | TrackableUpClicked TrackableId
@@ -192,9 +195,18 @@ view first last selectedDataSet ( trackableId, model ) =
             [ div [ class "mt-4 first:mt-0 flex" ]
                 [ icon "mt-3 w-4 h-4 ml-0.5 mr-0.5 flex-grow-0 flex-shrink-0" <|
                     SolidEquals
-                , span [ class "ml-4 mt-2 w-full font-bold" ]
-                    [ text <| Stringx.withDefault "[no question]" model.question
-                    ]
+                , Controls.textDropdown "ml-4 w-full h-10"
+                    TrackableChanged
+                    TrackableId.toString
+                    TrackableId.fromString
+                    (model.options |> List.map (\( tId, ( q, visible ) ) -> ( ( tId, visible || tId == trackableId ), q )))
+                    Nothing
+                    (Just trackableId)
+                    { showFilled = False }
+
+                -- , span [ class "ml-4 mt-2 w-full font-bold" ]
+                --     [ text <| Stringx.withDefault "[no question]" model.question
+                --     ]
                 , icon "mt-3 ml-4 w-4 h-4 flex-grow-0 flex-shrink-0" SolidTimes
                 , Controls.textbox [ class "ml-4 w-20 flex-grow-0 flex-shrink-0" ] [] model.multiplier { isValid = model.isValid, isRequired = True, isPristine = False } (TrackableMultiplierUpdated trackableId)
                 ]
