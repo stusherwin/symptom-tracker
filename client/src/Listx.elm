@@ -135,6 +135,11 @@ updateLookup id fn list =
                 ( xId, x ) :: updateLookup id fn xs
 
 
+mapLookup : (id -> a -> b) -> List ( id, a ) -> List ( id, b )
+mapLookup fn =
+    List.map (\( id, x ) -> ( id, fn id x ))
+
+
 insertLookup : id -> a -> List ( id, a ) -> List ( id, a )
 insertLookup id newX list =
     case list of

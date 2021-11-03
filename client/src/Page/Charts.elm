@@ -5,6 +5,7 @@ import Controls
 import Date exposing (Date, Unit(..))
 import Html exposing (..)
 import Html.Attributes exposing (..)
+import Htmlx
 import IdDict
 import Listx
 import Stringx
@@ -30,9 +31,8 @@ init : Date -> UserData -> ( Model, Cmd Msg )
 init today userData =
     let
         chartsWithCmds =
-            UserData.lineCharts userData
-                |> IdDict.map (toChartModel today userData)
-                |> IdDict.toList
+            UserData.activeLineCharts userData
+                |> Listx.mapLookup (toChartModel today userData)
     in
     ( { today = today
       , charts = chartsWithCmds |> List.map (\( id, ( chart, _ ) ) -> ( id, chart ))
@@ -69,6 +69,9 @@ subscriptions model =
 
 type Msg
     = ChartAddClicked
+    | ChartDeleteClicked LineChartId
+    | ChartUpClicked LineChartId
+    | ChartDownClicked LineChartId
     | UserDataUpdated UserData
     | ChartMsg LineChartId Chart.Msg
 
@@ -130,6 +133,39 @@ update msg model =
                 _ ->
                     ( model, Cmd.none )
 
+        ChartDeleteClicked chartId ->
+            let
+                userData_ =
+                    model.userData |> UserData.deleteLineChart chartId
+            in
+            ( model
+                |> setUserData userData_
+                |> (\m -> { m | charts = m.charts |> List.filter (\( id, _ ) -> id /= chartId) })
+            , Task.perform UserDataUpdated <| Task.succeed userData_
+            )
+
+        ChartUpClicked chartId ->
+            let
+                userData_ =
+                    model.userData |> UserData.moveLineChartUp chartId
+            in
+            ( model
+                |> setUserData userData_
+                |> (\m -> { m | charts = m.charts |> Listx.moveHeadwardsBy Tuple.first chartId })
+            , Task.perform UserDataUpdated <| Task.succeed userData_
+            )
+
+        ChartDownClicked chartId ->
+            let
+                userData_ =
+                    model.userData |> UserData.moveLineChartDown chartId
+            in
+            ( model
+                |> setUserData userData_
+                |> (\m -> { m | charts = m.charts |> Listx.moveTailwardsBy Tuple.first chartId })
+            , Task.perform UserDataUpdated <| Task.succeed userData_
+            )
+
         _ ->
             ( model, Cmd.none )
 
@@ -143,25 +179,66 @@ view model =
     div
         [ class "bg-white"
         ]
-    <|
-        h2 [ class "mb-4 py-4 pb-0 font-bold text-2xl text-center" ]
+        [ h2 [ class "py-4 font-bold text-2xl text-center" ]
             [ text "Charts" ]
-            :: (model.charts
-                    |> List.map
-                        (\( chartId, chart ) ->
-                            div
-                                [ class "mb-12" ]
-                                [ div [ class "ml-8 mb-2 px-4" ]
-                                    [ a [ class "block w-full font-bold flex items-center relative text-opacity-70 hover:text-opacity-100 text-black", href <| "/charts/" ++ LineChartId.toString chartId ]
-                                        [ span [] [ text <| Stringx.withDefault "[no name]" chart.name ]
-                                        , icon "absolute right-4 w-5 h-5" SolidPencilAlt
-                                        ]
+        , div []
+            (model.charts
+                |> List.map
+                    (\( chartId, chart ) ->
+                        let
+                            canMoveUp =
+                                (Maybe.map Tuple.first << List.head) model.charts /= Just chartId
+
+                            canMoveDown =
+                                (Maybe.map Tuple.first << List.head << List.reverse) model.charts /= Just chartId
+                        in
+                        div
+                            [ class "mt-12 first:mt-0" ]
+                            [ div [ class "ml-8 mb-2 px-4 flex items-center" ]
+                                [ a [ class "block w-full font-bold flex items-center relative text-opacity-70 hover:text-opacity-100 text-black", href <| "/charts/" ++ LineChartId.toString chartId ]
+                                    [ span [] [ text <| Stringx.withDefault "[no name]" chart.name ]
+                                    , icon "absolute right-0 w-5 h-5" SolidPencilAlt
                                     ]
-                                , Html.map (ChartMsg chartId) (Chart.view chart)
+                                , button
+                                    [ class "ml-4 rounded text-black text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
+                                    , Htmlx.onClickStopPropagation (ChartDeleteClicked chartId)
+                                    ]
+                                    [ icon "w-5 h-5" <| SolidTrashAlt ]
+                                , button
+                                    [ class "ml-4 flex-grow-0 flex-shrink-0 text-black focus:outline-none"
+                                    , classList
+                                        [ ( "text-opacity-50 cursor-default", not canMoveUp )
+                                        , ( "text-opacity-70 hover:text-opacity-100 focus:text-opacity-100", canMoveUp )
+                                        ]
+                                    , Htmlx.onClickStopPropagation <| ChartUpClicked chartId
+                                    , disabled (not canMoveUp)
+                                    ]
+                                    [ icon "w-5 h-5" <| SolidArrowUp
+                                    ]
+                                , button
+                                    [ class "ml-1 flex-grow-0 flex-shrink-0 text-black focus:outline-none"
+                                    , classList
+                                        [ ( "text-opacity-50 cursor-default", not canMoveDown )
+                                        , ( "text-opacity-70 hover:text-opacity-100 focus:text-opacity-100", canMoveDown )
+                                        ]
+                                    , Htmlx.onClickStopPropagation <| ChartDownClicked chartId
+                                    , disabled (not canMoveDown)
+                                    ]
+                                    [ icon "w-5 h-5" <| SolidArrowDown
+                                    ]
                                 ]
-                        )
-               )
-            ++ [ div [ class "px-4 py-2 bg-gray-300 border-t-4 border-gray-400 flex" ]
-                    [ Controls.button "" Controls.ButtonGrey ChartAddClicked SolidPlusCircle "Add new chart" True
-                    ]
-               ]
+                            , Html.map (ChartMsg chartId) (Chart.view chart)
+                            ]
+                    )
+            )
+        , div [ class "px-4 py-2 bg-gray-300 border-t-4 border-gray-400 flex" ]
+            [ Controls.button "" Controls.ButtonGrey ChartAddClicked SolidPlusCircle "Add new chart" True
+            ]
+        ]
+
+
+
+--   ((
+--             ))
+-- ++ [
+--    ]))

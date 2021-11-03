@@ -650,7 +650,7 @@ viewLineChart model =
                         , button
                             [ class "ml-4 flex-grow-0 flex-shrink-0 text-black focus:outline-none"
                             , classList
-                                [ ( "text-opacity-0 cursor-default", not canMoveUp )
+                                [ ( "text-opacity-50 cursor-default", not canMoveUp )
                                 , ( "text-opacity-70 hover:text-opacity-100 focus:text-opacity-100", canMoveUp )
                                 ]
                             , Htmlx.onClickStopPropagation <| ChartableUpClicked chartableId
@@ -661,7 +661,7 @@ viewLineChart model =
                         , button
                             [ class "ml-1 flex-grow-0 flex-shrink-0 text-black focus:outline-none"
                             , classList
-                                [ ( "text-opacity-0 cursor-default", not canMoveDown )
+                                [ ( "text-opacity-50 cursor-default", not canMoveDown )
                                 , ( "text-opacity-70 hover:text-opacity-100 focus:text-opacity-100", canMoveDown )
                                 ]
                             , Htmlx.onClickStopPropagation <| ChartableDownClicked chartableId
