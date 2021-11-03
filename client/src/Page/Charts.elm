@@ -35,10 +35,14 @@ type alias Model =
 
 
 type alias LineChartModel =
-    { addingChartable : Bool
-    , chartableToAdd : Maybe ChartableId
-    , newChartable : Bool
+    { editState : LineChartModelState
     }
+
+
+type LineChartModelState
+    = NotEditing
+    | AddingChartable (Maybe ChartableId)
+    | EditingChartable ChartableId Bool
 
 
 type alias ChartableModel =
@@ -102,9 +106,7 @@ toChartModel today chartables trackables chart =
     , selectedDataSet = Nothing
     , hoveredDataSet = Nothing
     , selectedDataPoint = Nothing
-    , addingChartable = False
-    , chartableToAdd = Nothing
-    , newChartable = False
+    , editState = NotEditing
     }
 
 
@@ -224,6 +226,17 @@ update msg model =
 
         updateUserData fn m =
             { m | userData = m.userData |> fn }
+
+        updateSelectedDataSet c =
+            { c
+                | selectedDataSet =
+                    case c.editState of
+                        EditingChartable chartableId _ ->
+                            Just chartableId
+
+                        _ ->
+                            Nothing
+            }
     in
     case msg of
         FillLinesChecked chartId fl ->
@@ -236,12 +249,12 @@ update msg model =
             ( model |> (updateChartModel chartId <| Graph.hoverDataSet chartableId), Cmd.none )
 
         ChartableEditClicked chartId chartableId ->
-            ( model |> (updateChartModel chartId <| Graph.toggleDataSetSelected chartableId)
+            ( model |> (updateChartModel chartId <| updateSelectedDataSet << (\c -> { c | editState = EditingChartable chartableId False }))
             , Task.attempt (always NoOp) <| Dom.focus <| "chart" ++ LineChart.idToString chartId ++ "-chartable" ++ Chartable.idToString chartableId ++ "-name"
             )
 
         ChartableCloseClicked chartId chartableId ->
-            ( model |> (updateChartModel chartId <| (Graph.toggleDataSetSelected chartableId << \c -> {c | newChartable = False })), Cmd.none )
+            ( model |> (updateChartModel chartId <| updateSelectedDataSet << (\c -> { c | editState = NotEditing })), Cmd.none )
 
         ChartableVisibleClicked chartId chartableId ->
             ( model |> (updateChartModel chartId <| Graph.toggleDataSet chartableId), Cmd.none )
@@ -299,15 +312,18 @@ update msg model =
         ChartableAddClicked chartId ->
             ( model
                 |> (updateChartModel chartId <|
-                        \c ->
-                            { c
-                                | addingChartable = True
-                                , chartableToAdd =
-                                    model.chartableOptions
-                                        |> List.map Tuple.first
-                                        |> List.filter (\tId -> not (List.member tId <| IdDict.keys c.data))
-                                        |> List.head
-                            }
+                        updateSelectedDataSet
+                            << (\c ->
+                                    { c
+                                        | editState =
+                                            AddingChartable
+                                                (model.chartableOptions
+                                                    |> List.map Tuple.first
+                                                    |> List.filter (\tId -> not (List.member tId <| IdDict.keys c.data))
+                                                    |> List.head
+                                                )
+                                    }
+                               )
                    )
             , Cmd.none
             )
@@ -315,10 +331,12 @@ update msg model =
         ChartableToAddChanged chartId chartableId ->
             ( model
                 |> (updateChartModel chartId <|
-                        \c ->
-                            { c
-                                | chartableToAdd = chartableId
-                            }
+                        updateSelectedDataSet
+                            << (\c ->
+                                    { c
+                                        | editState = AddingChartable chartableId
+                                    }
+                               )
                    )
             , Cmd.none
             )
@@ -326,12 +344,13 @@ update msg model =
         ChartableAddConfirmClicked chartId ->
             let
                 ( chartableIdM, userDataU, isNew ) =
-                    case model.charts |> Listx.lookup chartId |> Maybe.andThen .chartableToAdd of
-                        Just id ->
-                            ( Just id, model.userData, False )
+                    case model.charts |> Listx.lookup chartId |> Maybe.map .editState of
+                        Just (AddingChartable (Just chartableId)) ->
+                            ( Just chartableId, model.userData, False )
 
-                        _ ->
-                            let (id, userData) = 
+                        Just (AddingChartable _) ->
+                            let
+                                ( chartableId, userData ) =
                                     model.userData
                                         |> UserData.addChartable
                                             { name = ""
@@ -339,7 +358,11 @@ update msg model =
                                             , inverted = False
                                             , sum = []
                                             }
-                            in (id, userData, True)
+                            in
+                            ( chartableId, userData, True )
+
+                        _ ->
+                            ( Nothing, model.userData, False )
 
                 chartablesU =
                     UserData.chartables userDataU
@@ -362,20 +385,33 @@ update msg model =
                         , charts =
                             model.charts
                                 |> (Listx.updateLookup chartId <|
-                                        \c ->
-                                            { c
-                                                | data = c.data |> IdDict.insert chartableId newChartableModel
-                                                , dataOrder = chartableId :: c.dataOrder
-                                                , addingChartable = False
-                                                , chartableToAdd = Nothing
-                                                , selectedDataSet = if isNew then Just chartableId else Nothing
-                                                , newChartable = isNew
-                                            }
+                                        updateSelectedDataSet
+                                            << (\c ->
+                                                    { c
+                                                        | data = c.data |> IdDict.insert chartableId newChartableModel
+                                                        , dataOrder = chartableId :: c.dataOrder
+                                                        , editState =
+                                                            if isNew then
+                                                                EditingChartable chartableId True
+
+                                                            else
+                                                                NotEditing
+                                                        , selectedDataSet =
+                                                            if isNew then
+                                                                Just chartableId
+
+                                                            else
+                                                                Nothing
+                                                    }
+                                               )
                                    )
                         , chartableOptions = model.chartableOptions |> Listx.insertLookup chartableId (Stringx.withDefault "[no name]" newChartableModel.name)
                       }
-                    , if isNew then Task.attempt (always NoOp) <| Dom.focus <| "chart" ++ LineChart.idToString chartId ++ "-chartable" ++ Chartable.idToString chartableId ++ "-name"
-                    else Cmd.none
+                    , if isNew then
+                        Task.attempt (always NoOp) <| Dom.focus <| "chart" ++ LineChart.idToString chartId ++ "-chartable" ++ Chartable.idToString chartableId ++ "-name"
+
+                      else
+                        Cmd.none
                     )
 
                 _ ->
@@ -384,11 +420,12 @@ update msg model =
         ChartableAddCancelClicked chartId ->
             ( model
                 |> (updateChartModel chartId <|
-                        \c ->
-                            { c
-                                | addingChartable = False
-                                , chartableToAdd = Nothing
-                            }
+                        updateSelectedDataSet
+                            << (\c ->
+                                    { c
+                                        | editState = NotEditing
+                                    }
+                               )
                    )
             , Cmd.none
             )
@@ -605,12 +642,54 @@ viewLineChart chartableOptions trackableOptions ( chartId, model ) =
                             , Colour.class "bg" dataSet.colour
                             , Colour.classUp "border" dataSet.colour
                             , classList
-                                [ ( "bg-opacity-50", not dataSet.visible )
+                                [ ( "grayscale", not dataSet.visible )
                                 ]
                             , onMouseEnter <| ChartableHovered chartId (Just chartableId)
                             , onMouseLeave <| ChartableHovered chartId Nothing
                             ]
-                            [ if model.selectedDataSet /= Just chartableId then
+                            [ if model.editState == EditingChartable chartableId True || model.editState == EditingChartable chartableId False then
+                                div
+                                    [ class "px-4 py-2 flex items-center"
+                                    ]
+                                    [ button
+                                        [ class "text-black focus:outline-none flex-grow-0 flex-shrink-0"
+                                        , classList
+                                            [ ( "text-opacity-30 hover:text-opacity-50 focus:text-opacity-50", not dataSet.visible )
+                                            , ( "text-opacity-70 hover:text-opacity-100 focus:text-opacity-100", dataSet.visible )
+                                            ]
+                                        , Htmlx.onClickStopPropagation <| ChartableVisibleClicked chartId chartableId
+                                        ]
+                                        [ icon "w-5 h-5" <|
+                                            if dataSet.visible then
+                                                SolidEye
+
+                                            else
+                                                SolidEyeSlash
+                                        ]
+                                    , Controls.textbox [ class "ml-4 w-72" ]
+                                        [ id <| "chart" ++ LineChart.idToString chartId ++ "-chartable" ++ Chartable.idToString chartableId ++ "-name"
+                                        , placeholder "Name"
+                                        ]
+                                        dataSet.name
+                                        { isValid = True, isRequired = True, isPristine = dataSet.nameIsPristine }
+                                        (ChartableNameUpdated chartId chartableId)
+                                    , label [ class "ml-auto font-bold text-right whitespace-nowrap", for "inverted" ] [ text "Invert data" ]
+                                    , input
+                                        [ type_ "checkbox"
+                                        , id "inverted"
+                                        , class "ml-2"
+                                        , onCheck (ChartableInvertedChanged chartId chartableId)
+                                        , checked dataSet.inverted
+                                        ]
+                                        []
+                                    , button
+                                        [ class "ml-4 rounded text-black text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
+                                        , onClick (ChartableCloseClicked chartId chartableId)
+                                        ]
+                                        [ icon "w-5 h-5" <| SolidTimes ]
+                                    ]
+
+                              else
                                 div
                                     [ class "p-4 flex items-center"
                                     ]
@@ -670,51 +749,14 @@ viewLineChart chartableOptions trackableOptions ( chartId, model ) =
                                         ]
                                         [ icon "w-5 h-5" <| SolidPencilAlt ]
                                     ]
-
-                              else
-                                div
-                                    [ class "px-4 py-2 flex items-center"
-                                    ]
-                                    [ button
-                                        [ class "text-black focus:outline-none flex-grow-0 flex-shrink-0"
-                                        , classList
-                                            [ ( "text-opacity-30 hover:text-opacity-50 focus:text-opacity-50", not dataSet.visible )
-                                            , ( "text-opacity-70 hover:text-opacity-100 focus:text-opacity-100", dataSet.visible )
-                                            ]
-                                        , Htmlx.onClickStopPropagation <| ChartableVisibleClicked chartId chartableId
-                                        ]
-                                        [ icon "w-5 h-5" <|
-                                            if dataSet.visible then
-                                                SolidEye
-
-                                            else
-                                                SolidEyeSlash
-                                        ]
-                                    , Controls.textbox [ class "ml-4 w-72" ] [ 
-                                        id <| "chart" ++ LineChart.idToString chartId ++ "-chartable" ++ Chartable.idToString chartableId ++ "-name"
-                                        , placeholder "Name" ] dataSet.name { isValid = True, isRequired = True, isPristine = dataSet.nameIsPristine } (ChartableNameUpdated chartId chartableId)
-                                    , label [ class "ml-auto font-bold text-right whitespace-nowrap", for "inverted" ] [ text "Invert data" ]
-                                    , input
-                                        [ type_ "checkbox"
-                                        , id "inverted"
-                                        , class "ml-2"
-                                        , onCheck (ChartableInvertedChanged chartId chartableId)
-                                        , checked dataSet.inverted
-                                        ]
-                                        []
-                                    , button
-                                        [ class "ml-4 rounded text-black text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
-                                        , onClick (ChartableCloseClicked chartId chartableId)
-                                        ]
-                                        [ icon "w-5 h-5" <| SolidTimes ]
-                                    ]
                             ]
-                        , if model.selectedDataSet == Just chartableId then
+                        , if model.editState == EditingChartable chartableId True || model.editState == EditingChartable chartableId False then
                             div
                                 [ class "p-4"
                                 , Colour.classDown "bg" dataSet.colour
                                 , classList
-                                    [ ( "bg-opacity-50", not dataSet.visible )
+                                    -- [ ( "bg-opacity-50", not dataSet.visible )
+                                    [ ( "grayscale", not dataSet.visible )
                                     ]
                                 ]
                             <|
@@ -798,43 +840,44 @@ viewLineChart chartableOptions trackableOptions ( chartId, model ) =
                 []
             ]
         , div [ class "mt-4 bg-gray-200" ] <|
-            [ if model.addingChartable then
-                div [ class "px-4 py-2 bg-gray-300 border-t-4 border-gray-400 flex" ]
-                    [ Controls.textDropdown "w-full h-10"
-                        (ChartableToAddChanged chartId)
-                        Chartable.idToString
-                        Chartable.idFromString
-                        (chartableOptions
-                            |> List.sortBy (String.toUpper << Tuple.second)
-                            |> List.map
-                                (\( cId, name ) ->
-                                    ( ( cId
-                                      , not <|
-                                            List.member cId <|
-                                                model.dataOrder
-                                      )
-                                    , name
+            [ case model.editState of
+                AddingChartable addingChartableId ->
+                    div [ class "px-4 py-2 bg-gray-300 border-t-4 border-gray-400 flex" ]
+                        [ Controls.textDropdown "w-full h-10"
+                            (ChartableToAddChanged chartId)
+                            Chartable.idToString
+                            Chartable.idFromString
+                            (chartableOptions
+                                |> List.sortBy (String.toUpper << Tuple.second)
+                                |> List.map
+                                    (\( cId, name ) ->
+                                        ( ( cId
+                                          , not <|
+                                                List.member cId <|
+                                                    model.dataOrder
+                                          )
+                                        , name
+                                        )
                                     )
-                                )
-                        )
-                        (Just "New chartable")
-                        model.chartableToAdd
-                        { showFilled = False }
-                    , Controls.button "ml-4" Controls.ButtonGrey (ChartableAddConfirmClicked chartId) SolidPlusCircle "Add" True
-                    , button
-                        [ class "ml-4 rounded text-black text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
-                        , onClick (ChartableAddCancelClicked chartId)
+                            )
+                            (Just "New chartable")
+                            addingChartableId
+                            { showFilled = False }
+                        , Controls.button "ml-4" Controls.ButtonGrey (ChartableAddConfirmClicked chartId) SolidPlusCircle "Add" True
+                        , button
+                            [ class "ml-4 rounded text-black text-opacity-70 hover:text-opacity-100 focus:text-opacity-100 focus:outline-none"
+                            , onClick (ChartableAddCancelClicked chartId)
+                            ]
+                            [ icon "w-5 h-5" <| SolidTimes ]
                         ]
-                        [ icon "w-5 h-5" <| SolidTimes ]
-                    ]
 
-              else if model.newChartable then
-                div [] []
+                EditingChartable _ True ->
+                    div [] []
 
-              else
-                div [ class "px-4 py-2 bg-gray-300 border-t-4 border-gray-400 flex" ]
-                    [ Controls.button "" Controls.ButtonGrey (ChartableAddClicked chartId) SolidPlusCircle "Add chartable" True
-                    ]
+                _ ->
+                    div [ class "px-4 py-2 bg-gray-300 border-t-4 border-gray-400 flex" ]
+                        [ Controls.button "" Controls.ButtonGrey (ChartableAddClicked chartId) SolidPlusCircle "Add chartable" True
+                        ]
             ]
                 ++ List.concat viewChartables
         ]
