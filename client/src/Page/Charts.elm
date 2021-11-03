@@ -732,6 +732,7 @@ viewLineChart chartableOptions trackableOptions ( chartId, model ) =
                                                     Trackable.idToString
                                                     Trackable.idFromString
                                                     (trackableOptions
+                                                        |> List.sortBy (String.toUpper << Tuple.second)
                                                         |> List.map
                                                             (\( tId, question ) ->
                                                                 ( ( tId
@@ -803,6 +804,7 @@ viewLineChart chartableOptions trackableOptions ( chartId, model ) =
                         Chartable.idToString
                         Chartable.idFromString
                         (chartableOptions
+                            |> List.sortBy (String.toUpper << Tuple.second)
                             |> List.map
                                 (\( cId, name ) ->
                                     ( ( cId

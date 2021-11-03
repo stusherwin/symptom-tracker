@@ -550,7 +550,7 @@ viewQuestion id q =
             [ Controls.textbox [ class "w-full" ] [ A.id <| "q-" ++ Trackable.idToString id ] q.question { isValid = True, isRequired = False, isPristine = False } (QuestionTextUpdated id)
             ]
         , div [ class "flex justify-start items-end" ]
-            [ Controls.textDropdown "mt-4 w-48 h-10 flex-shrink-0 flex-grow-0" (QuestionAnswerTypeUpdated id) answerTypeToString answerTypeFromString answerTypes Nothing (Just q.answerType) { showFilled = False }
+            [ Controls.textDropdown "mt-4 w-48 h-10 flex-shrink-0 flex-grow-0" (QuestionAnswerTypeUpdated id) answerTypeToString answerTypeFromString (answerTypes |> List.sortBy (String.toUpper << Tuple.second)) Nothing (Just q.answerType) { showFilled = False }
             , Controls.colourDropdown "ml-auto flex-shrink-0 flex-grow-0" (QuestionColourUpdated id) (Just q.colour) { showFilled = False }
             ]
         ]
